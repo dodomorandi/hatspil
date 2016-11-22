@@ -1,0 +1,16 @@
+Welcome to HatsPil!
+
+HatsPil is a a Python pipeline for High-Throughput Sequencing analysis.
+It has been designed to be used inside our laboratory, the Salvatore Oliviero
+lab within the HuGef institute, TO (IT). Whoever find it useful or a good
+starting point to develop his own pipeline is encouraged to use and hack the
+code.
+
+As for any Python package, use the setup.py script to build and install
+the package inside your system. Python 3 is required.
+
+One of the most important file is the config.ini. It can be obtained passing
+only '--configout config.ini' to the program, and it is recommended to modify
+the resulting file. The program will scan for a file with this name in the
+current directory, otherwise it must be specified explicitly with the "-c"
+parameter.
