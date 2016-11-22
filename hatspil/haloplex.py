@@ -182,7 +182,7 @@ class Haloplex:
             '{config.gatk} -T RealignerTargetCreator -R {config.genome_ref} '
             '-I {self.analysis.basename}.srt.reorder.bam -nt 15 -known {config.indel_1} '
             '-known {config.indel_2} -L {config.target_list} -ip 50 -o '
-            '{self.analysis.basename}.realignment.intervals'),
+            '{self.output_basename}.realignment.intervals'),
             self.analysis.logger
         )
 
@@ -222,7 +222,7 @@ class Haloplex:
         retval = utils.run_and_log(f(
             '{config.gatk} -T BaseRecalibrator -R {config.genome_ref} -I '
             '{self.analysis.basename}.srt.realigned.bam -nct 20 -knownSites '
-            '{config.dbsnp138} -o {self.analysis.basename}.recalibration.table',
+            '{config.dbsnp138} -o {self.output_basename}.recalibration.table',
             ),
             self.analysis.logger
         )
