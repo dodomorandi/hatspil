@@ -21,9 +21,13 @@ class Analysis:
         if not os.path.exists(self.out_dir):
             os.makedirs(self.out_dir)
 
+        logs_dir = os.path.join(self.root, "logs")
+        if not os.path.exists(logs_dir):
+            os.makedirs(logs_dir)
+
         self.logger = logging.getLogger(self.basename)
         self.log_handler = logging.FileHandler(
-            os.path.join(self.root, self.basename + ".steps.txt"))
+            os.path.join(logs_dir, self.basename + ".steps.txt"))
         self.log_handler.setFormatter(
             logging.Formatter("%(asctime)s-15 %(message)s")
         )
