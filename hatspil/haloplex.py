@@ -10,8 +10,12 @@ class Haloplex:
         self.analysis = analysis
         self.fastq_dir = fastq_dir
         self.sample_base = "%s/%s" % (self.fastq_dir, self.analysis.sample)
+        self.output_basename = os.path.join("REPORTS", self.analysis.basename)
         self.fastq_R1 = self.sample_base + "_R1.fastq"
         self.fastq_R2 = self.sample_base + "_R2.fastq"
+
+        if not os.path.exists(os.path.join(self.analysis.bam_dir, "REPORTS")):
+            os.makedirs(os.path.join(self.analysis.bam_dir, "REPORTS"))
 
     def chdir(self):
         os.chdir(self.analysis.bam_dir)
@@ -260,7 +264,7 @@ class Haloplex:
             '{config.picard} CollectHsMetrics '
             'I={self.analysis.basename}.srt.realigned.recal.bam BI={config.bait_list} '
             'TI={config.target_list} R={config.genome_ref} '
-            'O={self.analysis.basename}.hs_metrics.txt MAX_RECORDS_IN_RAM=1500000',
+            'O={self.output_basename}.hs_metrics.txt MAX_RECORDS_IN_RAM=1500000',
             ),
             self.analysis.logger
         )
@@ -273,9 +277,9 @@ class Haloplex:
             '{config.picard} CollectTargetedPcrMetrics '
             'I={self.analysis.basename}.srt.realigned.recal.bam AMPLICON_INTERVALS='
             '{config.bait_list} TARGET_INTERVALS={config.target_list} '
-            'R={config.genome_ref} O={self.analysis.basename}.targeted_metrics.txt '
+            'R={config.genome_ref} O={self.output_basename}.targeted_metrics.txt '
             'MAX_RECORDS_IN_RAM=1500000 '
-            'PER_BASE_COVERAGE={self.analysis.basename}.coverage.txt',
+            'PER_BASE_COVERAGE={self.output_basename}.coverage.txt',
             ),
             self.analysis.logger
         )
