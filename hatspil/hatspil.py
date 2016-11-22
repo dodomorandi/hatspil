@@ -11,6 +11,7 @@ from multiprocessing import Pool
 import functools
 import smtplib
 from email.mime.text import MIMEText
+import traceback
 
 
 def run(filename, config, root, fastq_dir):
@@ -71,13 +72,17 @@ def main():
     logging.basicConfig(format="%(asctime)-15s %(message)s")
     runner = functools.partial(run, root=root, fastq_dir=fastq_dir, config=config)
 
+    error_raised = False
     try:
         with Pool(5) as pool:
             pool.map(runner, filenames)
         msg = MIMEText("Pipeline for file list %s successfully completed." % list_file)
         msg["Subject"] = "Pipeline completed"
-    except Exception as err:
-        msg = MIMEText("Error while executing pipeline for file list %s.\nRaised exception:\n%s" % (list_file, err))
+    except Exception:
+        error_raised = True
+        traceback.print_exc(file=sys.stdout)
+
+        msg = MIMEText("Error while executing pipeline for file list %s.\nRaised exception:\n%s" % (list_file, traceback.format_exc()))
         msg["Subject"] = "Pipeline error"
 
     msg["From"] = "UV2000 Pipeline <pipeline@uv2000.hugef>"
@@ -86,3 +91,6 @@ def main():
     smtp = smtplib.SMTP("localhost")
     smtp.send_message(msg)
     smtp.quit()
+
+    if error_raised:
+        exit(-1)
