@@ -12,6 +12,7 @@ import functools
 import smtplib
 from email.mime.text import MIMEText
 import traceback
+import argparse
 
 
 def run(filename, config, root, fastq_dir):
@@ -26,21 +27,44 @@ def run(filename, config, root, fastq_dir):
     varscan.run()
 
 
-def main():
-    usage = "Usage: %s list_file root_dir fastq_dir\n"\
-            "       %s --configout config.ini"\
-            % (sys.argv[0], sys.argv[0])
+def get_parser():
+    parser = argparse.ArgumentParser(
+        description="Makes your life easier when performing some HTS "
+                    "analysis.")
+    parser.add_argument("--configout", action="store",
+                        metavar="filename",
+                        help="Dumps a default (almost empty configuration) in "
+                        "a file.\nWhen this option is passed, any other "
+                        "option will be ignored and the program will exit "
+                        "after the file is being written.")
+    parser.add_argument("list_file",
+                        nargs="?",
+                        help="The name of the file containing "
+                        "the name of the samples, one by line.")
+    parser.add_argument("root_dir",
+                        nargs="?",
+                        help="The root directory for the analysis",
+                        )
+    parser.add_argument("fastq_dir",
+                        nargs="?",
+                        help="The directory where the fastq files of the "
+                        "samples are located.")
 
-    if len(sys.argv) == 3:
-        if sys.argv[1] == "--configout":
-            config = Config()
-            config.save(sys.argv[2])
-            exit(0)
-        else:
-            print(usage)
-            exit(-1)
-    elif len(sys.argv) != 4:
-        print(usage)
+    return parser
+
+
+def main():
+    parser = get_parser()
+    args = parser.parse_args()
+    if args.configout is not None:
+        config = Config()
+        config.save(args.configout)
+        print("Sample config written to '%s'" % args.configout)
+        exit(0)
+    elif not args.list_file or not args.root_dir or not args.fastq_dir:
+        print("list_file, root_dir and fastq_dir are mandatory unless "
+              "--configout is specified")
+        parser.print_usage()
         exit(-1)
 
     if os.path.exists("config.ini"):
@@ -48,41 +72,45 @@ def main():
     else:
         config = Config()
 
-    list_file = sys.argv[1]
-    root = sys.argv[2]
-    fastq_dir = sys.argv[3]
-
-    if not os.path.exists(list_file):
-        print("ERROR: list_file '%s' does not exist." % list_file)
+    if not os.path.exists(args.list_file):
+        print("ERROR: list_file '%s' does not exist." % args.list_file)
         exit(-2)
 
-    if not os.path.isdir(root):
-        print("ERROR: root_dir '%s' is not a valid directory." % root)
+    if not os.path.isdir(args.root_dir):
+        print("ERROR: root_dir '%s' is not a valid directory." % args.root_dir)
         exit(-2)
 
-    if not os.path.isdir(fastq_dir):
-        print("ERROR: fastq_dir '%s' is not a valid directory." % fastq_dir)
+    if not os.path.isdir(args.fastq_dir):
+        print("ERROR: fastq_dir '%s' is not a valid directory." % args.fastq_dir)
         exit(-3)
 
     filenames = []
-    with open(list_file) as fd:
+    with open(args.list_file) as fd:
         for line in fd:
             filenames.append(line.strip())
 
     logging.basicConfig(format="%(asctime)-15s %(message)s")
-    runner = functools.partial(run, root=root, fastq_dir=fastq_dir, config=config)
+    runner = functools.partial(
+        run,
+        root=args.root_dir,
+        fastq_dir=args.fastq_dir,
+        config=config)
 
     error_raised = False
     try:
         with Pool(5) as pool:
             pool.map(runner, filenames)
-        msg = MIMEText("Pipeline for file list %s successfully completed." % list_file)
+        msg = MIMEText(
+            "Pipeline for file list %s successfully completed." %
+            args.list_file)
         msg["Subject"] = "Pipeline completed"
     except Exception:
         error_raised = True
         traceback.print_exc(file=sys.stdout)
 
-        msg = MIMEText("Error while executing pipeline for file list %s.\nRaised exception:\n%s" % (list_file, traceback.format_exc()))
+        msg = MIMEText(
+            "Error while executing pipeline for file list %s.\nRaised exception:\n%s" %
+            (args.list_file, traceback.format_exc()))
         msg["Subject"] = "Pipeline error"
 
     msg["From"] = "UV2000 Pipeline <pipeline@uv2000.hugef>"
