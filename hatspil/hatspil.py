@@ -13,6 +13,7 @@ import smtplib
 from email.mime.text import MIMEText
 import traceback
 import argparse
+import re
 
 
 def run(filename, config, root, fastq_dir):
@@ -46,16 +47,18 @@ def get_parser():
                         "raised.")
     parser.add_argument("--no-mail", dest="mail", action="store_false",
                         help="Do not send emails.")
-    parser.add_argument("list_file",
-                        nargs="?",
-                        help="The name of the file containing "
-                        "the name of the samples, one by line.")
-    parser.add_argument("root_dir",
-                        nargs="?",
+
+    list_file_group = parser.add_mutually_exclusive_group(required=False)
+    list_file_group.add_argument("--list_file", action="store",
+                                 help="The name of the file containing "
+                                 "the name of the samples, one by line.")
+    list_file_group.add_argument("--scan-samples", action="store_true",
+                                 help="Scan for sample files instead of "
+                                 "reading them from a file")
+    parser.add_argument("--root_dir", action="store",
                         help="The root directory for the analysis",
                         )
-    parser.add_argument("fastq_dir",
-                        nargs="?",
+    parser.add_argument("--fastq_dir", action="store",
                         help="The directory where the fastq files of the "
                         "samples are located.")
 
@@ -70,9 +73,10 @@ def main():
         config.save(args.configout)
         print("Sample config written to '%s'" % args.configout)
         exit(0)
-    elif not args.list_file or not args.root_dir or not args.fastq_dir:
-        print("list_file, root_dir and fastq_dir are mandatory unless "
-              "--configout is specified")
+    elif (not args.list_file and not args.scan_samples) or \
+            not args.root_dir or not args.fastq_dir:
+        print("list_file (or --scan-samples), root_dir and fastq_dir are "
+              "mandatory unless --configout is specified")
         parser.print_usage()
         exit(-1)
 
@@ -93,7 +97,7 @@ def main():
                   "directory.")
             exit(-1)
 
-    if not os.path.exists(args.list_file):
+    if args.list_file is not None and not os.path.exists(args.list_file):
         print("ERROR: list_file '%s' does not exist." % args.list_file)
         exit(-2)
 
@@ -107,10 +111,26 @@ def main():
             args.fastq_dir)
         exit(-3)
 
-    filenames = []
-    with open(args.list_file) as fd:
-        for line in fd:
-            filenames.append(line.strip())
+    if args.list_file:
+        filenames = []
+        with open(args.list_file) as fd:
+            for line in fd:
+                filenames.append(line.strip())
+    elif args.scan_samples:
+        fastq_files = [
+            filename
+            for filename in os.listdir
+            (args.fastq_dir)
+            if re.search(R"\.fastq$", filename, re.I)]
+        filenames = list(
+            set(
+                [re.sub
+                 (R"([._]R[12])?\.fastq$", "", filename, flags=re.I)
+                    for filename in
+                    fastq_files
+                    if not re.search(R"trimmed|clipped", filename, re.I)]))
+    else:
+        raise RuntimeError("Unhandled condition")
 
     logging.basicConfig(format="%(asctime)-15s %(message)s")
     runner = functools.partial(
