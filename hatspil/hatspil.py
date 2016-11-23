@@ -37,6 +37,13 @@ def get_parser():
                         "a file.\nWhen this option is passed, any other "
                         "option will be ignored and the program will exit "
                         "after the file is being written.")
+    parser.add_argument("--config", "-c", action="store",
+                        metavar="config.ini",
+                        help="Select the configuration file. If it is not "
+                        "specified, the program will try to search for a file "
+                        "called 'config.ini' in the current working "
+                        "directory. If it is not available, an error will be "
+                        "raised.")
     parser.add_argument("list_file",
                         nargs="?",
                         help="The name of the file containing "
@@ -67,10 +74,22 @@ def main():
         parser.print_usage()
         exit(-1)
 
-    if os.path.exists("config.ini"):
-        config = Config("config.ini")
+    if args.config is not None:
+        if os.path.exists(args.config):
+            config = Config(args.config)
+        else:
+            print("ERROR: config file '%s' does not exist." % args.config)
+            exit(-1)
     else:
-        config = Config()
+        if os.path.exists("config.ini"):
+            config = Config("config.ini")
+        else:
+            print("ERROR: config file 'config.ini' does not exist in the "
+                  "current directory.\nPlease use '--configout' option to "
+                  "create a config file, then specify it with the '--config' "
+                  "option or just name it 'config.ini' and put in the current "
+                  "directory.")
+            exit(-1)
 
     if not os.path.exists(args.list_file):
         print("ERROR: list_file '%s' does not exist." % args.list_file)
@@ -81,7 +100,9 @@ def main():
         exit(-2)
 
     if not os.path.isdir(args.fastq_dir):
-        print("ERROR: fastq_dir '%s' is not a valid directory." % args.fastq_dir)
+        print(
+            "ERROR: fastq_dir '%s' is not a valid directory." %
+            args.fastq_dir)
         exit(-3)
 
     filenames = []
