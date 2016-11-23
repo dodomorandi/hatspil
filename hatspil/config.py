@@ -13,6 +13,9 @@ class Config:
         self.mutect = "-Xmx128g -jar mutect.jar "\
             "--analysis_type MuTect --enable_extended_output"
         self.samtools = "samtools"
+        self.xenome = "xenome"
+        self.xenome_index = "xenome_idx"
+        self.xenome_threads = 1
         self.genome_ref = 'ucsc.hg19.fasta'
         self.hg19_index = "ucsc.hg19"
         self.cosmic = "Cosmic.hg19.vcf"
@@ -48,6 +51,9 @@ class Config:
         default["java7"] = self.java7
         default["mutect"] = self.mutect
         default["samtools"] = self.samtools
+        default["xenome"] = self.xenome
+        default["xenome_index"] = self.xenome_index
+        default["xenome_threads"] = str(self.xenome_threads)
         default["genome_ref"] = self.genome_ref
         default["hg19_index"] = self.hg19_index
         default["cosmic"] = self.cosmic

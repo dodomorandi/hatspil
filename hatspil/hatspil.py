@@ -2,6 +2,7 @@ from .haloplex import Haloplex
 from .mutect import Mutect
 from .varscan import VarScan
 from .analysis import Analysis
+from .xenograft import Xenograft
 from .config import Config
 
 import logging
@@ -16,12 +17,16 @@ import argparse
 import re
 
 
-def run(filename, config, root, fastq_dir):
+def run(filename, config, root, run_xenome, fastq_dir):
     analysis = Analysis(filename, root, config)
 
     haloplex = Haloplex(analysis, fastq_dir)
     mutect = Mutect(analysis)
     varscan = VarScan(analysis)
+
+    if run_xenome:
+        xenograft = Xenograft(analysis, fastq_dir)
+        xenograft.run()
 
     haloplex.run()
     mutect.run()
@@ -47,6 +52,9 @@ def get_parser():
                         "raised.")
     parser.add_argument("--no-mail", dest="mail", action="store_false",
                         help="Do not send emails.")
+    parser.add_argument("--xenograft", action="store_true",
+                        help="Perform a preliminary xenograft analysis using "
+                        "xenome")
 
     list_file_group = parser.add_mutually_exclusive_group(required=False)
     list_file_group.add_argument("--list_file", action="store",
@@ -137,6 +145,7 @@ def main():
         run,
         root=args.root_dir,
         fastq_dir=args.fastq_dir,
+        run_xenome=args.xenograft,
         config=config)
 
     error_raised = False
