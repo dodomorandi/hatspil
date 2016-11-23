@@ -9,13 +9,17 @@ class Haloplex:
     def __init__(self, analysis, fastq_dir):
         self.analysis = analysis
         self.fastq_dir = fastq_dir
-        self.sample_base = "%s/%s" % (self.fastq_dir, self.analysis.sample)
+        self.sample_base = os.path.join(self.fastq_dir, self.analysis.sample)
+        self.sample_base_out = os.path.join(self.fastq_dir, "REPORTS", self.analysis.sample)
         self.output_basename = os.path.join("REPORTS", self.analysis.basename)
         self.fastq_R1 = self.sample_base + "_R1.fastq"
         self.fastq_R2 = self.sample_base + "_R2.fastq"
 
         if not os.path.exists(os.path.join(self.analysis.bam_dir, "REPORTS")):
             os.makedirs(os.path.join(self.analysis.bam_dir, "REPORTS"))
+
+        if not os.path.exists(os.path.join(self.fastq_dir, "REPORTS")):
+            os.makedirs(os.path.join(self.fastq_dir, "REPORTS"))
 
     def chdir(self):
         os.chdir(self.analysis.bam_dir)
@@ -27,7 +31,7 @@ class Haloplex:
             'cutadapt -a AGATCGGAAGAGCACACGTCTGAACTCCAG -A AGATCGGAAGAGCGTCGTGTAGGGAAAGAG '
             '-m 20 -o "{self.sample_base}.clipped.R1.fastq" -p '
             '"{self.sample_base}.clipped.R2.fastq" {self.fastq_R1} {self.fastq_R2} > '
-            '"{self.sample_base}.cutadapt.txt"'),
+            '"{self.sample_base_out}.cutadapt.txt"'),
             self.analysis.logger
         )
 
