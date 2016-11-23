@@ -44,6 +44,8 @@ def get_parser():
                         "called 'config.ini' in the current working "
                         "directory. If it is not available, an error will be "
                         "raised.")
+    parser.add_argument("--no-mail", dest="mail", action="store_false",
+                        help="Do not send emails.")
     parser.add_argument("list_file",
                         nargs="?",
                         help="The name of the file containing "
@@ -121,25 +123,30 @@ def main():
     try:
         with Pool(5) as pool:
             pool.map(runner, filenames)
-        msg = MIMEText(
-            "Pipeline for file list %s successfully completed." %
-            args.list_file)
-        msg["Subject"] = "Pipeline completed"
+
+        if args.mail:
+            msg = MIMEText(
+                "Pipeline for file list %s successfully completed." %
+                args.list_file)
+            msg["Subject"] = "Pipeline completed"
     except Exception:
         error_raised = True
         traceback.print_exc(file=sys.stdout)
 
-        msg = MIMEText(
-            "Error while executing pipeline for file list %s.\nRaised exception:\n%s" %
-            (args.list_file, traceback.format_exc()))
-        msg["Subject"] = "Pipeline error"
+        if args.mail:
+            msg = MIMEText(
+                "Error while executing pipeline for file list %s.\n"
+                "Raised exception:\n%s" %
+                (args.list_file, traceback.format_exc()))
+            msg["Subject"] = "Pipeline error"
 
-    msg["From"] = "UV2000 Pipeline <pipeline@uv2000.hugef>"
-    msg["To"] = config.mails
+    if args.mail:
+        msg["From"] = "UV2000 Pipeline <pipeline@uv2000.hugef>"
+        msg["To"] = config.mails
 
-    smtp = smtplib.SMTP("localhost")
-    smtp.send_message(msg)
-    smtp.quit()
+        smtp = smtplib.SMTP("localhost")
+        smtp.send_message(msg)
+        smtp.quit()
 
     if error_raised:
         exit(-1)
