@@ -44,6 +44,7 @@ class Xenograft:
     def fix_fastq(self):
         self.analysis.logger.info("Fixing xenome fastq")
         self.chdir()
+        self.analysis.last_operation_filenames = []
         fastq_files = [
             "%s_%s_%d.fastq" % tuple([self.analysis.sample] +
                                      list(combo))
@@ -60,6 +61,8 @@ class Xenograft:
                         out_fd.write("+\n")
                     else:
                         out_fd.write("%s\n" % line.strip())
+
+            self.analysis.last_operation_filenames.append(out_filename)
 
         other_fastq = [
             "%s_%s_%d.fastq" % tuple([self.analysis.sample] +
