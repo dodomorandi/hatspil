@@ -1,5 +1,7 @@
 import datetime
 import subprocess
+import re
+from .exceptions import PipelineError
 
 
 def get_current():
@@ -25,3 +27,10 @@ def run_and_log(command, logger):
                 logger.warning(line)
 
         return process.wait()
+
+
+def get_read_index(filename):
+    match = re.search(R"[._]R([12])[._]", filename)
+    if not match:
+        raise PipelineError("cannot find R1/R2 pattern in filename")
+    return int(match.group(1))

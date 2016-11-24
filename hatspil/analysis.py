@@ -14,6 +14,7 @@ class Analysis:
         self.out_dir = os.path.join(self.root, "Variants", "Panel")
         self.bamfile = None
         self.config = config
+        self.last_operation_filenames = None
 
         if not os.path.exists(self.root):
             os.makedirs(self.root)
