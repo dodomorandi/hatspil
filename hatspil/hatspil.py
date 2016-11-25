@@ -1,4 +1,4 @@
-from .haloplex import Haloplex
+from .mapping import Mapping
 from .mutect import Mutect
 from .varscan import VarScan
 from .analysis import Analysis
@@ -17,18 +17,18 @@ import argparse
 import re
 
 
-def run(filename, config, root, run_xenome, fastq_dir):
-    analysis = Analysis(filename, root, config)
+def run(filename, config, root, parameters, fastq_dir):
+    analysis = Analysis(filename, root, config, parameters)
 
-    haloplex = Haloplex(analysis, fastq_dir)
+    mapping = Mapping(analysis, fastq_dir)
     mutect = Mutect(analysis)
     varscan = VarScan(analysis)
 
-    if run_xenome:
+    if parameters["run_xenome"]:
         xenograft = Xenograft(analysis, fastq_dir)
         xenograft.run()
 
-    haloplex.run()
+    mapping.run()
     mutect.run()
     varscan.run()
 
@@ -52,9 +52,12 @@ def get_parser():
                         "raised.")
     parser.add_argument("--no-mail", dest="mail", action="store_false",
                         help="Do not send emails.")
+    parser.add_argument("--no-cutadapt", dest="cutadapt",
+                        action="store_false", help="Skips cutadapt.")
     parser.add_argument("--xenograft", action="store_true",
                         help="Perform a preliminary xenograft analysis using "
-                        "xenome")
+                        "xenome. When this option is enabled, cutadapt is "
+                        "skipped.")
 
     list_file_group = parser.add_mutually_exclusive_group(required=False)
     list_file_group.add_argument("--list_file", action="store",
@@ -140,12 +143,16 @@ def main():
     else:
         raise RuntimeError("Unhandled condition")
 
+    parameters = {
+        "run_xenome": args.xenograft,
+        "run_cutadapt": args.cutadapt and not args.xenograft
+    }
     logging.basicConfig(format="%(asctime)-15s %(message)s")
     runner = functools.partial(
         run,
         root=args.root_dir,
         fastq_dir=args.fastq_dir,
-        run_xenome=args.xenograft,
+        parameters=parameters,
         config=config)
 
     error_raised = False

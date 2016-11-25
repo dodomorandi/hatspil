@@ -5,14 +5,15 @@ import os
 
 
 class Analysis:
-    def __init__(self, sample, root, config):
+    def __init__(self, sample, root, config, parameters):
         self.sample = sample
         self.root = root
         self.current = utils.get_current()
+        self.parameters = parameters
         self.basename = "%s.%s" % (self.sample, self.current)
         self.bam_dir = os.path.join(self.root, "BAM", "Panel")
         self.out_dir = os.path.join(self.root, "Variants", "Panel")
-        self.bamfile = None
+        self.bamfiles = None
         self.config = config
         self.last_operation_filenames = None
 

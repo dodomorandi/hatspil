@@ -44,13 +44,14 @@ class Xenograft:
     def fix_fastq(self):
         self.analysis.logger.info("Fixing xenome fastq")
         self.chdir()
-        self.analysis.last_operation_filenames = []
-        fastq_files = [
-            "%s_%s_%d.fastq" % tuple([self.analysis.sample] +
-                                     list(combo))
-            for combo in itertools.product(["hg19", "mm10"], range(1, 3))]
+        self.analysis.last_operation_filenames = {}
+        re_fastq_filename = re.compile(R"^%s_((?:hg|mm)\d+)_([12])\.fastq$" % self.analysis.sample, re.I)
+        fastq_files = [filename for filename in os.listdir() if re_fastq_filename.match(filename)]
         for filename in fastq_files:
-            out_filename = re.sub(R"(hg19|mm10)_([12])", R"\1_R\2", filename)
+            match = re_fastq_filename.match(filename)
+            organism = match.group(1)
+            read_index = int(match.group(2))
+            out_filename = "%s_%s_R%d.fastq" % (self.analysis.sample, organism, read_index)
             with open(filename, "r") as in_fd,\
                     open(out_filename, "w") as out_fd:
                 for line_index, line in enumerate(in_fd):
@@ -62,7 +63,12 @@ class Xenograft:
                     else:
                         out_fd.write("%s\n" % line.strip())
 
-            self.analysis.last_operation_filenames.append(out_filename)
+            if not organism in self.analysis.last_operation_filenames:
+                self.analysis.last_operation_filenames[organism] = []
+            self.analysis.last_operation_filenames[organism].append(
+                os.path.join(
+                    os.getcwd(),
+                    out_filename))
 
         other_fastq = [
             "%s_%s_%d.fastq" % tuple([self.analysis.sample] +

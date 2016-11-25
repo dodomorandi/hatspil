@@ -2,6 +2,7 @@ from configparser import ConfigParser
 
 
 class Config:
+
     def __init__(self, filename=None):
         self.novoalign = "novoalign"
         self.picard = 'java -Xmx128g -jar picard.jar'
@@ -16,10 +17,18 @@ class Config:
         self.xenome = "xenome"
         self.xenome_index = "xenome_idx"
         self.xenome_threads = 1
-        self.genome_ref = 'ucsc.hg19.fasta'
+        self.hg19_ref = 'ucsc.hg19.fasta'
         self.hg19_index = "ucsc.hg19"
-        self.cosmic = "Cosmic.hg19.vcf"
-        self.dbsnp138 = 'dbsnp_138.hg19.vcf'
+        self.hg38_ref = 'ucsc.hg38.fasta'
+        self.hg38_index = "ucsc.hg38"
+        self.mm9_ref = 'ucsc.mm9.fasta'
+        self.mm9_index = "ucsc.mm9"
+        self.mm10_ref = 'ucsc.mm10.fasta'
+        self.mm10_index = "ucsc.mm10"
+        self.cosmic_hg19 = "Cosmic.hg19.vcf"
+        self.cosmic_hg38 = "Cosmic.hg38.vcf"
+        self.dbsnp138_hg19 = 'dbsnp_138.hg19.vcf'
+        self.dbsnp138_hg38 = 'dbsnp_138.hg38.vcf'
         self.mean_len_library = 200
         self.sd_len_library = 100
         self.kit = "Kit"
@@ -36,6 +45,7 @@ class Config:
             for key in default_section:
                 setattr(self, key, default_section[key])
 
+            self.xenome_threads = int(self.xenome_threads)
             self.mean_len_library = int(self.mean_len_library)
             self.sd_len_library = int(self.sd_len_library)
 
@@ -54,10 +64,18 @@ class Config:
         default["xenome"] = self.xenome
         default["xenome_index"] = self.xenome_index
         default["xenome_threads"] = str(self.xenome_threads)
-        default["genome_ref"] = self.genome_ref
+        default["hg19_ref"] = self.hg19_ref
         default["hg19_index"] = self.hg19_index
-        default["cosmic"] = self.cosmic
-        default["dpsnp138"] = self.dbsnp138
+        default["hg38_ref"] = self.hg38_ref
+        default["hg38_index"] = self.hg38_index
+        default["mm9_ref"] = self.mm9_ref
+        default["mm9_index"] = self.mm9_index
+        default["mm10_ref"] = self.mm10_ref
+        default["mm10_index"] = self.mm10_index
+        default["cosmic_hg19"] = self.cosmic_hg19
+        default["cosmic_hg38"] = self.cosmic_hg38
+        default["dpsnp138_hg19"] = self.dbsnp138_hg19
+        default["dpsnp138_hg38"] = self.dbsnp138_hg38
         default["mean_len_library"] = str(self.mean_len_library)
         default["sd_len_library"] = str(self.sd_len_library)
         default["kit"] = self.kit
