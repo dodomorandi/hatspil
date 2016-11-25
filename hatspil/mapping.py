@@ -25,6 +25,9 @@ class Mapping:
         if not os.path.exists(os.path.join(self.fastq_dir, "REPORTS")):
             os.makedirs(os.path.join(self.fastq_dir, "REPORTS"))
 
+        self.max_records_str = utils.get_picard_max_records_string(
+            self.analysis.parameters["max_picard_records"])
+
     def chdir(self):
         os.chdir(self.analysis.bam_dir)
 
@@ -234,7 +237,8 @@ class Mapping:
                 'I={filename} '
                 'O={output_file} RGID={self.analysis.basename} '
                 'RGLB=lib1 RGPL=ILLUMINA RGPU={config.kit} '
-                'RGSM={self.analysis.basename}',  # MAX_RECORDS_IN_RAM=100000
+                'RGSM={self.analysis.basename}'
+                '{self.max_records_str}',
                 ),
                 self.analysis.logger
             )
@@ -289,7 +293,8 @@ class Mapping:
             retval = utils.run_and_log(f(
                 '{config.picard} SortSam '
                 'I={filename} '
-                'O={output_file} SO=coordinate'),
+                'O={output_file} SO=coordinate'
+                '{self.max_records_str}'),
                 self.analysis.logger
             )
             output_files[organism] = os.path.join(os.getcwd(), output_file)
@@ -321,7 +326,8 @@ class Mapping:
                 '{config.picard} ReorderSam '
                 'I={filename} '
                 'O={output_file} R={genome_ref} '
-                'CREATE_INDEX=true ',  # MAX_RECORDS_IN_RAM=1000000
+                'CREATE_INDEX=true'
+                '{self.max_records_str}',
                 ),
                 self.analysis.logger
             )
@@ -523,8 +529,8 @@ class Mapping:
                 'I={filename} '
                 'BI={config.bait_list} '
                 'TI={config.target_list} R={genome_ref} '
-                'O={self.output_basename}{organism_str}.hs_metrics.txt '
-                'MAX_RECORDS_IN_RAM=1500000'),
+                'O={self.output_basename}{organism_str}.hs_metrics.txt'
+                '{self.max_records_str}'),
                 self.analysis.logger)
 
             if retval != 0:
@@ -538,8 +544,8 @@ class Mapping:
                   'I={filename} AMPLICON_INTERVALS='
                   '{config.bait_list} TARGET_INTERVALS={config.target_list} '
                   'R={genome_ref} '
-                  'O={self.output_basename}{organism_str}.targeted_metrics.txt '
-                  'MAX_RECORDS_IN_RAM=1500000 '
+                  'O={self.output_basename}{organism_str}.targeted_metrics.txt'
+                  '{self.max_records_str} '
                   'PER_BASE_COVERAGE={self.output_basename}{organism_str}.coverage.txt',),
                 self.analysis.logger)
 

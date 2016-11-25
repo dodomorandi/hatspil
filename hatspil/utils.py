@@ -101,3 +101,8 @@ def get_cosmic_by_organism(config, organism):
         raise RuntimeError("Invalid organism")
 
 
+def get_picard_max_records_string(max_records):
+    if max_records is None or max_records == "":
+        return ""
+    else:
+        return " MAX_RECORDS_IN_RAM=%d" % int(max_records)

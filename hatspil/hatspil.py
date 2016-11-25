@@ -58,6 +58,9 @@ def get_parser():
                         help="Perform a preliminary xenograft analysis using "
                         "xenome. When this option is enabled, cutadapt is "
                         "skipped.")
+    parser.add_argument("--max-picard-records", action="store",
+                        help="Sets the MAX_RECORDS_IN_RAM for Picard. "
+                        "If unspecified, the parameter is not passed.")
 
     list_file_group = parser.add_mutually_exclusive_group(required=False)
     list_file_group.add_argument("--list_file", action="store",
@@ -145,7 +148,8 @@ def main():
 
     parameters = {
         "run_xenome": args.xenograft,
-        "run_cutadapt": args.cutadapt and not args.xenograft
+        "run_cutadapt": args.cutadapt and not args.xenograft,
+        "max_picard_records": args.max_picard_records
     }
     logging.basicConfig(format="%(asctime)-15s %(message)s")
     runner = functools.partial(
