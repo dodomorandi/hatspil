@@ -60,10 +60,13 @@ def get_parser():
                         "the program will check some R depencencies and, "
                         "if some packages are found missing, it will try to "
                         "install them.")
+    parser.add_argument("--mark-duplicates", action="store_true",
+                        help="Mark PCR duplicates during mapping phase. "
+                        "Automatically enabled by --xenograft option.")
     parser.add_argument("--xenograft", action="store_true",
                         help="Perform a preliminary xenograft analysis using "
                         "xenome. When this option is enabled, cutadapt is "
-                        "skipped.")
+                        "skipped and duplicates are marked.")
     parser.add_argument("--post-recalibration", action="store_true",
                         help="Perform a post-recalibration analysis after the "
                         "basic recalibration.")
@@ -165,6 +168,7 @@ def main():
     parameters = {
         "run_xenome": args.xenograft,
         "run_cutadapt": args.cutadapt and not args.xenograft,
+        "mark_duplicates": args.mark_duplicates or args.xenograft,
         "run_post_recalibration": args.post_recalibration,
         "compress_fastq": args.compress_fastq,
         "gatk_threads": args.gatk_threads,

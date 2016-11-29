@@ -371,8 +371,7 @@ class Mapping:
                 'I={filename} '
                 'O={output_file} '
                 'M={self.output_basename}{organism_str}.marked_dup_metrics.txt '
-                'CREATE_INDEX=true '
-                'SO=coordinate'
+                'CREATE_INDEX=true'
                 '{self.max_records_str}'),
                 self.analysis.logger
             )
@@ -519,14 +518,12 @@ class Mapping:
             genome_ref = utils.get_genome_ref_index_by_organism(
                 config,
                 organism)[0]
-            retval = utils.run_and_log(f(
-                '{config.gatk} -T PrintReads -R {genome_ref} -I '
-                '{filename} -nct {self.gatk_threads} '
-                '-BQSR {self.output_basename}{organism_str}.recalibration.table -o '
-                '{output_file}',
-                ),
-                self.analysis.logger
-            )
+            retval = utils.run_and_log(
+                f('{config.gatk} -T PrintReads -R {genome_ref} -I '
+                  '{filename} -nct {self.gatk_threads} '
+                  '-BQSR {self.output_basename}{organism_str}.recalibration.table -o '
+                  '{output_file}'),
+                self.analysis.logger)
 
             if retval != 0:
                 self.analysis.logger.error(
@@ -547,6 +544,7 @@ class Mapping:
 
         self.analysis.last_operation_filenames = output_files
         self.analysis.last_operation_filenames.update(ignored_files)
+        self.analysis.bamfiles = self.analysis.last_operation_filenames
 
         if not self.analysis.parameters["run_post_recalibration"]:
             self.analysis.logger.info("Finished recalibration")
@@ -652,7 +650,6 @@ class Mapping:
             os.unlink(filename[:-4] + ".bai")
 
         self.analysis.last_operation_filenames = output_files
-        self.analysis.bamfiles = self.analysis.last_operation_filenames
         self.analysis.bamfiles = self.analysis.last_operation_filenames
         self.analysis.logger.info("Finished recalibration")
 
@@ -790,6 +787,8 @@ class Mapping:
         self.trim()
         self.align()
         self.sort_bam()
+        if self.analysis.parameters["mark_duplicates"]:
+            self.mark_duplicates()
         self.indel_realign()
         self.recalibration()
         self.metrics_collection()
