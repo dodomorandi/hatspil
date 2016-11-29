@@ -54,11 +54,27 @@ def get_parser():
                         help="Do not send emails.")
     parser.add_argument("--no-cutadapt", dest="cutadapt",
                         action="store_false", help="Skips cutadapt.")
+    parser.add_argument("--no-R-checks", dest="r_checks",
+                        action="store_false",
+                        help="Skips some R dependency checks. If omitted, "
+                        "the program will check some R depencencies and, "
+                        "if some packages are found missing, it will try to "
+                        "install them.")
     parser.add_argument("--xenograft", action="store_true",
                         help="Perform a preliminary xenograft analysis using "
                         "xenome. When this option is enabled, cutadapt is "
                         "skipped.")
-    parser.add_argument("--max-picard-records", action="store",
+    parser.add_argument("--post-recalibration", action="store_true",
+                        help="Perform a post-recalibration analysis after the "
+                        "basic recalibration.")
+    parser.add_argument("--compress-fastq", action="store_true",
+                        help="If set, the fastqs files are compressed at the "
+                        "end of the mapping phase.")
+    parser.add_argument("--gatk-threads", metavar="n",
+                        action="store", type=int, default=20,
+                        help="Number of threads to be used for GATK. "
+                        "Default=20.")
+    parser.add_argument("--picard-max-records", action="store",
                         help="Sets the MAX_RECORDS_IN_RAM for Picard. "
                         "If unspecified, the parameter is not passed.")
 
@@ -149,9 +165,46 @@ def main():
     parameters = {
         "run_xenome": args.xenograft,
         "run_cutadapt": args.cutadapt and not args.xenograft,
-        "max_picard_records": args.max_picard_records
+        "run_post_recalibration": args.post_recalibration,
+        "compress_fastq": args.compress_fastq,
+        "gatk_threads": args.gatk_threads,
+        "picard_max_records": args.picard_max_records,
     }
     logging.basicConfig(format="%(asctime)-15s %(message)s")
+
+    if args.r_checks and args.post_recalibration:
+        try:
+            import rpy2.robjects.packages as rpackages
+            from rpy2.robjects.vectors import StrVector
+        except:
+            rpackages = None
+            print("cannot correctly import rpy2. "
+                  "R checks are skipped.")
+
+        if rpackages:
+            print("Checking R packages and, eventually, performing "
+                  "installations")
+            dependencies = ("ggplot2", "gplots", "reshape", "grid", "tools",
+                            "gsalib")
+            utils = rpackages.importr("utils")
+            base = rpackages.importr("base")
+            utils.chooseCRANmirror(ind=1)
+            installed_packages = utils.installed_packages().rx(True, 1)
+            for package in dependencies:
+                if not base.is_element(package, installed_packages)[0]:
+                    sys.stdout.write("Installing R package %s..." % package)
+                    utils.install_packages(StrVector(dependencies), quiet=True)
+                    print(" done.")
+
+            installed_packages = utils.installed_packages().rx(True, 1)
+            for package in dependencies:
+                if not base.is_element(package, installed_packages)[0]:
+                    print("Package %s has not been correctly installed. "
+                          "Try again or check this dependency manually."
+                          % package)
+                    exit(-1)
+            print("Done with R packages")
+
     runner = functools.partial(
         run,
         root=args.root_dir,

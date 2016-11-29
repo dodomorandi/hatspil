@@ -2,8 +2,9 @@ from formatizer import f
 from .exceptions import PipelineError
 from . import utils
 
-import re
 import os
+import gzip
+import shutil
 
 
 class Mapping:
@@ -25,8 +26,9 @@ class Mapping:
         if not os.path.exists(os.path.join(self.fastq_dir, "REPORTS")):
             os.makedirs(os.path.join(self.fastq_dir, "REPORTS"))
 
+        self.gatk_threads = self.analysis.parameters["gatk_threads"]
         self.max_records_str = utils.get_picard_max_records_string(
-            self.analysis.parameters["max_picard_records"])
+            self.analysis.parameters["picard_max_records"])
 
     def chdir(self):
         os.chdir(self.analysis.bam_dir)
@@ -35,26 +37,9 @@ class Mapping:
         self.analysis.logger.info("Cutting adapters")
         self.chdir()
 
-        re_fastq_filename = re.compile(
-            R"^%s(?:_((?:hg|mm)\d+))?_R([12])\.fastq$" %
-            self.analysis.sample, re.I)
-        fastq_files = [
-            filename
-            for filename in os.listdir
-            (self.fastq_dir) if re_fastq_filename.match(filename)]
-
-        input_files = {}
-        for filename in fastq_files:
-            match = re_fastq_filename.match(filename)
-            organism = match.group(1)
-            read_index = int(match.group(2))
-            if organism is None or organism == "":
-                organism = "hg19"
-            if organism in input_files:
-                input_files[organism].append((filename, read_index))
-            else:
-                input_files[organism] = [(filename, read_index)]
-
+        input_files = utils.find_fastqs_by_organism(
+            self.analysis.sample,
+            self.fastq_dir)
         output_files = {}
         for organism, filenames_and_indexes in input_files.items():
             if len(input_files) == 1:
@@ -119,7 +104,17 @@ class Mapping:
         self.analysis.logger.info("Finished fastqc")
 
     def trim(self):
-        self.analysis.logger.info("Trimming first 5 bp")
+        trim_end = False
+        if self.analysis.parameters["run_xenome"]:
+            trim_end = True
+
+        if trim_end:
+            self.analysis.logger.info("Trimming first 5 bp")
+            trim_end_cmd = ""
+        else:
+            self.analysis.logger.info("Trimming first 5 bp and last 10 bp")
+            trim_end_cmd = "-e 10 "
+
         self.chdir()
         config = self.analysis.config
 
@@ -139,7 +134,9 @@ class Mapping:
                 (self.analysis.sample, organism_str, read_index))
 
             retval = utils.run_and_log(f(
-                '{config.seqtk} trimfq -b 5 "{filename}" '
+                '{config.seqtk} trimfq -b 5 '
+                '{trim_end_cmd}'
+                '"{filename}" '
                 '> "{out_filename}"'),
                 self.analysis.logger
             )
@@ -208,7 +205,8 @@ class Mapping:
             retval = utils.run_and_log(f(
                 '{config.picard} SamFormatConverter '
                 'I={filename} '
-                'O={output_file}',  # MAX_RECORDS_IN_RAM=1000000
+                'O={output_file}'
+                '{self.max_records_str}'
                 ),
                 self.analysis.logger
             )
@@ -351,6 +349,50 @@ class Mapping:
         self.analysis.bamfiles = output_files
         self.analysis.logger.info("Finished sorting")
 
+    def mark_duplicates(self):
+        self.analysis.logger.info("Marking duplicates")
+        self.chdir()
+        config = self.analysis.config
+
+        input_files = utils.get_samples_by_organism(
+            self.analysis.last_operation_filenames)
+
+        output_files = {}
+        for organism, filename in input_files.items():
+            if len(input_files) == 1:
+                organism_str = ""
+            else:
+                organism_str = "_%s" % organism
+
+            output_file = self.output_basename + \
+                organism_str + ".srt.marked.dup.bam"
+            retval = utils.run_and_log(f(
+                '{config.picard} MarkDuplicates '
+                'I={filename} '
+                'O={output_file} '
+                'M={self.output_basename}{organism_str}.marked_dup_metrics.txt '
+                'CREATE_INDEX=true '
+                'SO=coordinate'
+                '{self.max_records_str}'),
+                self.analysis.logger
+            )
+            output_files[organism] = os.path.join(os.getcwd(), output_file)
+
+            if retval != 0:
+                self.analysis.logger.error(
+                    "Picard MarkDuplicates exited with status %d" %
+                    retval)
+                raise PipelineError("picard MarkDuplicates error")
+
+            os.unlink(filename)
+            index_file = filename[:-4] + ".bai"
+            if os.path.exists(index_file):
+                os.unlink(index_file)
+
+        self.analysis.last_operation_filenames = output_files
+        self.analysis.bamfiles = output_files
+        self.analysis.logger.info("Finished marking duplicates")
+
     def indel_realign(self):
         self.analysis.logger.info("Running indel realignment")
         self.chdir()
@@ -372,8 +414,9 @@ class Mapping:
                 organism_str + ".realignment.intervals"
             retval = utils.run_and_log(f(
                 '{config.gatk} -T RealignerTargetCreator -R {genome_ref} '
-                '-I {filename} -nt 15 -known '
-                '{config.indel_1} -known {config.indel_2} -L {config.target_list} '
+                '-I {filename} -nt {self.gatk_threads} '
+                '-known {config.indel_1} -known {config.indel_2} '
+                '-L {config.target_list} '
                 '-ip 50 -o {output_file}'),
                 self.analysis.logger
             )
@@ -403,26 +446,26 @@ class Mapping:
                   '-targetIntervals {self.output_basename}{organism_str}.realignment.intervals '
                   '-o {output_file}'), self.analysis.logger)
 
+            if retval != 0:
+                self.analysis.logger.error(
+                    "Gatk IndelRealigner exited with status %d" %
+                    retval)
+                raise PipelineError("gatk IndelRealigner failed")
+
+            if not os.path.exists(output_file):
+                self.analysis.logger.error(
+                    "BAM file still does not exist, when it should have "
+                    "been created")
+                raise PipelineError("gatk failed")
+
             output_files[organism] = os.path.join(
                 os.getcwd(),
                 output_file)
+
             os.unlink(filename)
             os.unlink(filename[:-4] + ".bai")
 
         self.analysis.last_operation_filenames = output_files
-
-        if retval != 0:
-            self.analysis.logger.error(
-                "Gatk IndelRealigner exited with status %d" %
-                retval)
-            raise PipelineError("gatk IndelRealigner failed")
-
-        if not os.path.exists(output_file):
-            self.analysis.logger.error(
-                "BAM file still does not exist, when it should have "
-                "been created")
-            raise PipelineError("gatk failed")
-
         self.analysis.bamfiles = self.analysis.last_operation_filenames
         self.analysis.logger.info("Finished indel realignment")
 
@@ -451,8 +494,8 @@ class Mapping:
             dbsnp = utils.get_dbsnp_by_organism(config, organism)
             retval = utils.run_and_log(f(
                 '{config.gatk} -T BaseRecalibrator -R {genome_ref} -I '
-                '{filename} -nct 20 -knownSites '
-                '{dbsnp} '
+                '{filename} -nct {self.gatk_threads} '
+                '-knownSites {dbsnp} '
                 '-o {self.output_basename}{organism_str}.recalibration.table',
                 ),
                 self.analysis.logger
@@ -478,8 +521,8 @@ class Mapping:
                 organism)[0]
             retval = utils.run_and_log(f(
                 '{config.gatk} -T PrintReads -R {genome_ref} -I '
-                '{filename} -nct 20 -BQSR '
-                '{self.output_basename}{organism_str}.recalibration.table -o '
+                '{filename} -nct {self.gatk_threads} '
+                '-BQSR {self.output_basename}{organism_str}.recalibration.table -o '
                 '{output_file}',
                 ),
                 self.analysis.logger
@@ -504,6 +547,112 @@ class Mapping:
 
         self.analysis.last_operation_filenames = output_files
         self.analysis.last_operation_filenames.update(ignored_files)
+
+        if not self.analysis.parameters["run_post_recalibration"]:
+            self.analysis.logger.info("Finished recalibration")
+            return
+
+        input_files = self.analysis.last_operation_filenames
+        for key in input_files.keys():
+            if not key.startswith("hg"):
+                del input_files[key]
+
+        for organism, filename in input_files.items():
+            if len(input_files) == 1:
+                organism_str = ""
+            else:
+                organism_str = "_%s" % organism
+
+            genome_ref = utils.get_genome_ref_index_by_organism(
+                config,
+                organism)[0]
+            dbsnp = utils.get_dbsnp_by_organism(config, organism)
+            retval = utils.run_and_log(
+                f('{config.gatk} -T BaseRecalibrator -R {genome_ref} '
+                  '-I {filename} '
+                  '-knownSites {dbsnp} '
+                  '-L {config.target_list} '
+                  '-ip 50 '
+                  '-nct {self.gatk_threads} '
+                  '-o {self.output_basename}{organism_str}'
+                  '.post_realignment.table'),
+                self.analysis.logger)
+
+            if retval != 0:
+                self.analysis.logger.error(
+                    "Gatk BaseRecalibrator exited with status %d" %
+                    retval)
+                raise PipelineError("gatk BaseRecalibrator failed")
+
+        input_files = self.analysis.last_operation_filenames
+        for key in input_files.keys():
+            if not key.startswith("hg"):
+                del input_files[key]
+
+        for organism, filename in input_files.items():
+            if len(input_files) == 1:
+                organism_str = ""
+            else:
+                organism_str = "_%s" % organism
+
+            genome_ref = utils.get_genome_ref_index_by_organism(
+                config,
+                organism)[0]
+            retval = utils.run_and_log(
+                f('{config.gatk} -T AnalyzeCovariates -R {genome_ref} '
+                  '-before {self.output_basename}{organism_str}.recalibration.table '
+                  '-after {self.output_basename}{organism_str}.post_realignment.table '
+                  '-plots {self.output_basename}{organism_str}.recalibration_plots.pdf '
+                  ), self.analysis.logger)
+
+            if retval != 0:
+                self.analysis.logger.error(
+                    "Gatk AnalyzeCovariates exited with status %d" %
+                    retval)
+                raise PipelineError("gatk AnalyzeCovariates failed")
+
+        output_files = {}
+        for organism, filename in input_files.items():
+            if len(input_files) == 1:
+                organism_str = ""
+            else:
+                organism_str = "_%s" % organism
+
+            genome_ref = utils.get_genome_ref_index_by_organism(
+                config,
+                organism)[0]
+            output_file = self.analysis.basename + \
+                organism_str + ".srt.realigned.recal.no_dup.bam"
+            retval = utils.run_and_log(
+                f('{config.picard} MarkDuplicates '
+                  'I={filename} '
+                  'O={output_file} '
+                  'REMOVE_DUPLICATES=true '
+                  'M={self.output_basename}{organism_str}.no_dup_metrics.txt '
+                  'CREATE_INDEX=true'
+                  '{self.max_records_str}'), self.analysis.logger)
+
+            if retval != 0:
+                self.analysis.logger.error(
+                    "Picard MarkDuplicates exited with status %d" %
+                    retval)
+                raise PipelineError("picard MarkDuplicates failed")
+
+            if not os.path.exists(output_file):
+                self.analysis.logger.error(
+                    "BAM file still does not exist, when it should have "
+                    "been created")
+                raise PipelineError("gatk failed")
+
+            output_files[organism] = os.path.join(
+                os.getcwd(),
+                output_file)
+
+            os.unlink(filename)
+            os.unlink(filename[:-4] + ".bai")
+
+        self.analysis.last_operation_filenames = output_files
+        self.analysis.bamfiles = self.analysis.last_operation_filenames
         self.analysis.bamfiles = self.analysis.last_operation_filenames
         self.analysis.logger.info("Finished recalibration")
 
@@ -555,14 +704,47 @@ class Mapping:
                     retval)
                 raise PipelineError("picard CollectTargetedPcrMetrics error")
 
+            retval = utils.run_and_log(
+                f('{config.picard} CollectGcBiasMetrics '
+                  'R={genome_ref} '
+                  'I={filename} '
+                  'O={self.output_basename}{organism_str}.gcbias.metrics.txt '
+                  'CHART={self.output_basename}{organism_str}.gcbias_metrics.pdf '
+                  'S={self.output_basename}{organism_str}.gcbias_summ_metrics.txt'
+                  '{self.max_records_str}'),
+                self.analysis.logger)
+
+            if retval != 0:
+                self.analysis.logger.error(
+                    "Picard CollectGcBiasMetrics exited with status %d" %
+                    retval)
+                raise PipelineError("picard CollectGcBiasMetrics error")
+
         self.analysis.logger.info("Finished metrics collection")
+
+    def compress_fastq(self):
+        self.analysis.logger.info("Compressing fastq files")
+        self.chdir()
+        fastq_files = utils.find_fastqs_by_organism(
+            self.analysis.sample,
+            self.fastq_dir)
+        for filenames in fastq_files.values():
+            for filename, _ in filenames:
+                filename = os.path.join(self.fastq_dir, filename)
+                compressed_filename = filename + ".gz"
+                with open(filename, "rb") as in_fd, \
+                        gzip.open(compressed_filename, "wb") as out_fd:
+                    shutil.copyfileobj(in_fd, out_fd)
+                os.unlink(filename)
+        self.analysis.logger.info("Finished compressing fastq files")
 
     def variant_calling(self):
         self.analysis.logger.info("Running variant calling")
         self.chdir()
         retval = utils.run_and_log(
             f('{config.gatk} -T HaplotypeCaller -R {config.genome_ref} -I '
-              '{self.analysis.last_operation_filenames} -ERC GVCF -nct 20 '
+              '{self.analysis.last_operation_filenames} -ERC GVCF '
+              '-nct {self.gatk_threads} '
               '--genotyping_mode DISCOVERY -L {config.target_list} '
               '-stand_emit_conf 10 -stand_call_conf 30 --output_mode '
               'EMIT_VARIANTS_ONLY '
@@ -577,6 +759,7 @@ class Mapping:
 
         retval = utils.run_and_log(f(
             '{config.gatk} -T VariantFiltration -R {config.genome_ref} '
+            '-nct {self.gatk_threads} '
             '--variant {self.analysis.basename}.variants.vcf '
             '-o {self.analysis.basename}.variants.filtered.vcf '
             '--clusterWindowSize 10 '
@@ -610,3 +793,5 @@ class Mapping:
         self.indel_realign()
         self.recalibration()
         self.metrics_collection()
+        if self.analysis.parameters["compress_fastq"]:
+            self.compress_fastq()

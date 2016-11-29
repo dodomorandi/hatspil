@@ -7,7 +7,8 @@ setup(
     packages=find_packages(),
     install_requires=[
         "cutadapt",
-        "formatizer"
+        "formatizer",
+        "rpy2"
     ],
     entry_points={
         "console_scripts": [

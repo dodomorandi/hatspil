@@ -106,3 +106,27 @@ def get_picard_max_records_string(max_records):
         return ""
     else:
         return " MAX_RECORDS_IN_RAM=%d" % int(max_records)
+
+
+def find_fastqs_by_organism(sample, fastq_dir):
+    re_fastq_filename = re.compile(
+        R"^%s(?:_((?:hg|mm)\d+))?_R([12])\.fastq$" %
+        sample, re.I)
+    fastq_files = [
+        filename
+        for filename in os.listdir(fastq_dir)
+        if re_fastq_filename.match(filename)]
+
+    fastqs = {}
+    for filename in fastq_files:
+        match = re_fastq_filename.match(filename)
+        organism = match.group(1)
+        read_index = int(match.group(2))
+        if organism is None or organism == "":
+            organism = "hg19"
+        if organism in fastqs:
+            fastqs[organism].append((filename, read_index))
+        else:
+            fastqs[organism] = [(filename, read_index)]
+
+    return fastqs
