@@ -37,10 +37,11 @@ def get_read_index(filename):
     return int(match.group(1))
 
 
-def get_params_from_filename(filename, sample):
+def get_params_from_filename(filename, analysis):
     filename = os.path.basename(filename)
     match = re.match(
-        R"^%s(?:_((?:hg|mm)\d+))?.*[._]R([12])\.(fastq|bam|bai)$" % sample,
+        R"^(?:%s|%s)(?:_((?:hg|mm)\d+))?.*?(?:[._]R([12]))?\.(fastq|bam|bai|sam)$"
+        % (re.escape(analysis.basename), re.escape(analysis.sample)),
         filename,
         re.I)
     if not match:
@@ -48,7 +49,10 @@ def get_params_from_filename(filename, sample):
         raise RuntimeError(
             "Cannot parse filename. Filename in a strange format.")
 
-    return (match.group(1), int(match.group(2)), match.group(3))
+    read_index = match.group(2)
+    if read_index:
+        read_index = int(read_index)
+    return (match.group(1), read_index, match.group(3))
 
 
 def get_sample_filenames(obj):

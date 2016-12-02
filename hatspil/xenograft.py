@@ -1,5 +1,5 @@
 from . import utils
-from .exceptions import PipelineError
+from .executor import Executor
 
 from formatizer import f
 import os
@@ -26,18 +26,29 @@ class Xenograft:
     def xenome(self):
         self.analysis.logger.info("Running xenome")
         self.chdir()
-        retval = utils.run_and_log(f(
+
+        input_filenames = [
+            filename
+            for pair in utils.find_fastqs_by_organism(
+                self.analysis.sample,
+                ".").values()
+            for filename, _ in pair]
+
+        executor = Executor(self.analysis)
+        executor(f(
             "{self.xenome_command} --graft-name hg19 --host-name mm10 "
             "--output-filename-prefix {self.analysis.sample} "
-            "-i \"{self.analysis.sample}_R1.fastq\" "
-            "-i \"{self.analysis.sample}_R2.fastq\" "
+            "{{input_filename}} "
             "> \"{self.sample_base_out}.xenome_summary.txt\""),
-            self.analysis.logger
+            input_filenames=input_filenames,
+            input_function=lambda filenames: " ".join(["-i %s" % filename for filename in filenames]),
+            output_format=f("{self.analysis.sample}_%s_%d.fastq"),
+            output_function=lambda filename: [filename % (organism, index)
+                                              for organism, index
+                                              in itertools.product(["hg19", "mm10"],
+                                                                   [1, 2])],
+            input_split_reads=False,
         )
-
-        if retval != 0:
-            self.analysis.logger.error("Xenome exited with status %d" % retval)
-            raise PipelineError("xenome error")
 
         self.analysis.logger.info("Finished xenome")
 
