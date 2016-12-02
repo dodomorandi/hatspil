@@ -76,13 +76,13 @@ class Executor:
         output_bamfiles = {}
         for input_filename, mod_input_filename in iterator:
             if isinstance(input_filename, str):
-                organism, read_index, _ = utils.get_params_from_filename(
-                    input_filename, self.analysis)
+                organism, read_index = utils.get_params_from_filename(
+                    input_filename, self.analysis)[8:]
             else:
                 read_index = []
                 for filename in input_filename:
-                    organism, index, _ = utils.get_params_from_filename(
-                        filename, self.analysis)
+                    organism, index = utils.get_params_from_filename(
+                        filename, self.analysis)[8:]
                     read_index.append(index)
 
             if input_function is not None:

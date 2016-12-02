@@ -245,7 +245,7 @@ class Mapping:
         self.analysis.logger.info("Finished indel realignment")
 
     def _filter_non_hg(self, filename):
-        organism = utils.get_params_from_filename(filename, self.analysis)[0]
+        organism = utils.get_params_from_filename(filename, self.analysis)[8]
         if organism is None or organism.lower().startswith("hg"):
             return filename
         else:

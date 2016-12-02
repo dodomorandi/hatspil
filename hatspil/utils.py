@@ -2,8 +2,8 @@ import datetime
 import subprocess
 import re
 import os
-from .exceptions import PipelineError
 
+re_filename = re.compile(R"^([^-]+)-([^-]+)-(\d{2})-(\d)(\d)(\d)-(\d)(\d)(?:_((?:hg|mm)\d+))(?:_R([12]))?\.(\w+)$")
 
 def get_current():
     today = datetime.date.today()
@@ -30,29 +30,28 @@ def run_and_log(command, logger):
         return process.wait()
 
 
-def get_read_index(filename):
-    match = re.search(R"[._]R([12])[._]", filename)
-    if not match:
-        raise PipelineError("cannot find R1/R2 pattern in filename")
-    return int(match.group(1))
-
-
 def get_params_from_filename(filename, analysis):
     filename = os.path.basename(filename)
-    match = re.match(
-        R"^(?:%s|%s)(?:_((?:hg|mm)\d+))?.*?(?:[._]R([12]))?\.(fastq|bam|bai|sam)$"
-        % (re.escape(analysis.basename), re.escape(analysis.sample)),
-        filename,
-        re.I)
+    match = re_filename.match(filename)
     if not match:
         print(filename)
         raise RuntimeError(
             "Cannot parse filename. Filename in a strange format.")
 
-    read_index = match.group(2)
+    read_index = match.group(10)
     if read_index:
         read_index = int(read_index)
-    return (match.group(1), read_index, match.group(3))
+
+    return (match.group(1),
+            match.group(2),
+            int(match.group(3)),
+            int(match.group(4)),
+            int(match.group(5)),
+            int(match.group(6)),
+            int(match.group(7)),
+            int(match.group(8)),
+            match.group(9),
+            read_index)
 
 
 def get_sample_filenames(obj):
@@ -114,16 +113,16 @@ def get_picard_max_records_string(max_records):
 
 def find_fastqs_by_organism(sample, fastq_dir):
     re_fastq_filename = re.compile(
-        R"^%s(?:_((?:hg|mm)\d+))?_R([12])\.fastq$" %
+        R"(?:_((?:hg|mm)\d+))?_R([12])\.fastq$" %
         sample, re.I)
     fastq_files = [
         filename
         for filename in os.listdir(fastq_dir)
-        if re_fastq_filename.match(filename)]
+        if re_fastq_filename.search(filename)]
 
     fastqs = {}
     for filename in fastq_files:
-        match = re_fastq_filename.match(filename)
+        match = re_fastq_filename.search(filename)
         organism = match.group(1)
         read_index = int(match.group(2))
         if organism is None or organism == "":
