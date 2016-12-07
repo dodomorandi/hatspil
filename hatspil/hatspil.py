@@ -238,7 +238,7 @@ def main():
                         current_pattern += R"-\d{2}-\d{3}-\d{2}"
                 else:
                     current_pattern += R"-[^-]+-\d{2}-\d{3}-\d{2}"
-                current_pattern += R")(?:\.R[12])?\.fastq$"
+                current_pattern += R")(?:\.(?:hg|mm)\d+)?(?:\.R[12])?\.fastq(\.gz)?$"
 
                 re_current_pattern = re.compile(current_pattern, re.I)
                 added_files = 0
@@ -252,7 +252,8 @@ def main():
                             added_files += 1
 
                 if added_files == 0:
-                    print("ERROR: cannot find any file for sample %s" % line.strip())
+                    print("ERROR: cannot find any file for sample %s"
+                          % line.strip())
                     exit(-1)
 
     elif args.scan_samples:

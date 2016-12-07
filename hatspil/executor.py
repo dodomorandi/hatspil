@@ -154,19 +154,19 @@ class Executor:
             for input_filename, mod_input_filename in iterator:
                 if isinstance(input_filename, str):
                     organism, read_index = utils.get_params_from_filename(
-                        input_filename)[8:]
+                        input_filename)[8:10]
                 elif isinstance(input_filename, dict):
                     organism, read_index = utils.get_params_from_filename(
-                        input_filename["tumor"])[8:]
+                        input_filename["tumor"])[8:10]
                 else:
                     read_index = []
                     for filename in input_filename:
                         if isinstance(filename, str):
                             organism, index = utils.get_params_from_filename(
-                                filename)[8:]
+                                filename)[8:10]
                         else:
                             organism, index = utils.get_params_from_filename(
-                                filename["tumor"])[8:]
+                                filename["tumor"])[8:10]
                         read_index.append(index)
 
                 if only_human and (organism != "" and organism is not None and

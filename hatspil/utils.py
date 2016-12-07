@@ -2,8 +2,10 @@ import datetime
 import subprocess
 import re
 import os
+import shutil
+import gzip as gz
 
-re_filename = re.compile(R"^([^-]+)-([^-]+)-(\d{2})-(\d)(\d)(\d)-(\d)(\d)(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?(?:\.R([12]))?(?:\.[^.]+)*?\.(\w+)$")
+re_filename = re.compile(R"^([^-]+)-([^-]+)-(\d{2})-(\d)(\d)(\d)-(\d)(\d)(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?(?:\.R([12]))?(?:\.[^.]+)*?\.(\w+?)(\.gz)?$")
 
 def get_current():
     today = datetime.date.today()
@@ -51,7 +53,9 @@ def get_params_from_filename(filename):
             int(match.group(7)),
             int(match.group(8)),
             match.group(9),
-            read_index)
+            read_index,
+            match.group(11),
+            match.group(12))
 
 
 def get_sample_filenames(obj, split=False):
@@ -116,7 +120,7 @@ def get_picard_max_records_string(max_records):
 
 def find_fastqs_by_organism(sample, fastq_dir):
     re_fastq_filename = re.compile(
-        R"^%s(?:\.((?:hg|mm)\d+))?\.R([12])\.fastq$" % sample, re.I)
+        R"^%s(?:\.((?:hg|mm)\d+))?\.R([12])\.fastq(?:\.gz)?$" % sample, re.I)
     fastq_files = [
         filename
         for filename in os.listdir(fastq_dir)
@@ -135,3 +139,19 @@ def find_fastqs_by_organism(sample, fastq_dir):
             fastqs[organism] = [(filename, read_index)]
 
     return fastqs
+
+
+def gzip(filename):
+    compressed_filename = filename + ".gz"
+    with open(filename, "rb") as in_fd, \
+            gz.open(compressed_filename, "wb") as out_fd:
+        shutil.copyfileobj(in_fd, out_fd)
+    os.unlink(filename)
+
+
+def gunzip(filename):
+    decompressed_filename = filename[:-3]
+    with open(decompressed_filename, "wb") as out_fd, \
+            gz.open(filename, "rb") as in_fd:
+        shutil.copyfileobj(in_fd, out_fd)
+    os.unlink(filename)

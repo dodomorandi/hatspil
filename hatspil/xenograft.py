@@ -20,13 +20,18 @@ class Xenograft:
             "-P {analysis.config.xenome_index} --pairs")
         self.sample_base_out = os.path.join("REPORTS", self.analysis.sample)
         self.skip_filenames = {}
+        self.already_done = {}
+        self.input_filenames = None
 
     def chdir(self):
         os.chdir(self.fastq_dir)
 
-    def xenome(self):
+    def check(self):
+        self.analysis.logger.info("Checking if xenome must be performed")
         self.chdir()
-        input_filenames = [
+        retval = True
+
+        self.input_filenames = [
             filename
             for pair in utils.find_fastqs_by_organism(
                 self.analysis.sample,
@@ -34,11 +39,11 @@ class Xenograft:
             for filename, _ in pair]
 
         valid_filenames = []
-        for filename in input_filenames:
+        for filename in self.input_filenames:
             params = utils.get_params_from_filename(filename)
-            if params[2] == 60 and not params[8]:
+            if params[2] == 60:
                 valid_filenames.append(filename)
-            elif params[2] != 60:
+            else:
                 organism = params[8]
                 if not organism:
                     organism = "hg19"
@@ -46,12 +51,56 @@ class Xenograft:
                     self.skip_filenames[organism] = []
                 self.skip_filenames[organism].append(os.path.join(os.getcwd(), filename))
 
-        input_filenames = sorted(valid_filenames)
+        self.input_filenames = sorted(valid_filenames)
 
-        if len(input_filenames) == 0:
-            return
+        compressed = [filename for filename
+                      in self.input_filenames
+                      if filename.endswith(".gz")]
 
+        self.input_filenames = [filename for filename
+                                in self.input_filenames
+                                if not filename.endswith(".gz")]
+
+        for fastqgz in compressed:
+            can_skip = True
+            removed = {}
+            params = utils.get_params_from_filename(fastqgz)
+            for organism in ("hg19", "mm10"):
+                obtained_name = "%s-%s-%d-%d%d%d-%d%d.%s" % (
+                    params[0], params[1], params[2], params[3],
+                    params[4], params[5], params[6], params[7],
+                    organism
+                )
+                if params[9] and params[9] != "":
+                    obtained_name += ".R%s" % params[9]
+                obtained_name += ".fastq"
+
+                removed[organism] = [os.path.join(os.getcwd(), obtained_name)]
+                if obtained_name not in self.input_filenames:
+                    can_skip = False
+                else:
+                    self.input_filenames.remove(obtained_name)
+
+            if can_skip:
+                self.already_done.update(removed)
+            else:
+                utils.gunzip(fastqgz)
+                self.input_filenames.append(fastqgz[:-3])
+
+        if len(self.input_filenames) == 0:
+            retval = False
+
+        for filename in self.input_filenames:
+            params = utils.get_params_from_filename(filename)
+
+        self.analysis.logger.info("Checking complete")
+        return retval
+
+
+    def xenome(self):
         self.analysis.logger.info("Running xenome")
+        self.chdir()
+
         temp_dir = os.path.join(os.path.sep, "tmp", "%s.xenome" % self.analysis.sample)
         if not os.path.exists(temp_dir):
             os.mkdir(temp_dir)
@@ -63,7 +112,7 @@ class Xenograft:
             "{{input_filename}} "
             "--tmp-dir {temp_dir} "
             "> \"{self.sample_base_out}.xenome_summary.txt\""),
-            input_filenames=input_filenames,
+            input_filenames=self.input_filenames,
             input_function=lambda filenames: " ".join(["-i %s" % filename for filename in filenames]),
             output_format=f("{self.analysis.sample}_%s_%d.fastq"),
             output_function=lambda filename: [filename % (organism, index)
@@ -119,7 +168,6 @@ class Xenograft:
             if os.path.exists(filename):
                 os.unlink(filename)
 
-        self.analysis.last_operation_filenames.update(self.skip_filenames)
         self.analysis.logger.info("Finished fixing xenome fastq")
 
     def compress(self):
@@ -129,15 +177,19 @@ class Xenograft:
             "%s.R%d.fastq" % (self.analysis.sample, index + 1)
             for index in range(2)]
         for filename in fastq_files:
-            compressed_filename = filename + ".gz"
-            with open(filename, "rb") as in_fd, \
-                    gzip.open(compressed_filename, "wb") as out_fd:
-                shutil.copyfileobj(in_fd, out_fd)
-            os.unlink(filename)
+            utils.gzip(filename)
 
         self.analysis.logger.info("Finished compressing fastq files")
 
+    def update_last_filenames(self):
+        if self.analysis.last_operation_filenames is None:
+            self.analysis.last_operation_filenames = {}
+        self.analysis.last_operation_filenames.update(self.skip_filenames)
+        self.analysis.last_operation_filenames.update(self.already_done)
+
     def run(self):
-        self.xenome()
-        self.fix_fastq()
-        self.compress()
+        if self.check():
+            self.xenome()
+            self.fix_fastq()
+            self.compress()
+        self.update_last_filenames()
