@@ -123,7 +123,9 @@ class Mapping:
             '-t 90 -f {{input_filename}}> {{output_filename}}'),
             input_function=lambda l: " ".join(sorted(l)),
             input_split_reads=False,
-            output_format=f("{self.analysis.basename}{{organism_str}}.sam")
+            output_format=f("{self.analysis.basename}{{organism_str}}.sam"),
+            split_by_organism=True,
+            only_human=True
         )
 
         self.analysis.logger.info("Alignment SAM -> BAM")
@@ -245,7 +247,7 @@ class Mapping:
         self.analysis.logger.info("Finished indel realignment")
 
     def _filter_non_hg(self, filename):
-        organism = utils.get_params_from_filename(filename, self.analysis)[8]
+        organism = utils.get_params_from_filename(filename)[8]
         if organism is None or organism.lower().startswith("hg"):
             return filename
         else:

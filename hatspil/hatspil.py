@@ -4,12 +4,12 @@ from .varscan import VarScan
 from .analysis import Analysis
 from .xenograft import Xenograft
 from .config import Config
+from . import utils
 
 import logging
 import sys
 import os
-from multiprocessing import Pool
-import functools
+from multiprocessing import Pool, Manager
 import smtplib
 from email.mime.text import MIMEText
 import traceback
@@ -17,20 +17,46 @@ import argparse
 import re
 
 
-def run(filename, config, root, parameters, fastq_dir):
-    analysis = Analysis(filename, root, config, parameters)
+class Runner:
 
-    mapping = Mapping(analysis, fastq_dir)
-    mutect = Mutect(analysis)
-    varscan = VarScan(analysis)
+    def __init__(self, manager, root, config, parameters, fastq_dir):
+        self.last_operations = manager.dict()
+        self.root = root
+        self.config = config
+        self.parameters = parameters
+        self.fastq_dir = fastq_dir
 
-    if parameters["run_xenome"]:
-        xenograft = Xenograft(analysis, fastq_dir)
-        xenograft.run()
+    def __call__(self, sample):
+        analysis = Analysis(sample, self.root, self.config, self.parameters)
 
-    mapping.run()
-    mutect.run()
-    varscan.run()
+        if self.parameters["run_xenome"]:
+            xenograft = Xenograft(analysis, self.fastq_dir)
+            xenograft.run()
+
+        mapping = Mapping(analysis, self.fastq_dir)
+        mapping.run()
+
+        if not self.parameters["use_normals"]:
+            mutect = Mutect(analysis)
+            varscan = VarScan(analysis)
+
+            mutect.run()
+            varscan.run()
+
+        self.last_operations[sample] = analysis.last_operation_filenames
+
+    def with_normals(self, sample, tumor, normal):
+        if not self.parameters["use_normals"]:
+            return
+
+        analysis = Analysis(sample, self.root, self.config, self.parameters)
+        analysis.last_operation_filenames = [tumor, normal]
+
+        mutect = Mutect(analysis)
+        varscan = VarScan(analysis)
+
+        mutect.run()
+        varscan.run()
 
 
 def get_parser():
@@ -60,6 +86,10 @@ def get_parser():
                         "the program will check some R depencencies and, "
                         "if some packages are found missing, it will try to "
                         "install them.")
+    parser.add_argument("--use-normals", action="store_true",
+                        help="Whenever a normal sample is found, it is used. "
+                        "In this case many phases of the analysis are "
+                        "performed using different parameters.")
     parser.add_argument("--mark-duplicates", action="store_true",
                         help="Mark PCR duplicates during mapping phase. "
                         "Automatically enabled by --xenograft option.")
@@ -145,10 +175,86 @@ def main():
         exit(-3)
 
     if args.list_file:
-        filenames = []
+        re_pattern = re.compile(R"^([^-]+)(?:-([^-]+)(?:-(\d{2}|\*)"
+                                R"(?:-(\d|\*)(?:(\d|\*)(\d|\*)?)?"
+                                R"(?:-(\d|\*)(\d|\*)?)?)?)?)?$")
+
+        all_filenames = os.listdir(args.fastq_dir)
+        filenames = set()
         with open(args.list_file) as fd:
-            for line in fd:
-                filenames.append(line.strip())
+            for line_index, line in enumerate(fd):
+                match = re_pattern.match(line.strip())
+                if not match:
+                    print("Invalid file at line %d of file list"
+                          % (line_index + 1))
+                    exit(-1)
+
+                current_pattern = R"^("
+                current_pattern += match.group(1).replace("*", R"[^-]")
+                group = match.group(2)
+                if group:
+                    current_pattern += "-"
+                    current_pattern += group.replace("*", R"[^-]")
+
+                    group = match.group(3)
+                    if group:
+                        current_pattern += "-"
+                        current_pattern += group.replace("*", R"\d{2}")
+
+                        group = match.group(4)
+                        if group:
+                            current_pattern += "-"
+                            current_pattern += match.group(4).replace("*",
+                                                                      R"\d")
+
+                            group = match.group(5)
+                            if group:
+                                current_pattern += group.replace("*", R"\d")
+
+                                group = match.group(6)
+                                if group:
+                                    current_pattern += group.replace("*",
+                                                                     R"\d")
+
+                                    group = match.group(7)
+                                    if group:
+                                        current_pattern += "-"
+                                        current_pattern += group.replace("*", R"\d")
+
+                                        group = match.group(8)
+                                        if group:
+                                            current_pattern += group.replace("*", R"\d")
+                                        else:
+                                            current_pattern += R"\d"
+                                    else:
+                                        current_pattern += R"\d{2}"
+                                else:
+                                    current_pattern += R"\d-\d{2}"
+                            else:
+                                current_pattern += R"\d{2}-\d{2}"
+                        else:
+                            current_pattern += R"-\d{3}-\d{2}"
+                    else:
+                        current_pattern += R"-\d{2}-\d{3}-\d{2}"
+                else:
+                    current_pattern += R"-[^-]+-\d{2}-\d{3}-\d{2}"
+                current_pattern += R")(?:\.R[12])?\.fastq$"
+
+                re_current_pattern = re.compile(current_pattern, re.I)
+                added_files = 0
+                for filename in all_filenames:
+                    match = re_current_pattern.match(
+                        os.path.basename(filename))
+                    if match:
+                        params = utils.get_params_from_filename(filename)
+                        if params[2] != 60 or params[8] is None:
+                            filenames.add(match.group(1))
+                            added_files += 1
+
+                if added_files == 0:
+                    print("ERROR: cannot find any file for sample %s" % line.strip())
+                    exit(-1)
+
     elif args.scan_samples:
         fastq_files = [
             filename
@@ -158,7 +264,7 @@ def main():
         filenames = list(
             set(
                 [re.sub
-                 (R"([._]R[12])?\.fastq$", "", filename, flags=re.I)
+                 (R"(\.R[12])?\.fastq$", "", filename, flags=re.I)
                     for filename in
                     fastq_files
                     if not re.search(R"trimmed|clipped", filename, re.I)]))
@@ -173,6 +279,7 @@ def main():
         "compress_fastq": args.compress_fastq,
         "gatk_threads": args.gatk_threads,
         "picard_max_records": args.picard_max_records,
+        "use_normals": args.use_normals
     }
     logging.basicConfig(format="%(asctime)-15s %(message)s")
 
@@ -190,17 +297,19 @@ def main():
                   "installations")
             dependencies = ("ggplot2", "gplots", "reshape", "grid", "tools",
                             "gsalib")
-            utils = rpackages.importr("utils")
+            rutils = rpackages.importr("utils")
             base = rpackages.importr("base")
-            utils.chooseCRANmirror(ind=1)
-            installed_packages = utils.installed_packages().rx(True, 1)
+            rutils.chooseCRANmirror(ind=1)
+            installed_packages = rutils.installed_packages().rx(True, 1)
             for package in dependencies:
                 if not base.is_element(package, installed_packages)[0]:
                     sys.stdout.write("Installing R package %s..." % package)
-                    utils.install_packages(StrVector(dependencies), quiet=True)
+                    rutils.install_packages(
+                        StrVector(dependencies),
+                        quiet=True)
                     print(" done.")
 
-            installed_packages = utils.installed_packages().rx(True, 1)
+            installed_packages = rutils.installed_packages().rx(True, 1)
             for package in dependencies:
                 if not base.is_element(package, installed_packages)[0]:
                     print("Package %s has not been correctly installed. "
@@ -209,8 +318,9 @@ def main():
                     exit(-1)
             print("Done with R packages")
 
-    runner = functools.partial(
-        run,
+    manager = Manager()
+    runner = Runner(
+        manager,
         root=args.root_dir,
         fastq_dir=args.fastq_dir,
         parameters=parameters,
@@ -236,6 +346,57 @@ def main():
                 "Raised exception:\n%s" %
                 (args.list_file, traceback.format_exc()))
             msg["Subject"] = "Pipeline error"
+
+    if args.use_normals:
+        samples = {}
+        last_operations = {}
+        for sample, last_operation in runner.last_operations.items():
+            last_operations[sample] = last_operation
+            for filename in utils.get_sample_filenames(last_operation):
+                params = utils.get_params_from_filename(filename)
+                fake_sample = "%s-%s-%d%d%d-%d" % (params[0], params[1], params[3], params[4], params[5], params[6])
+                if params[2] >= 10 and params[2] <= 14:
+                    sample_type = "normal"
+                else:
+                    sample_type = "tumor"
+
+                if fake_sample not in samples:
+                    samples[fake_sample] = {}
+
+                if sample_type == "normal":
+                    samples[fake_sample]["normal"] = filename
+                else:
+                    if "tumor" not in samples[fake_sample]:
+                        samples[fake_sample]["tumor"] = []
+                    samples[fake_sample]["tumor"].append((filename, sample))
+
+        triplets = []
+        for sample, values in samples.items():
+            if len(values) < 2:
+                continue
+            for tumor in values["tumor"]:
+                triplets.append((tumor[1], tumor[0], values["normal"]))
+
+        error_raised = False
+        try:
+            with Pool(5) as pool:
+                pool.starmap(runner.with_normals, triplets)
+
+            if args.mail:
+                msg = MIMEText(
+                    "Pipeline for file list %s successfully completed." %
+                    args.list_file)
+                msg["Subject"] = "Pipeline completed"
+        except Exception:
+            error_raised = True
+            traceback.print_exc(file=sys.stdout)
+
+            if args.mail:
+                msg = MIMEText(
+                    "Error while executing pipeline for file list %s.\n"
+                    "Raised exception:\n%s" %
+                    (args.list_file, traceback.format_exc()))
+                msg["Subject"] = "Pipeline error"
 
     if args.mail:
         msg["From"] = "UV2000 Pipeline <pipeline@uv2000.hugef>"
