@@ -126,7 +126,7 @@ class Xenograft:
         self.analysis.logger.info("Compressing fastq files")
         self.chdir()
         fastq_files = [
-            "%s\.R%d.fastq" % (self.analysis.sample, index + 1)
+            "%s.R%d.fastq" % (self.analysis.sample, index + 1)
             for index in range(2)]
         for filename in fastq_files:
             compressed_filename = filename + ".gz"
