@@ -3,6 +3,7 @@ from .mutect import Mutect
 from .varscan import VarScan
 from .analysis import Analysis
 from .xenograft import Xenograft
+from .strelka import Strelka
 from .config import Config
 from . import utils
 
@@ -54,9 +55,11 @@ class Runner:
 
         mutect = Mutect(analysis)
         varscan = VarScan(analysis)
+        strelka = Strelka(analysis)
 
         mutect.run()
         varscan.run()
+        strelka.run()
 
 
 def get_parser():

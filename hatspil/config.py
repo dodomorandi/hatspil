@@ -17,6 +17,9 @@ class Config:
         self.xenome = "xenome"
         self.xenome_index = "xenome_idx"
         self.xenome_threads = 1
+        self.strelka_basedir = "/usr/share/strelka"
+        self.strelka_config = "/usr/share/strelka/config.ini"
+        self.strelka_threads = 1
         self.hg19_ref = 'ucsc.hg19.fasta'
         self.hg19_index = "ucsc.hg19"
         self.hg38_ref = 'ucsc.hg38.fasta'
@@ -46,6 +49,7 @@ class Config:
                 setattr(self, key, default_section[key])
 
             self.xenome_threads = int(self.xenome_threads)
+            self.strelka_threads = int(self.strelka_threads)
             self.mean_len_library = int(self.mean_len_library)
             self.sd_len_library = int(self.sd_len_library)
 
@@ -64,6 +68,9 @@ class Config:
         default["xenome"] = self.xenome
         default["xenome_index"] = self.xenome_index
         default["xenome_threads"] = str(self.xenome_threads)
+        default["strelka_basedir"] = self.strelka_basedir
+        default["strelka_config"] = self.strelka_config
+        default["strelka_threads"] = self.strelka_threads
         default["hg19_ref"] = self.hg19_ref
         default["hg19_index"] = self.hg19_index
         default["hg38_ref"] = self.hg38_ref
