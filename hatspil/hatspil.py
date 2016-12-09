@@ -106,6 +106,12 @@ def get_parser():
     parser.add_argument("--compress-fastq", action="store_true",
                         help="If set, the fastqs files are compressed at the "
                         "end of the mapping phase.")
+    parser.add_argument("--trim-5", action="store", type=int, metavar="n_bases",
+                        default=5,
+                        help="Bases that will be trimmed at 5' (default=5)")
+    parser.add_argument("--trim-3", action="store", type=int, metavar="n_bases",
+                        default=None, help="Bases that will be trimmed at 3' "
+                        "(default=10 when --xenograft is passed, 0 otherwise)")
     parser.add_argument("--gatk-threads", metavar="n",
                         action="store", type=int, default=20,
                         help="Number of threads to be used for GATK. "
@@ -283,7 +289,9 @@ def main():
         "compress_fastq": args.compress_fastq,
         "gatk_threads": args.gatk_threads,
         "picard_max_records": args.picard_max_records,
-        "use_normals": args.use_normals
+        "use_normals": args.use_normals,
+        "trim_5": args.trim_5,
+        "trim_3": args.trim_3
     }
     logging.basicConfig(format="%(asctime)-15s %(message)s")
 

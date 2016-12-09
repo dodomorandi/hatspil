@@ -83,7 +83,11 @@ class Mapping:
 
         if trim_end:
             self.analysis.logger.info("Trimming first 5 bp and last 10 bp")
-            trim_end_cmd = "-e 10 "
+            trim_3 = self.analysis.parameters["trim_3"]
+            if trim_3 is None:
+                trim_end_cmd = "-e 10 "
+            else:
+                trim_end_cmd= "-e %d " % trim_3
         else:
             self.analysis.logger.info("Trimming first 5 bp")
             trim_end_cmd = ""
@@ -91,8 +95,9 @@ class Mapping:
         self.chdir()
         config = self.analysis.config
 
+        trim_5 = self.analysis.parameters["trim_5"]
         executor = Executor(self.analysis)
-        executor(f('{config.seqtk} trimfq -b 5 '
+        executor(f('{config.seqtk} trimfq -b {trim_5} '
                    '{trim_end_cmd}'
                    '"{{input_filename}}" '
                    '> "{{output_filename}}"'),
