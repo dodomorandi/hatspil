@@ -399,7 +399,8 @@ def main():
                     "Pipeline for file list %s successfully completed." %
                     args.list_file)
                 msg["Subject"] = "Pipeline completed"
-        except Exception:
+
+        except RuntimeError:
             error_raised = True
             traceback.print_exc(file=sys.stdout)
 

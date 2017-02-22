@@ -6,7 +6,7 @@ import os
 import re
 import itertools
 import shutil
-import gzip
+from multiprocessing import Pool
 
 
 class Xenograft:

@@ -70,7 +70,7 @@ class Config:
         default["xenome_threads"] = str(self.xenome_threads)
         default["strelka_basedir"] = self.strelka_basedir
         default["strelka_config"] = self.strelka_config
-        default["strelka_threads"] = self.strelka_threads
+        default["strelka_threads"] = str(self.strelka_threads)
         default["hg19_ref"] = self.hg19_ref
         default["hg19_index"] = self.hg19_index
         default["hg38_ref"] = self.hg38_ref

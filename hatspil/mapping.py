@@ -3,7 +3,6 @@ from . import utils
 from .executor import Executor
 
 import os
-import gzip
 import shutil
 
 
@@ -29,6 +28,9 @@ class Mapping:
         self.gatk_threads = self.analysis.parameters["gatk_threads"]
         self.max_records_str = utils.get_picard_max_records_string(
             self.analysis.parameters["picard_max_records"])
+
+        self.sort_tempdir = os.path.join(self.analysis.bam_dir,
+                                         "%s_sort_tmp" % self.analysis.sample)
 
     def chdir(self):
         os.chdir(self.analysis.bam_dir)
@@ -87,7 +89,7 @@ class Mapping:
             if trim_3 is None:
                 trim_end_cmd = "-e 10 "
             else:
-                trim_end_cmd= "-e %d " % trim_3
+                trim_end_cmd = "-e %d " % trim_3
         else:
             self.analysis.logger.info("Trimming first 5 bp")
             trim_end_cmd = ""
@@ -169,11 +171,15 @@ class Mapping:
         self.chdir()
         config = self.analysis.config
 
+        if not os.path.exists(self.sort_tempdir):
+            os.makedirs(self.sort_tempdir, exist_ok=True)
+
         executor = Executor(self.analysis)
         executor(f(
             '{config.picard} SortSam '
             'I={{input_filename}} '
-            'O={{output_filename}} SO=coordinate'
+            'O={{output_filename}} SO=coordinate '
+            "TMP_DIR={self.sort_tempdir}"
             '{self.max_records_str}'),
             output_format=f("{self.analysis.basename}{{organism_str}}.srt.bam"),
             error_string="Picard SortSam exited with status {status}",
@@ -193,6 +199,7 @@ class Mapping:
             unlink_inputs=True
         )
 
+        shutil.rmtree(self.sort_tempdir)
         self.analysis.logger.info("Finished sorting")
 
     def mark_duplicates(self):
@@ -380,12 +387,7 @@ class Mapping:
             self.fastq_dir)
         for filenames in fastq_files.values():
             for filename, _ in filenames:
-                filename = os.path.join(self.fastq_dir, filename)
-                compressed_filename = filename + ".gz"
-                with open(filename, "rb") as in_fd, \
-                        gzip.open(compressed_filename, "wb") as out_fd:
-                    shutil.copyfileobj(in_fd, out_fd)
-                os.unlink(filename)
+                utils.gzip(filename)
         self.analysis.logger.info("Finished compressing fastq files")
 
     def run(self):

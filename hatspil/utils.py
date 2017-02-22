@@ -144,7 +144,7 @@ def find_fastqs_by_organism(sample, fastq_dir):
 def gzip(filename):
     compressed_filename = filename + ".gz"
     with open(filename, "rb") as in_fd, \
-            gz.open(compressed_filename, "wb") as out_fd:
+            gz.open(compressed_filename, "wb", compresslevel=6) as out_fd:
         shutil.copyfileobj(in_fd, out_fd)
     os.unlink(filename)
 
