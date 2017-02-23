@@ -6,6 +6,7 @@ from .xenograft import Xenograft
 from .strelka import Strelka
 from .config import Config
 from . import utils
+from .barcoded_filename import BarcodedFilename
 
 import logging
 import sys
@@ -255,8 +256,9 @@ def main():
                     match = re_current_pattern.match(
                         os.path.basename(filename))
                     if match:
-                        params = utils.get_params_from_filename(filename)
-                        if params[2] != 60 or params[8] is None:
+                        barcoded_filename = BarcodedFilename(filename)
+                        if barcoded_filename.tissue != 60 or\
+                                barcoded_filename.organism is None:
                             filenames.add(match.group(1))
                             added_files += 1
 
@@ -365,9 +367,15 @@ def main():
         for sample, last_operation in runner.last_operations.items():
             last_operations[sample] = last_operation
             for filename in utils.get_sample_filenames(last_operation):
-                params = utils.get_params_from_filename(filename)
-                fake_sample = "%s-%s-%d%d%d-%d" % (params[0], params[1], params[3], params[4], params[5], params[6])
-                if params[2] >= 10 and params[2] <= 14:
+                barcoded_filename = BarcodedFilename(filename)
+                fake_sample = "%s-%s-%d%d%d-%d" % (barcoded_filename.project,
+                                                   barcoded_filename.patient,
+                                                   barcoded_filename.molecule,
+                                                   barcoded_filename.analyte,
+                                                   barcoded_filename.kit,
+                                                   barcoded_filename.biopsy)
+                if barcoded_filename.tissue >= 10 and\
+                        barcoded_filename.tissue <= 14:
                     sample_type = "normal"
                 else:
                     sample_type = "tumor"

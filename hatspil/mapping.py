@@ -1,6 +1,7 @@
 from formatizer import f
 from . import utils
 from .executor import Executor
+from .barcoded_filename import BarcodedFilename
 
 import os
 import shutil
@@ -259,7 +260,7 @@ class Mapping:
         self.analysis.logger.info("Finished indel realignment")
 
     def _filter_non_hg(self, filename):
-        organism = utils.get_params_from_filename(filename)[8]
+        organism = BarcodedFilename(filename).organism
         if organism is None or organism.lower().startswith("hg"):
             return filename
         else:

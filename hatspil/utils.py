@@ -5,7 +5,6 @@ import os
 import shutil
 import gzip as gz
 
-re_filename = re.compile(R"^([^-]+)-([^-]+)-(\d{2})-(\d)(\d)(\d)-(\d)(\d)(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?(?:\.R([12]))?(?:\.[^.]+)*?\.(\w+?)(\.gz)?$")
 
 def get_current():
     today = datetime.date.today()
@@ -32,32 +31,6 @@ def run_and_log(command, logger):
         return process.wait()
 
 
-def get_params_from_filename(filename):
-    filename = os.path.basename(filename)
-    match = re_filename.match(filename)
-    if not match:
-        raise RuntimeError(
-            "Cannot parse filename \"%s\". Filename in a strange format."
-            % filename)
-
-    read_index = match.group(10)
-    if read_index:
-        read_index = int(read_index)
-
-    return (match.group(1),
-            match.group(2),
-            int(match.group(3)),
-            int(match.group(4)),
-            int(match.group(5)),
-            int(match.group(6)),
-            int(match.group(7)),
-            int(match.group(8)),
-            match.group(9),
-            read_index,
-            match.group(11),
-            match.group(12))
-
-
 def get_sample_filenames(obj, split=False):
     if isinstance(obj, list):
         return obj
@@ -65,8 +38,8 @@ def get_sample_filenames(obj, split=False):
         if split and len(obj) > 1:
             return obj
         else:
-            return [
-                filename for filenames in obj.values() for filename in filenames]
+            return [filename for filenames in obj.values()
+                    for filename in filenames]
     else:
         return [obj]
 

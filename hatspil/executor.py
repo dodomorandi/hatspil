@@ -1,5 +1,6 @@
 from . import utils
 from .exceptions import PipelineError
+from .barcoded_filename import BarcodedFilename
 
 import os
 import re
@@ -49,12 +50,12 @@ class Executor:
             for organism, input_list in input_filenames.items():
                 current_splitted = {}
                 for filename in input_list:
-                    params = utils.get_params_from_filename(filename)
-                    sample_id = params[6]
+                    barcoded_filename = BarcodedFilename(filename)
+                    sample_id = barcoded_filename.sample
                     if sample_id not in current_splitted:
                         current_splitted[sample_id] = {}
 
-                    sample_type = params[2]
+                    sample_type = barcoded_filename.analyte
                     if sample_type >= 10 and sample_type <= 14:
                         current_splitted[sample_id]["normal"] = filename
                     else:
@@ -153,20 +154,27 @@ class Executor:
 
             for input_filename, mod_input_filename in iterator:
                 if isinstance(input_filename, str):
-                    organism, read_index = utils.get_params_from_filename(
-                        input_filename)[8:10]
+                    barcoded_filename = BarcodedFilename(input_filename)
+                    organism = barcoded_filename.organism
+                    read_index = barcoded_filename.read_index
                 elif isinstance(input_filename, dict):
-                    organism, read_index = utils.get_params_from_filename(
-                        input_filename["tumor"])[8:10]
+                    barcoded_filename = BarcodedFilename(
+                        input_filename["tumor"])
+                    organism = barcoded_filename.organism
+                    read_index = barcoded_filename.read_index
                 else:
                     read_index = []
                     for filename in input_filename:
                         if isinstance(filename, str):
-                            organism, index = utils.get_params_from_filename(
-                                filename)[8:10]
+                            barcoded_filename = BarcodedFilename(
+                                input_filename)
+                            organism = barcoded_filename.organism
+                            index = barcoded_filename.read_index
                         else:
-                            organism, index = utils.get_params_from_filename(
-                                filename["tumor"])[8:10]
+                            barcoded_filename = BarcodedFilename(
+                                input_filename["tumor"])
+                            organism = barcoded_filename.organism
+                            index = barcoded_filename.read_index
                         read_index.append(index)
 
                 if only_human and (organism != "" and organism is not None and

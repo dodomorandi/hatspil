@@ -1,5 +1,6 @@
 from . import utils
 from .executor import Executor
+from .barcoded_filename import BarcodedFilename
 
 from formatizer import f
 import os
@@ -40,11 +41,11 @@ class Xenograft:
 
         valid_filenames = []
         for filename in self.input_filenames:
-            params = utils.get_params_from_filename(filename)
-            if params[2] == 60:
+            barcoded_filename = BarcodedFilename(filename)
+            if barcoded_filename.tissue == 60:
                 valid_filenames.append(filename)
             else:
-                organism = params[8]
+                organism = barcoded_filename.organism
                 if not organism:
                     organism = "hg19"
                 if organism not in self.skip_filenames:
@@ -64,15 +65,21 @@ class Xenograft:
         for fastqgz in compressed:
             can_skip = True
             removed = {}
-            params = utils.get_params_from_filename(fastqgz)
+            barcoded_filename = BarcodedFilename(fastqgz)
             for organism in ("hg19", "mm10"):
                 obtained_name = "%s-%s-%d-%d%d%d-%d%d.%s" % (
-                    params[0], params[1], params[2], params[3],
-                    params[4], params[5], params[6], params[7],
+                    barcoded_filename.project,
+                    barcoded_filename.patient,
+                    barcoded_filename.tissue,
+                    barcoded_filename.molecule,
+                    barcoded_filename.analyte,
+                    barcoded_filename.kit,
+                    barcoded_filename.biopsy,
+                    barcoded_filename.sample,
                     organism
                 )
-                if params[9] and params[9] != "":
-                    obtained_name += ".R%s" % params[9]
+                if barcoded_filename.read_index:
+                    obtained_name += ".R%s" % barcoded_filename.read_index
                 obtained_name += ".fastq"
 
                 removed[organism] = [os.path.join(os.getcwd(), obtained_name)]
@@ -90,18 +97,16 @@ class Xenograft:
         if len(self.input_filenames) == 0:
             retval = False
 
-        for filename in self.input_filenames:
-            params = utils.get_params_from_filename(filename)
-
         self.analysis.logger.info("Checking complete")
         return retval
-
 
     def xenome(self):
         self.analysis.logger.info("Running xenome")
         self.chdir()
 
-        temp_dir = os.path.join(os.path.sep, "tmp", "%s.xenome" % self.analysis.sample)
+        temp_dir = os.path.join(os.path.sep,
+                                "tmp",
+                                "%s.xenome" % self.analysis.sample)
         if not os.path.exists(temp_dir):
             os.mkdir(temp_dir)
 
