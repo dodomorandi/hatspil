@@ -20,6 +20,7 @@ class Config:
         self.strelka_basedir = "/usr/share/strelka"
         self.strelka_config = "/usr/share/strelka/config.ini"
         self.strelka_threads = 1
+        self.bam2tdf = "java -jar bam2tdf.jar"
         self.hg19_ref = 'ucsc.hg19.fasta'
         self.hg19_index = "ucsc.hg19"
         self.hg38_ref = 'ucsc.hg38.fasta'
@@ -71,6 +72,7 @@ class Config:
         default["strelka_basedir"] = self.strelka_basedir
         default["strelka_config"] = self.strelka_config
         default["strelka_threads"] = str(self.strelka_threads)
+        default["bam2tdf"] = self.bam2tdf
         default["hg19_ref"] = self.hg19_ref
         default["hg19_index"] = self.hg19_index
         default["hg38_ref"] = self.hg38_ref

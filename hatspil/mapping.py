@@ -1,7 +1,7 @@
 from formatizer import f
 from . import utils
 from .executor import Executor
-from .barcoded_filename import BarcodedFilename
+from .barcoded_filename import BarcodedFilename, Analyte
 
 import os
 import shutil
@@ -116,18 +116,39 @@ class Mapping:
         config = self.analysis.config
 
         executor = Executor(self.analysis)
-        executor(f(
-            '{config.novoalign} -oSAM "@RG\tID:{self.analysis.basename}\t'
-            'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
-            '-d {{genome_index}} '
-            '-i PE {config.mean_len_library},{config.sd_len_library} '
-            '-t 90 -f {{input_filename}}> {{output_filename}}'),
-            input_function=lambda l: " ".join(sorted(l)),
-            input_split_reads=False,
-            output_format=f("{self.analysis.basename}{{organism_str}}.sam"),
-            split_by_organism=True,
-            only_human=True
-        )
+
+        barcoded = BarcodedFilename.from_sample(self.analysis.sample)
+        if barcoded.analyte == Analyte.WHOLE_EXOME:
+            executor(f(
+                '{config.novoalign} -oSAM "@RG\tID:{self.analysis.basename}\t'
+                'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
+                '-d {{genome_index}} '
+                '-i PE {config.mean_len_library},{config.sd_len_library} '
+                '-t 90 -f {{input_filename}}> {{output_filename}}'),
+                input_function=lambda l: " ".join(sorted(l)),
+                input_split_reads=False,
+                output_format=f("{self.analysis.basename}{{organism_str}}.sam"),
+                split_by_organism=True,
+                only_human=True
+            )
+        elif barcoded.analyte == Analyte.GENE_PANEL:
+            executor(f(
+                '{config.novoalign} '
+                '-a "AGATCGGAAGAGCACACGTCTGAACTCCAG" "AGATCGGAAGAGCGTCGTGTAGGGAAAGAG" '
+                '-C '
+                '-oSAM "@RG\tID:{self.analysis.basename}\t'
+                'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
+                '-d {{genome_index}} '
+                '-i 50-500 -h 8 -H 20 --matchreward 3 -x 4 -t 20,4 '
+                '-f {{input_filename}}> {{output_filename}}'),
+                input_function=lambda l: " ".join(sorted(l)),
+                input_split_reads=False,
+                output_format=f("{self.analysis.basename}{{organism_str}}.sam"),
+                split_by_organism=True,
+                only_human=True
+            )
+        else:
+            raise Exception("Unnhandled analyte")
 
         self.analysis.logger.info("Alignment SAM -> BAM")
         executor(f(
@@ -202,18 +223,38 @@ class Mapping:
         config = self.analysis.config
 
         executor = Executor(self.analysis)
-        executor(f(
-            '{config.picard} MarkDuplicates '
-            'I={{input_filename}} '
-            'O={{output_filename}} '
-            'M={self.output_basename}{{organism_str}}.marked_dup_metrics.txt '
-            'CREATE_INDEX=true'
-            '{self.max_records_str}'),
-            output_format=f("{self.analysis.basename}{{organism_str}}.srt.marked.dup.bam"),
-            error_string="Picard MarkDuplicates exited with status {status}",
-            exception_string="picard MarkDuplicates error",
-            unlink_inputs=True
-        )
+        barcoded = BarcodedFilename.from_sample(self.analysis.sample)
+        if barcoded.analyte == Analyte.WHOLE_EXOME:
+            executor(f(
+                '{config.picard} MarkDuplicates '
+                'I={{input_filename}} '
+                'O={{output_filename}} '
+                'M={self.output_basename}{{organism_str}}.marked_dup_metrics.txt '
+                'CREATE_INDEX=true '
+                '{self.max_records_str}'),
+                output_format=f("{self.analysis.basename}{{organism_str}}.srt.marked.dup.bam"),
+                error_string="Picard MarkDuplicates exited with status {status}",
+                exception_string="picard MarkDuplicates error",
+                unlink_inputs=True
+            )
+        elif barcoded.analyte == Analyte.GENE_PANEL:
+            executor(f(
+                '{config.picard} MarkDuplicates '
+                'I={{input_filename}} '
+                'O={{output_filename}} '
+                'M={self.output_basename}{{organism_str}}.marked_dup_metrics.txt '
+                'CREATE_INDEX=true '
+                'READ_ONE_BARCODE_TAG=BX '
+                'TAGGING_POLYCY=All '
+                'REMOVE_DUPLICATES=true '
+                '{self.max_records_str}'),
+                output_format=f("{self.analysis.basename}{{organism_str}}.srt.no_duplicates.bam"),
+                error_string="Picard MarkDuplicates exited with status {status}",
+                exception_string="picard MarkDuplicates error",
+                unlink_inputs=True
+            )
+        else:
+            raise Exception("Unhandled analyte")
 
         self.analysis.logger.info("Finished marking duplicates")
 
@@ -373,6 +414,18 @@ class Mapping:
 
         self.analysis.logger.info("Finished metrics collection")
 
+    def bam2tdf(self):
+        self.analysis.logger.info("Converting BAM to TDF")
+        self.chdir()
+        config = self.analysis.config
+
+        executor = Executor(self.analysis)
+        executor(f('{config.bam2tdf} -m 10 {{input_filename}}'),
+            error_string="Java bam2tdf exited with status {status}",
+            exception_string="bam2tdf error",
+            override_last_files=False
+        )
+
     def compress_fastq(self):
         self.analysis.logger.info("Compressing fastq files")
         self.chdir()
@@ -385,16 +438,24 @@ class Mapping:
         self.analysis.logger.info("Finished compressing fastq files")
 
     def run(self):
-        if self.analysis.parameters["use_cutadapt"]:
-            self.cutadapt()
-        self.fastqc()
-        self.trim()
+        barcoded = BarcodedFilename.from_sample(self.analysis.sample)
+        if barcoded.analyte == Analyte.WHOLE_EXOME:
+            if self.analysis.parameters["use_cutadapt"]:
+                self.cutadapt()
+            self.fastqc()
+            self.trim()
+
         self.align()
         self.sort_bam()
+
         if self.analysis.parameters["mark_duplicates"]:
             self.mark_duplicates()
-        self.indel_realign()
-        self.recalibration()
+
+        if barcoded.analyte == Analyte.WHOLE_EXOME:
+            self.indel_realign()
+            self.recalibration()
+
         self.metrics_collection()
+        self.bam2tdf()
         if self.analysis.parameters["compress_fastq"]:
             self.compress_fastq()
