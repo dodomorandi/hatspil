@@ -1,6 +1,6 @@
 from .config import Config
 from . import utils
-from .barcoded_filename import BarcodedFilename
+from .barcoded_filename import BarcodedFilename, Tissue
 from .runner import Runner
 
 import logging
@@ -210,7 +210,8 @@ def main():
                         os.path.basename(filename))
                     if match:
                         barcoded_filename = BarcodedFilename(filename)
-                        if barcoded_filename.tissue != 60 or\
+                        if (barcoded_filename.tissue != Tissue.PRIMARY_XENOGRAFT_TISSUE and
+                            barcoded_filename.tissue != Tissue.PRIMARY_XENOGRAFT_TISSUE) or \
                                 barcoded_filename.organism is None:
                             filenames.add(match.group(1))
                             added_files += 1
@@ -327,8 +328,11 @@ def main():
                                                    barcoded_filename.analyte,
                                                    barcoded_filename.kit,
                                                    barcoded_filename.biopsy)
-                if barcoded_filename.tissue >= 10 and\
-                        barcoded_filename.tissue <= 14:
+                if barcoded_filename.tissue == Tissue.BONE_MARROW_NORMAL or \
+                        barcoded_filename.tissue == Tissue.BUCCAL_CELL_NORMAL or \
+                        barcoded_filename.tissue == Tissue.SOLID_TISSUE_NORMAL or \
+                        barcoded_filename.tissue == Tissue.BLOOD_DERIVED_NORMAL or \
+                        barcoded_filename.tissue == Tissue.EBV_IMMORTALIZED_NORMAL:
                     sample_type = "normal"
                 else:
                     sample_type = "tumor"

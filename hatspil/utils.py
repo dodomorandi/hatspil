@@ -13,6 +13,7 @@ def get_current():
 
 
 def run_and_log(command, logger):
+    logger.info("Running command: %s", command)
     with subprocess.Popen(command,
                           stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE,

@@ -1,5 +1,41 @@
 import re
 import os
+from enum import IntEnum
+
+
+class Molecule(IntEnum):
+    DNA = 0,
+    RNA = 1
+
+
+class Analyte(IntEnum):
+    WHOLE_EXOME = 0
+    GENE_PANEL = 1
+
+
+class Tissue(IntEnum):
+    PRIMARY_SOLID_TUMOR = 1,
+    RECURRENT_SOLID_TUMOR = 2,
+    PRIMARY_BLOOD_DERIVED_CANCER_PERIPHERAL_BLOOD = 3,
+    RECURRENT_BLOOD_DERIVED_CANCER_BONE_MARROW = 4
+    ADDITIONAL_NEW_PRIMARY = 5,
+    METASTATIC = 6,
+    ADDITIONAL_METASTATIC = 7
+    HUMAN_TUMOR_ORGANIC_CELLS = 8,
+    PRIMARY_BLOOD_DERIVED_CANCER_BONE_MARROW = 9,
+    BLOOD_DERIVED_NORMAL = 10,
+    SOLID_TISSUE_NORMAL = 11,
+    BUCCAL_CELL_NORMAL = 12,
+    EBV_IMMORTALIZED_NORMAL = 13,
+    BONE_MARROW_NORMAL = 14,
+    SAMPLE_TYPE_15 = 15,
+    SAMPLE_TYPE_16 = 16,
+    CONTROL_ANALYTE = 20,
+    RECURRENT_BLOOD_DERIVED_CANCER_PERIPHERAL_BLOOD = 40,
+    CELL_LINES = 50,
+    PRIMARY_XENOGRAFT_TISSUE = 60,
+    CELL_LINE_DERIVED_XENOGRAFT_TISSUE = 61,
+    SAMPLE_TYPE_99 = 99
 
 
 class BarcodedFilename:
@@ -7,8 +43,8 @@ class BarcodedFilename:
                              R"(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
                              R"(?:\.R([12]))?(?:\.[^.]+)*?\.(\w+?)(\.gz)?$")
     re_sample = re.compile(R"^([^-]+)-([^-]+)-(\d{2})-(\d)(\d)(\d)-(\d)?(\d)?"
-                             R"(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
-                             R"(?:\.R([12]))?(?:\.[^.]+)*?$")
+                           R"(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
+                           R"(?:\.R([12]))?(?:\.[^.]+)*?$")
 
     def __init__(self, filename=None):
         if filename is None:
@@ -23,9 +59,9 @@ class BarcodedFilename:
 
         self.project = match.group(1)
         self.patient = match.group(2)
-        self.tissue = int(match.group(3))
-        self.molecule = int(match.group(4))
-        self.analyte = int(match.group(5))
+        self.tissue = Tissue(int(match.group(3)))
+        self.molecule = Molecule(int(match.group(4)))
+        self.analyte = Analyte(int(match.group(5)))
         self.kit = int(match.group(6))
         self.biopsy = int(match.group(7))
         self.sample = int(match.group(8))

@@ -1,6 +1,6 @@
 from . import utils
 from .executor import Executor
-from .barcoded_filename import BarcodedFilename
+from .barcoded_filename import BarcodedFilename, Tissue
 
 from formatizer import f
 import os
@@ -34,7 +34,8 @@ class Xenograft:
         valid_filenames = []
         for filename in self.input_filenames:
             barcoded_filename = BarcodedFilename(filename)
-            if barcoded_filename.tissue == 60:
+            if barcoded_filename.tissue == Tissue.PRIMARY_XENOGRAFT_TISSUE or \
+                    barcoded_filename.tissue == Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE:
                 valid_filenames.append(filename)
             else:
                 organism = barcoded_filename.organism
