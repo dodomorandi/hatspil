@@ -27,18 +27,10 @@ class Xenograft:
     def chdir(self):
         os.chdir(self.fastq_dir)
 
-    def check(self):
-        self.analysis.logger.info("Checking if xenome must be performed")
-        self.chdir()
-        retval = True
-
-        self.input_filenames = [
-            filename
-            for pair in utils.find_fastqs_by_organism(
-                self.analysis.sample,
-                ".").values()
-            for filename, _ in pair]
-
+    def _check_lambda(self, **kwargs):
+        self.input_filenames = [filename for filename
+                                in utils.flatten(kwargs["input_filenames"]
+                                                 .values())]
         valid_filenames = []
         for filename in self.input_filenames:
             barcoded_filename = BarcodedFilename(filename)
@@ -50,7 +42,8 @@ class Xenograft:
                     organism = "hg19"
                 if organism not in self.skip_filenames:
                     self.skip_filenames[organism] = []
-                self.skip_filenames[organism].append(os.path.join(os.getcwd(), filename))
+                self.skip_filenames[organism].append(os.path.join(os.getcwd(),
+                                                                  filename))
 
         self.input_filenames = sorted(valid_filenames)
 
@@ -93,6 +86,15 @@ class Xenograft:
             else:
                 utils.gunzip(fastqgz)
                 self.input_filenames.append(fastqgz[:-3])
+
+    def check(self):
+        self.analysis.logger.info("Checking if xenome must be performed")
+        self.chdir()
+        retval = True
+
+        executor = Executor(self.analysis)
+        executor(self._check_lambda,
+                 input_split_reads=False)
 
         if len(self.input_filenames) == 0:
             retval = False

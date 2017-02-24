@@ -4,6 +4,7 @@ import re
 import os
 import shutil
 import gzip as gz
+import collections
 
 
 def get_current():
@@ -128,3 +129,12 @@ def gunzip(filename):
             gz.open(filename, "rb") as in_fd:
         shutil.copyfileobj(in_fd, out_fd)
     os.unlink(filename)
+
+
+def flatten(iterable):
+    for element in iterable:
+        if isinstance(element, collections.Iterable) \
+                and not isinstance(element, str):
+            yield from flatten(element)
+        else:
+            yield element

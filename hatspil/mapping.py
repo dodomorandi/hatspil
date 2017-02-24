@@ -40,12 +40,6 @@ class Mapping:
         self.analysis.logger.info("Cutting adapters")
         self.chdir()
 
-        input_filenames = [
-            os.path.join(self.fastq_dir, filename)
-            for pair in utils.find_fastqs_by_organism(
-                self.analysis.sample,
-                self.fastq_dir).values()
-            for filename, _ in pair]
         executor = Executor(self.analysis)
         executor(
             f('cutadapt -a AGATCGGAAGAGCACACGTCTGAACTCCAG '
@@ -55,7 +49,6 @@ class Mapping:
               '> "{self.sample_base_out}.cutadapt.txt"'),
             output_format=f(
                 "{self.analysis.sample}{{organism_str}}.clipped.R%d.fastq"),
-            input_filenames=input_filenames,
             input_function=lambda l: " ".join(sorted(l)),
             input_split_reads=False,
             output_path=self.fastq_dir,
@@ -81,7 +74,7 @@ class Mapping:
 
     def trim(self):
         trim_end = False
-        if self.analysis.parameters["run_xenome"]:
+        if self.analysis.parameters["use_xenome"]:
             trim_end = True
 
         if trim_end:
@@ -392,7 +385,7 @@ class Mapping:
         self.analysis.logger.info("Finished compressing fastq files")
 
     def run(self):
-        if self.analysis.parameters["run_cutadapt"]:
+        if self.analysis.parameters["use_cutadapt"]:
             self.cutadapt()
         self.fastqc()
         self.trim()

@@ -1,12 +1,7 @@
-from .mapping import Mapping
-from .mutect import Mutect
-from .varscan import VarScan
-from .analysis import Analysis
-from .xenograft import Xenograft
-from .strelka import Strelka
 from .config import Config
 from . import utils
 from .barcoded_filename import BarcodedFilename
+from .runner import Runner
 
 import logging
 import sys
@@ -17,50 +12,6 @@ from email.mime.text import MIMEText
 import traceback
 import argparse
 import re
-
-
-class Runner:
-
-    def __init__(self, manager, root, config, parameters, fastq_dir):
-        self.last_operations = manager.dict()
-        self.root = root
-        self.config = config
-        self.parameters = parameters
-        self.fastq_dir = fastq_dir
-
-    def __call__(self, sample):
-        analysis = Analysis(sample, self.root, self.config, self.parameters)
-
-        if self.parameters["run_xenome"]:
-            xenograft = Xenograft(analysis, self.fastq_dir)
-            xenograft.run()
-
-        mapping = Mapping(analysis, self.fastq_dir)
-        mapping.run()
-
-        if not self.parameters["use_normals"]:
-            mutect = Mutect(analysis)
-            varscan = VarScan(analysis)
-
-            mutect.run()
-            varscan.run()
-
-        self.last_operations[sample] = analysis.last_operation_filenames
-
-    def with_normals(self, sample, tumor, normal):
-        if not self.parameters["use_normals"]:
-            return
-
-        analysis = Analysis(sample, self.root, self.config, self.parameters)
-        analysis.last_operation_filenames = [tumor, normal]
-
-        mutect = Mutect(analysis)
-        varscan = VarScan(analysis)
-        strelka = Strelka(analysis)
-
-        mutect.run()
-        varscan.run()
-        strelka.run()
 
 
 def get_parser():
@@ -82,7 +33,7 @@ def get_parser():
                         "raised.")
     parser.add_argument("--no-mail", dest="mail", action="store_false",
                         help="Do not send emails.")
-    parser.add_argument("--no-cutadapt", dest="cutadapt",
+    parser.add_argument("--no-cutadapt", dest="use_cutadapt",
                         action="store_false", help="Skips cutadapt.")
     parser.add_argument("--no-R-checks", dest="r_checks",
                         action="store_false",
@@ -90,17 +41,19 @@ def get_parser():
                         "the program will check some R depencencies and, "
                         "if some packages are found missing, it will try to "
                         "install them.")
-    parser.add_argument("--use-normals", action="store_true",
-                        help="Whenever a normal sample is found, it is used. "
+    parser.add_argument("--dont-use-normals", action="store_false",
+                        dest="use_normals",
+                        help="Normally, whenever a normal sample is found, it is used. "
                         "In this case many phases of the analysis are "
-                        "performed using different parameters.")
-    parser.add_argument("--mark-duplicates", action="store_true",
-                        help="Mark PCR duplicates during mapping phase. "
-                        "Automatically enabled by --xenograft option.")
-    parser.add_argument("--xenograft", action="store_true",
-                        help="Perform a preliminary xenograft analysis using "
-                        "xenome. When this option is enabled, cutadapt is "
-                        "skipped and duplicates are marked.")
+                        "performed using different parameters. If this option "
+                        "is passed, these phases are skipped.")
+    parser.add_argument("--dont-mark-duplicates", action="store_false",
+                        dest="mark_duplicates",
+                        help="Do not mark PCR duplicates during mapping phase "
+                        "for xenograft tissues.")
+    parser.add_argument("--no-xenome", action="store_false", dest="use_xenome",
+                        help="Do not use xenograft analysis using xenome even "
+                        "if the tissue has the xenograft flag")
     parser.add_argument("--post-recalibration", action="store_true",
                         help="Perform a post-recalibration analysis after the "
                         "basic recalibration.")
@@ -284,9 +237,9 @@ def main():
         raise RuntimeError("Unhandled condition")
 
     parameters = {
-        "run_xenome": args.xenograft,
-        "run_cutadapt": args.cutadapt and not args.xenograft,
-        "mark_duplicates": args.mark_duplicates or args.xenograft,
+        "use_xenome": args.use_xenome,
+        "use_cutadapt": args.use_cutadapt,
+        "mark_duplicates": args.mark_duplicates,
         "run_post_recalibration": args.post_recalibration,
         "compress_fastq": args.compress_fastq,
         "gatk_threads": args.gatk_threads,

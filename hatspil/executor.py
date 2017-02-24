@@ -167,12 +167,12 @@ class Executor:
                     for filename in input_filename:
                         if isinstance(filename, str):
                             barcoded_filename = BarcodedFilename(
-                                input_filename)
+                                filename)
                             organism = barcoded_filename.organism
                             index = barcoded_filename.read_index
                         else:
                             barcoded_filename = BarcodedFilename(
-                                input_filename["tumor"])
+                                filename["tumor"])
                             organism = barcoded_filename.organism
                             index = barcoded_filename.read_index
                         read_index.append(index)
