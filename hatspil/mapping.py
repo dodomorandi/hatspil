@@ -245,7 +245,7 @@ class Mapping:
                 'M={self.output_basename}{{organism_str}}.marked_dup_metrics.txt '
                 'CREATE_INDEX=true '
                 'READ_ONE_BARCODE_TAG=BX '
-                'TAGGING_POLYCY=All '
+                'TAGGING_POLICY=All '
                 'REMOVE_DUPLICATES=true '
                 '{self.max_records_str}'),
                 output_format=f("{self.analysis.basename}{{organism_str}}.srt.no_duplicates.bam"),
