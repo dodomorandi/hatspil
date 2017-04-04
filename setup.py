@@ -3,7 +3,7 @@
 from setuptools import setup, find_packages
 setup(
     name="HatsPil",
-    version="0.1.1rc2",
+    version="0.1.1rc3",
     packages=find_packages(),
     install_requires=[
         "cutadapt",

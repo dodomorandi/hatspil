@@ -19,7 +19,11 @@ class Xenograft:
             "{analysis.config.xenome} classify "
             "-T {analysis.config.xenome_threads} "
             "-P {analysis.config.xenome_index} --pairs")
-        self.sample_base_out = os.path.join("REPORTS", self.analysis.sample)
+        reports_dir = os.path.join(self.fastq_dir, "REPORTS")
+        if not os.path.exists(reports_dir):
+            os.makedirs(reports_dir)
+
+        self.sample_base_out = os.path.join(reports_dir, self.analysis.sample)
         self.skip_filenames = {}
         self.already_done = {}
         self.input_filenames = None

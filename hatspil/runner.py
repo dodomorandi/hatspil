@@ -27,7 +27,6 @@ class Runner:
                 barcoded_filename.tissue == 60:
             xenograft = Xenograft(analysis, self.fastq_dir)
             xenograft.run()
-        return
 
         mapping = Mapping(analysis, self.fastq_dir)
         mapping.run()
@@ -45,7 +44,6 @@ class Runner:
         if not self.parameters["use_normals"]:
             return
 
-        return
         analysis = Analysis(sample, self.root, self.config, self.parameters)
         analysis.last_operation_filenames = [tumor, normal]
 
