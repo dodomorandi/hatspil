@@ -16,9 +16,13 @@ class VarScan:
         self.minVar = 2
         self.minQ = 0
         self.min_var_frequency = 0.05
+        self.normal_purity = 1
+        self.tumor_purity = 1
+        self.min_tumor_frequency = 0.01
+        self.p_value_somatic = 0.05
+
         if self.analysis.parameters["use_normals"]:
-            self.first_fifo = "/data/scratch/matteo/%s.tumor.fifo" % self.analysis.basename
-            self.second_fifo = "/data/scratch/matteo/%s.normal.fifo" % self.analysis.basename
+            self.first_fifo = "/data/scratch/matteo/%s.fifo" % self.analysis.basename
         else:
             self.first_fifo = "/data/scratch/matteo/%s.fifo" % self.analysis.basename
             self.second_fifo = "/data/scratch/matteo/%s.indel.fifo" % self.analysis.basename
@@ -27,56 +31,50 @@ class VarScan:
         os.chdir(self.analysis.out_dir)
 
     def _run_varscan_normals(self, **kwargs):
+        self.analysis.logger.info("Running VarScan Somatic")
+
         genome_ref = kwargs["genome_ref"]
         input_filenames = kwargs["input_filename"]
         organism_str = kwargs["organism_str"]
 
         config = self.analysis.config
 
-        tumor_pileup_process = subprocess.Popen(f(
-            "{config.samtools} mpileup -d 8000 -f {genome_ref} "
-            "{input_filenames[\"tumor\"]} >{self.first_fifo}"),
-            shell=True)
-
-        normal_pileup_process = subprocess.Popen(f(
-            "{config.samtools} mpileup -d 8000 -f {genome_ref} "
-            "{input_filenames[\"normal\"]} >{self.second_fifo}"),
+        pileup_process = subprocess.Popen(f(
+            "{config.samtools} mpileup "
+            "-q 1 -d 6000 -f {genome_ref} "
+            "{input_filenames[\"tumor\"]} "
+            "-B {input_filenames[\"normal\"]} "
+            "| awk 'if\{($4 >= 6) print $0\}' "
+            "| awk 'if\{($7 != 0) print $0\}'"
+            ">{self.first_fifo}"),
             shell=True)
 
         somatic_process = subprocess.Popen(
-            f("{config.varscan} somatic {self.second_fifo} {self.first_fifo} "
+            f("{config.varscan} somatic {self.first_fifo} {self.analysis.basename}"
+              "--mpileup 1 "
               "--min-coverage-normal {self.min_coverage_normal} "
               "--min-coverage-tumor {self.min_coverage_tumor} "
               "--min-var-freq {self.min_var_frequency} "
               "--strand-filter 1 "
-              "--output-snp {self.analysis.basename}{organism_str}.varscan2.snp.vcf "
-              "--output-indel {self.analysis.basename}{organism_str}.varscan2.indel.vcf"),
+              "--normal-purity {self.normal_purity} "
+              "--tumor-purity {self.tumor_purity} "
+              "--output-vcf 1"),
             shell=True)
 
-        self.analysis.logger.info("Waiting for SNP and InDel calls for id "
+        self.analysis.logger.info("Waiting for VarScan somatic for id "
                                   "%s%s..." % (self.analysis.basename,
                                                organism_str))
 
-        normal_pileup_finished = False
-        tumor_pileup_finished = False
+        pileup_finished = False
         somatic_finished = False
 
-        while not (normal_pileup_finished and tumor_pileup_finished and somatic_finished):
-            if not normal_pileup_finished:
+        while not (pileup_finished and somatic_finished):
+            if not pileup_finished:
                 try:
-                    normal_pileup_retval = normal_pileup_process.wait(5)
-                    normal_pileup_finished = True
+                    pileup_retval = pileup_process.wait(5)
+                    pileup_finished = True
                     self.analysis.logger.info(
-                        "samtool mpileup for normal sample finished")
-                except:
-                    pass
-
-            if not tumor_pileup_finished:
-                try:
-                    tumor_pileup_retval = tumor_pileup_process.wait(5)
-                    tumor_pileup_finished = True
-                    self.analysis.logger.info(
-                        "samtool mpileup for tumor sample finished")
+                        "samtool mpileup finished")
                 except:
                     pass
 
@@ -88,19 +86,20 @@ class VarScan:
                 except:
                     pass
 
-        if normal_pileup_retval != 0 or tumor_pileup_retval != 0 or somatic_retval != 0:
-            if normal_pileup_retval != 0:
+        if pileup_retval != 0 or somatic_retval != 0:
+            if pileup_retval != 0:
                 self.analysis.logger.error(
-                    "samtool mpileup for normal sample failed")
-            if tumor_pileup_retval != 0:
-                self.analysis.logger.error(
-                    "samtool mpileup for tumor sample failed")
+                    "samtool mpileup failed")
             if somatic_process != 0:
                 self.analysis.logger.error("VarScan somatic failed")
 
             raise PipelineError("varscan error")
 
+        self.analysis.logger.info("Finished VarScan Somatic")
+
     def _run_varscan_no_normals(self, **kwargs):
+        self.analysis.logger.info("Running VarScan mpileup2snp/indel")
+
         genome_ref = kwargs["genome_ref"]
         input_filename = kwargs["input_filename"]
         organism_str = kwargs["organism_str"]
@@ -176,6 +175,62 @@ class VarScan:
                 self.analysis.logger.error("samtools pileup failed")
 
             raise PipelineError("varscan error")
+
+        self.analysis.logger.info("Finished VarScan mpileup2snp/indel")
+
+    def process_somatic(self):
+        self.analysis.logger.info("Running VarScan processSomatic")
+        self.chdir()
+
+        config = self.analysis.config
+
+        executor = Executor(self.analysis)
+        executor(f(
+            "{config.varscan} processSomatic "
+            "{{input_filename}} "
+            "--min-tumor-freq {self.min_tumor_freq} "
+            "--p-value {self.p_value_somatic}"
+            ),
+            shell=True,
+            override_last_files=False,
+            input_filename=[f("{self.analysis.basename}.snp.vcf")],
+            error_string="VarScan processSomatic exited with status {status}",
+            exception_string="varscan processSomatic error")
+
+        executor(f(
+            "{config.varscan} processSomatic "
+            "{{input_filename}} "
+            "--min-tumor-freq {self.min_tumor_freq} "
+            "--p-value {self.p_value_somatic}"
+            ),
+            shell=True,
+            override_last_files=False,
+            input_filename=[f("{self.analysis.basename}.snp.vcf")],
+            error_string="VarScan processSomatic exited with status {status}",
+            exception_string="varscan processSomatic error")
+
+        self.analysis.logger.info("Finished VarScan processSomatic")
+
+    def cnv(self):
+        self.analysis.logger.info("Running VarScan copynumber")
+        self.chdir()
+        os.makedirs("CNV")
+        os.chdir("CNV")
+
+        config = self.analysis.config
+
+        executor = Executor(self.analysis)
+        executor(f(
+            "{config.varscan} copynumber "
+            "{{input_filename}} "
+            "--min-tumor-freq {self.min_tumor_freq} "
+            "--p-value {self.p_value_somatic}"
+            ),
+            shell=True,
+            override_last_files=False,
+            input_filename=[f("{self.analysis.basename}.cnv.vcf")],
+            error_string="VarScan copynumber exited with status {status}",
+            exception_string="varscan copynumber error")
 
     def run(self):
         self.analysis.logger.info("Running VarScan")
