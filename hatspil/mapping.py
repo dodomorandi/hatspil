@@ -61,13 +61,9 @@ class Mapping:
         self.analysis.logger.info("Running fastqc")
         self.chdir()
 
-        qcdir = os.path.join(self.fastq_dir, "FASTQC")
-        if not os.path.exists(qcdir):
-            os.mkdir(qcdir)
-
         executor = Executor(self.analysis)
         executor(f('{self.analysis.config.fastqc} '
-                   '"{{input_filename}}" --outdir {qcdir}'),
+                   '"{{input_filename}}" --outdir REPORTS'),
                  override_last_files=False)
 
         self.analysis.logger.info("Finished fastqc")
@@ -384,19 +380,6 @@ class Mapping:
             '{self.max_records_str}'),
             error_string="Picard CollectHsMetrics exited with status {status}",
             exception_string="picard CollectHsMetrics error",
-            override_last_files=False
-        )
-
-        executor(f(
-            '{config.picard} CollectTargetedPcrMetrics '
-            'I={{input_filename}} AMPLICON_INTERVALS='
-            '{config.bait_list} TARGET_INTERVALS={config.target_list} '
-            'R={{genome_ref}} '
-            'O={self.output_basename}{{organism_str}}.targeted_metrics.txt'
-            '{self.max_records_str} '
-            'PER_BASE_COVERAGE={self.output_basename}{{organism_str}}.coverage.txt'),
-            error_string="Picard CollectTargetedPcrMetrics exited with status {status}",
-            exception_string="picard CollectTargetedPcrMetrics error",
             override_last_files=False
         )
 
