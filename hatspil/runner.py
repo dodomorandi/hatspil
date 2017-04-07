@@ -45,7 +45,10 @@ class Runner:
             return
 
         analysis = Analysis(sample, self.root, self.config, self.parameters)
-        analysis.last_operation_filenames = [tumor, normal]
+        analysis.last_operation_filenames = {
+            "tumor": tumor,
+            "normal": normal
+        }
 
         mutect = Mutect(analysis)
         varscan = VarScan(analysis)

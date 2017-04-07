@@ -222,10 +222,15 @@ class Executor:
                     output_filename = []
                     for s in output_format:
                         for match in re_replacer.finditer(s):
-                            s = re.sub(
-                                match.group(0), str(
-                                    eval(
-                                        match.group(1))), s)
+                            try:
+                                s = re.sub(
+                                    match.group(0), str(
+                                        eval(
+                                            match.group(1))), s)
+                            except:
+                                raise PipelineError(
+                                    "cannot replace parameter %s"
+                                    % (match.group(0)))
                         output_filename.append(s)
 
                     if output_function is not None:
@@ -243,19 +248,29 @@ class Executor:
                     for s in command:
                         if isinstance(s, str):
                             for match in re_replacer.finditer(s):
-                                s = s.replace(
-                                    match.group(0), str(
-                                        eval(
-                                            match.group(1))))
+                                try:
+                                    s = s.replace(
+                                        match.group(0), str(
+                                            eval(
+                                                match.group(1))))
+                                except:
+                                    raise PipelineError(
+                                        "cannot replace parameter %s"
+                                        % (match.group(0)))
+
                         commands.append(s)
                 else:
                     current_command = command
                     if isinstance(current_command, str):
                         for match in re_replacer.finditer(command):
-                            current_command = current_command.replace(
-                                match.group(0), str(
-                                    eval(
-                                        match.group(1))))
+                            try:
+                                current_command = current_command.replace(
+                                    match.group(0), str(
+                                        eval(match.group(1))))
+                            except:
+                                raise PipelineError(
+                                    "cannot replace parameter %s"
+                                    % (match.group(0)))
                     commands.append(current_command)
 
                 for command_index, current_command in enumerate(commands):
@@ -281,14 +296,26 @@ class Executor:
                             exception_string = "%s error" % arg_zero
 
                         for match in re_replacer.finditer(error_string):
-                            error_string = re.sub(match.group(0),
-                                                  str(eval(match.group(1))),
-                                                  error_string)
+                            try:
+                                error_string = re.sub(
+                                    match.group(0),
+                                    str(eval(match.group(1))),
+                                    error_string)
+                            except:
+                                raise PipelineError(
+                                    "cannot replace parameter %s"
+                                    % (match.group(0)))
+
                         for match in re_replacer.finditer(exception_string):
-                            exception_string = re.sub(
-                                match.group(0), str(
-                                    eval(
-                                        match.group(1))), exception_string)
+                            try:
+                                exception_string = re.sub(
+                                    match.group(0), str(
+                                        eval(
+                                            match.group(1))), exception_string)
+                            except:
+                                raise PipelineError(
+                                    "cannot replace parameter %s"
+                                    % (match.group(0)))
                         self.analysis.logger.error(error_string)
                         raise PipelineError(exception_string)
 
