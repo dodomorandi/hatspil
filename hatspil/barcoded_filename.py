@@ -37,6 +37,14 @@ class Tissue(IntEnum):
     CELL_LINE_DERIVED_XENOGRAFT_TISSUE = 61,
     SAMPLE_TYPE_99 = 99
 
+    def is_normal(self):
+        return self in (
+            Tissue.BLOOD_DERIVED_NORMAL,
+            Tissue.SOLID_TISSUE_NORMAL,
+            Tissue.BUCCAL_CELL_NORMAL,
+            Tissue.EBV_IMMORTALIZED_NORMAL,
+            Tissue.BONE_MARROW_NORMAL)
+
 
 class BarcodedFilename:
     re_filename = re.compile(R"^([^-]+)-([^-]+)-(\d{2})-(\d)(\d)(\d)-(\d)(\d)"
@@ -110,3 +118,23 @@ class BarcodedFilename:
         barcoded.gzipped = None
 
         return barcoded
+
+    def __repr__(self):
+        repr = (
+            "{project=" + str(self.project) +
+            " patient=" + str(self.patient) +
+            " tissue=" + str(self.tissue) +
+            " molecule=" + str(self.molecule) +
+            " analyte=" + str(self.analyte) +
+            " kit=" + str(self.kit) +
+            " biopsy=" + str(self.biopsy) +
+            " sample=" + str(self.sample) +
+            " organism=" + str(self.organism))
+
+        if self.read_index:
+            repr += " read_index=" + str(self.read_index)
+        repr += (
+            " extension=" + self.extension +
+            " gzipped=" + str(self.gzipped) + "}")
+
+        return repr

@@ -55,8 +55,8 @@ class Executor:
                     if sample_id not in current_splitted:
                         current_splitted[sample_id] = {}
 
-                    sample_type = barcoded_filename.analyte
-                    if sample_type >= 10 and sample_type <= 14:
+                    sample_type = barcoded_filename.tissue
+                    if sample_type.is_normal():
                         current_splitted[sample_id]["normal"] = filename
                     else:
                         current_splitted[sample_id]["tumor"] = filename

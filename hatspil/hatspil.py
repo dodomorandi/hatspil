@@ -376,7 +376,7 @@ def main():
                     (args.list_file, traceback.format_exc()))
                 msg["Subject"] = "Pipeline error"
 
-    if args.mail:
+    if args.mail and len(config.mails) > 0:
         msg["From"] = "UV2000 Pipeline <pipeline@uv2000.hugef>"
         msg["To"] = config.mails
 

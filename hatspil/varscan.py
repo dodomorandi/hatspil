@@ -43,14 +43,14 @@ class VarScan:
             "{config.samtools} mpileup "
             "-q 1 -d 6000 -f {genome_ref} "
             "{input_filenames[\"tumor\"]} "
-            "-B {input_filenames[\"normal\"]} "
-            "| awk 'if\{($4 >= 6) print $0\}' "
-            "| awk 'if\{($7 != 0) print $0\}'"
-            ">{self.first_fifo}"),
+            "-B {input_filenames[\"normal\"]} ") +
+            "| awk '{if($4 >= 6) print $0}' "
+            "| awk '{if($7 != 0) print $0}'" +
+            f(">{self.first_fifo}"),
             shell=True)
 
         somatic_process = subprocess.Popen(
-            f("{config.varscan} somatic {self.first_fifo} {self.analysis.basename}"
+            f("{config.varscan} somatic {self.first_fifo} {self.analysis.basename} "
               "--mpileup 1 "
               "--min-coverage-normal {self.min_coverage_normal} "
               "--min-coverage-tumor {self.min_coverage_tumor} "
@@ -238,8 +238,10 @@ class VarScan:
 
         if not os.path.exists(self.first_fifo):
             os.mkfifo(self.first_fifo)
-        if not os.path.exists(self.second_fifo):
-            os.mkfifo(self.second_fifo)
+
+        if not self.analysis.parameters["use_normals"]:
+            if not os.path.exists(self.second_fifo):
+                os.mkfifo(self.second_fifo)
 
         executor = Executor(self.analysis)
         if self.analysis.parameters["use_normals"]:
@@ -251,6 +253,7 @@ class VarScan:
             executor(self._run_varscan_no_normals, override_last_files=False)
 
         os.unlink(self.first_fifo)
-        os.unlink(self.second_fifo)
+        if not self.analysis.parameters["use_normals"]:
+            os.unlink(self.second_fifo)
 
         self.analysis.logger.info("Finished VarScan")
