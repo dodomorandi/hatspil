@@ -193,7 +193,7 @@ class VarScan:
             ),
             shell=True,
             override_last_files=False,
-            input_filename=[f("{self.analysis.basename}.snp.vcf")],
+            input_filename=[f("{self.analysis.basename}.varscan2.snp.vcf")],
             error_string="VarScan processSomatic exited with status {status}",
             exception_string="varscan processSomatic error")
 
@@ -205,7 +205,7 @@ class VarScan:
             ),
             shell=True,
             override_last_files=False,
-            input_filename=[f("{self.analysis.basename}.snp.vcf")],
+            input_filename=[f("{self.analysis.basename}.varscan2.snp.vcf")],
             error_string="VarScan processSomatic exited with status {status}",
             exception_string="varscan processSomatic error")
 
@@ -228,7 +228,7 @@ class VarScan:
             ),
             shell=True,
             override_last_files=False,
-            input_filename=[f("{self.analysis.basename}.cnv.vcf")],
+            input_filename=[f("{self.analysis.basename}.varscan2.cnv.vcf")],
             error_string="VarScan copynumber exited with status {status}",
             exception_string="varscan copynumber error")
 
