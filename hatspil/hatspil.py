@@ -123,6 +123,11 @@ def main():
                   "directory.")
             exit(-1)
 
+    if not config.check_programs():
+        print("ERROR: not every program inside configuration is correctly "
+              "set. Please fix the problem and try again.")
+        exit(-1)
+
     if args.list_file is not None and not os.path.exists(args.list_file):
         print("ERROR: list_file '%s' does not exist." % args.list_file)
         exit(-2)

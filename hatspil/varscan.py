@@ -50,7 +50,8 @@ class VarScan:
             shell=True)
 
         somatic_process = subprocess.Popen(
-            f("{config.varscan} somatic {self.first_fifo} {self.analysis.basename} "
+            f("{config.java} {config.varscan_jvm_args} {config.varscan} "
+              "somatic {self.first_fifo} {self.analysis.basename} "
               "--mpileup 1 "
               "--min-coverage-normal {self.min_coverage_normal} "
               "--min-coverage-tumor {self.min_coverage_tumor} "
@@ -112,7 +113,8 @@ class VarScan:
             shell=True)
 
         snp_process = subprocess.Popen(f(
-            "{config.varscan} mpileup2snp {self.first_fifo} "
+            "{config.java} {config.varscan_jvm_args} {config.varscan} "
+            "mpileup2snp {self.first_fifo} "
             "--min-coverage {self.min_coverage_tumor} "
             "--min-reads2 {self.minVar} "
             "--min-avg-qual {self.minQ} "
@@ -123,7 +125,8 @@ class VarScan:
         )
 
         indel_process = subprocess.Popen(f(
-            "{config.varscan} mpileup2indel {self.second_fifo} "
+            "{config.java} {config.varscan_jvm_args} {config.varscan} "
+            "mpileup2indel {self.second_fifo} "
             "--min-coverage {self.min_coverage_tumor} "
             "--min-reads2 {self.minVar} "
             "--min-avg-qual {self.minQ} "
@@ -186,7 +189,8 @@ class VarScan:
 
         executor = Executor(self.analysis)
         executor(f(
-            "{config.varscan} processSomatic "
+            "{config.java} {config.varscan_jvm_args} {config.varscan} "
+            "processSomatic "
             "{{input_filename}} "
             "--min-tumor-freq {self.min_tumor_freq} "
             "--p-value {self.p_value_somatic}"
@@ -198,7 +202,8 @@ class VarScan:
             exception_string="varscan processSomatic error")
 
         executor(f(
-            "{config.varscan} processSomatic "
+            "{config.java} {config.varscan_jvm_args} {config.varscan} "
+            "processSomatic "
             "{{input_filename}} "
             "--min-tumor-freq {self.min_tumor_freq} "
             "--p-value {self.p_value_somatic}"
@@ -221,7 +226,8 @@ class VarScan:
 
         executor = Executor(self.analysis)
         executor(f(
-            "{config.varscan} copynumber "
+            "{config.java} {config.varscan_jvm_args} {config.varscan} "
+            "copynumber "
             "{{input_filename}} "
             "--min-tumor-freq {self.min_tumor_freq} "
             "--p-value {self.p_value_somatic}"
