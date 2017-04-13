@@ -125,12 +125,11 @@ class Config:
 
         for param in Config.executables:
             executable = getattr(self, param)
-            if not os.access(executable.split(" ")[0], os.X_OK) or \
-                    subprocess.call(executable,
-                                    shell=True,
-                                    stdin=subprocess.DEVNULL,
-                                    stdout=subprocess.DEVNULL,
-                                    stderr=subprocess.DEVNULL) == 127:
+            if subprocess.call(executable,
+                               shell=True,
+                               stdin=subprocess.DEVNULL,
+                               stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL) == 127:
                 sys.stderr.write("ERROR: %s cannot be executed. "
                                  "Check config.\n" % param)
                 ok = False
