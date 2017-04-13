@@ -128,6 +128,11 @@ def main():
               "set. Please fix the problem and try again.")
         exit(-1)
 
+    if not config.check_files():
+        print("ERROR: not every file inside configuration is correctly "
+              "set. Please fix the problem and try again.")
+        exit(-1)
+
     if args.list_file is not None and not os.path.exists(args.list_file):
         print("ERROR: list_file '%s' does not exist." % args.list_file)
         exit(-2)

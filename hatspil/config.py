@@ -8,6 +8,14 @@ import subprocess
 class Config:
     executables = ("novoalign", "seqtk", "fastqc", "samtools", "xenome")
     jars = ("picard", "varscan", "gatk", "mutect", "bam2tdf")
+    files = ("strelka_basedir", "strelka_config", "hg19_ref",
+             "hg19_index", "hg38_ref", "hg38_index", "mm9_ref", "mm9_index",
+             "mm10_ref", "mm10_index", "cosmic_hg19", "cosmic_hg38",
+             "dbsnp138_hg19", "dbsnp138_hg38", "target_list", "bait_list",
+             "indel_1", "indel_2")
+    parameters = ("xenome_index", "xenome_threads", "strelka_threads",
+                  "mean_len_library", "sd_len_library", "use_hg19", "use_hg38",
+                  "use_mm9", "use_mm10", "kit", "mails")
 
     def __init__(self, filename=None):
         self.java = "java"
@@ -43,6 +51,10 @@ class Config:
         self.cosmic_hg38 = "Cosmic.hg38.vcf"
         self.dbsnp138_hg19 = 'dbsnp_138.hg19.vcf'
         self.dbsnp138_hg38 = 'dbsnp_138.hg38.vcf'
+        self.use_hg19 = True
+        self.use_hg38 = True
+        self.use_mm9 = True
+        self.use_mm10 = True
         self.mean_len_library = 200
         self.sd_len_library = 100
         self.kit = "Kit"
@@ -55,7 +67,7 @@ class Config:
         if filename:
             parser = ConfigParser()
             parser.read(filename)
-            for section_name in "EXECUTABLES", "PARAMETERS", "JARS":
+            for section_name in "EXECUTABLES", "JARS", "FILES", "PARAMETERS":
                 if section_name not in parser:
                     sys.stderr.write("WARNING: %s section in config not "
                                      "found. Values are set to default\n" %
@@ -66,48 +78,37 @@ class Config:
                 for key in section:
                     setattr(self, key, section[key])
 
-            self.xenome_threads = int(self.xenome_threads)
-            self.strelka_threads = int(self.strelka_threads)
-            self.mean_len_library = int(self.mean_len_library)
-            self.sd_len_library = int(self.sd_len_library)
+            self.xenome_threads = parser["PARAMETERS"].getint("xenome_threads")
+            self.strelka_threads = parser["PARAMETERS"].getint("strelka_threads")
+            self.mean_len_library = parser["PARAMETERS"].getint("mean_len_library")
+            self.sd_len_library = parser["PARAMETERS"].getint("sd_len_library")
+            self.use_hg19 = parser["PARAMETERS"].getboolean("use_hg19")
+            self.use_hg38 = parser["PARAMETERS"].getboolean("use_hg38")
+            self.use_mm9 = parser["PARAMETERS"].getboolean("use_mm9")
+            self.use_mm10 = parser["PARAMETERS"].getboolean("use_mm10")
 
     def save(self, filename):
         config = ConfigParser()
 
-        executables = config["EXECUTABLES"]
+        executables = {}
         for executable in Config.executables:
             executables[executable] = getattr(self, executable)
+        config["EXECUTABLES"] = executables
 
-        jars = config["JARS"]
+        jars = {}
         for jar in Config.jars:
             jars[jar] = getattr(self, jar)
+        config["JARS"] = jars
 
-        parameters = config["PARAMETERS"]
-        parameters["xenome_index"] = self.xenome_index
-        parameters["xenome_threads"] = str(self.xenome_threads)
-        parameters["strelka_basedir"] = self.strelka_basedir
-        parameters["strelka_config"] = self.strelka_config
-        parameters["strelka_threads"] = str(self.strelka_threads)
-        parameters["hg19_ref"] = self.hg19_ref
-        parameters["hg19_index"] = self.hg19_index
-        parameters["hg38_ref"] = self.hg38_ref
-        parameters["hg38_index"] = self.hg38_index
-        parameters["mm9_ref"] = self.mm9_ref
-        parameters["mm9_index"] = self.mm9_index
-        parameters["mm10_ref"] = self.mm10_ref
-        parameters["mm10_index"] = self.mm10_index
-        parameters["cosmic_hg19"] = self.cosmic_hg19
-        parameters["cosmic_hg38"] = self.cosmic_hg38
-        parameters["dpsnp138_hg19"] = self.dbsnp138_hg19
-        parameters["dpsnp138_hg38"] = self.dbsnp138_hg38
-        parameters["mean_len_library"] = str(self.mean_len_library)
-        parameters["sd_len_library"] = str(self.sd_len_library)
-        parameters["kit"] = self.kit
-        parameters["target_list"] = self.target_list
-        parameters["bait_list"] = self.bait_list
-        parameters["indel_1"] = self.indel_1
-        parameters["indel_2"] = self.indel_2
-        parameters["mails"] = self.mails
+        files = {}
+        for filepath in Config.files:
+            files[filepath] = getattr(self, filepath)
+        config["FILES"] = files
+
+        parameters = {}
+        for parameter in Config.parameters:
+            parameters[parameter] = str(getattr(self, parameter))
+        config["PARAMETERS"] = parameters
 
         with open(filename, "w") as fd:
             config.write(fd)
@@ -131,6 +132,32 @@ class Config:
                                     stdout=subprocess.DEVNULL,
                                     stderr=subprocess.DEVNULL) == 127:
                 sys.stderr.write("ERROR: %s cannot be executed. "
+                                 "Check config.\n" % param)
+                ok = False
+
+        return ok
+
+
+    def check_files(self):
+        ok = True
+
+        for param in Config.files:
+            if "hg19" in param:
+                if not self.use_hg19:
+                    continue
+            elif "hg38" in param:
+                if not self.use_hg38:
+                    continue
+            elif "mm9" in param:
+                if not self.use_mm9:
+                    continue
+            elif "mm10" in param:
+                if not self.use_mm10:
+                    continue
+
+            filepath = getattr(self, param)
+            if not os.access(filepath, os.R_OK):
+                sys.stderr.write("ERROR: %s cannot be read. "
                                  "Check config.\n" % param)
                 ok = False
 
