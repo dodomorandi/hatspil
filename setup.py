@@ -8,8 +8,12 @@ setup(
     install_requires=[
         "cutadapt",
         "formatizer",
-        "rpy2"
+        "rpy2",
+        "pandas",
+        "tables"
     ],
+    package_data={'': ["data.hdf"]},
+    include_package_data=True,
     entry_points={
         "console_scripts": [
             "hatspil = hatspil.hatspil:main",

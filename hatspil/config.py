@@ -6,19 +6,20 @@ import subprocess
 
 
 class Config:
-    executables = ("novoalign", "seqtk", "fastqc", "samtools", "xenome")
+    executables = ("java", "perl", "novoalign", "seqtk", "fastqc", "samtools", "xenome")
     jars = ("picard", "varscan", "gatk", "mutect", "bam2tdf")
     files = ("strelka_basedir", "strelka_config", "hg19_ref",
              "hg19_index", "hg38_ref", "hg38_index", "mm9_ref", "mm9_index",
              "mm10_ref", "mm10_index", "cosmic_hg19", "cosmic_hg38",
              "dbsnp138_hg19", "dbsnp138_hg38", "target_list", "bait_list",
-             "indel_1", "indel_2")
+             "indel_1", "indel_2", "annovar_basedir", "annotations")
     parameters = ("xenome_index", "xenome_threads", "strelka_threads",
                   "mean_len_library", "sd_len_library", "use_hg19", "use_hg38",
                   "use_mm9", "use_mm10", "kit", "mails")
 
     def __init__(self, filename=None):
         self.java = "java"
+        self.perl = "perl"
         self.novoalign = "novoalign"
         self.picard = 'picard.jar'
         self.picard_jvm_args = '-Xmx128g'
@@ -38,6 +39,7 @@ class Config:
         self.strelka_basedir = "/usr/share/strelka"
         self.strelka_config = "/usr/share/strelka/config.ini"
         self.strelka_threads = 1
+        self.annovar_basedir = "/usr/share/annovar"
         self.bam2tdf = "bam2tdf.jar"
         self.hg19_ref = 'ucsc.hg19.fasta'
         self.hg19_index = "ucsc.hg19"
@@ -62,6 +64,7 @@ class Config:
         self.bait_list = "04818-1466508813_amplicons.interval_list"
         self.indel_1 = "1000G_phase1.indels.hg19.sites.vcf"
         self.indel_2 = "Mills_and_1000G_gold_standard.indels.hg19.sites.vcf"
+        self.annotations = "48379-1473715058_Amplicons.bed"
         self.mails = ""
 
         if filename:

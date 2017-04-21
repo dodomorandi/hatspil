@@ -4,6 +4,7 @@ from .mapping import Mapping
 from .mutect import Mutect
 from .varscan import VarScan
 from .strelka import Strelka
+from .variant_calling import VariantCalling
 from .barcoded_filename import BarcodedFilename
 from .starter import Starter
 
@@ -34,9 +35,11 @@ class Runner:
         if not self.parameters["use_normals"]:
             mutect = Mutect(analysis)
             varscan = VarScan(analysis)
+            variant_calling = VariantCalling(analysis)
 
             mutect.run()
             varscan.run()
+            variant_calling.run()
 
         self.last_operations[sample] = analysis.last_operation_filenames
 
@@ -53,7 +56,9 @@ class Runner:
         mutect = Mutect(analysis)
         varscan = VarScan(analysis)
         strelka = Strelka(analysis)
+        variant_calling = VariantCalling(analysis)
 
         mutect.run()
         varscan.run()
         strelka.run()
+        variant_calling.run()
