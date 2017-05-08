@@ -21,10 +21,18 @@ class Mapping:
         self.output_basename = os.path.join("REPORTS", self.analysis.basename)
 
         if not os.path.exists(os.path.join(self.analysis.bam_dir, "REPORTS")):
-            os.makedirs(os.path.join(self.analysis.bam_dir, "REPORTS"))
+            try:
+                os.makedirs(os.path.join(self.analysis.bam_dir, "REPORTS"),
+                            exist_ok=True)
+            except OSError:
+                pass
 
         if not os.path.exists(os.path.join(self.fastq_dir, "REPORTS")):
-            os.makedirs(os.path.join(self.fastq_dir, "REPORTS"))
+            try:
+                os.makedirs(os.path.join(self.fastq_dir, "REPORTS"),
+                            exist_ok=True)
+            except OSError:
+                pass
 
         self.gatk_threads = self.analysis.parameters["gatk_threads"]
         self.max_records_str = utils.get_picard_max_records_string(
