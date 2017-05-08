@@ -147,6 +147,30 @@ def main():
             args.fastq_dir)
         exit(-3)
 
+    if config.use_mongodb:
+        try:
+            from pymongo import MongoClient
+        except:
+            print("ERROR: use_mongodb is set to true inside config file but "
+                  "pymongo is not installed. Please install it using pip3.")
+            exit(-4)
+
+        try:
+            client = MongoClient(config.mongodb_host, config.mongodb_port)
+        except:
+            print("ERROR: cannot connect to MongoDB. Please check the config "
+                  "file under the section MONGODB")
+            exit(-4)
+
+        db = client[config.mongodb_database]
+        try:
+            db.authenticate(config.mongodb_username,
+                            config.mongodb_password)
+        except:
+            print("ERROR: MongoDB authentication failed. Please check the "
+                  "config file under the section MONGODB")
+            exit(-4)
+
     if args.list_file:
         re_pattern = re.compile(R"^([^-]+)(?:-([^-]+)(?:-(\d{2}|\*)"
                                 R"(?:-(\d|\*)(?:(\d|\*)(\d|\*)?)?"

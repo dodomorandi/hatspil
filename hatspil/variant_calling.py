@@ -5,7 +5,7 @@ import os
 import glob
 import pandas as pd
 import vcf
-from numpy import NaN
+import math
 from formatizer import f
 import re
 
@@ -195,8 +195,8 @@ class VariantCalling:
         annotation.reset_index(inplace=True, drop=True)
         gene_info.reset_index(inplace=True, drop=True)
         annotation["gene_type"] = gene_info.loc[pd.match(annotation["Gene.refGene"], gene_info.symbol)].cancer_type.values
-        annotation.loc[annotation.gene_type == "rst", "gene_type"] = NaN
-        annotation["cancer_gene_site"] = NaN
+        annotation.loc[annotation.gene_type == "rst", "gene_type"] = float("nan")
+        annotation["cancer_gene_site"] = float("nan")
         annotation.loc[annotation["Gene.refGene"].isin(selected_cancer_genes.symbol), "cancer_gene_site"] = VariantCalling.cancer_site
 
         annotation.loc[annotation["Func.refGene"] == "splicing", "ExonicFunc.refGene"] = "splicing"
@@ -237,7 +237,7 @@ class VariantCalling:
                                    if re.search(str(row.hgnc_refseq_accession), refgene)]), axis=1)
         empty_canonical_refseqs = annotation.hgnc_canonical_refseq == ""
         annotation.loc[empty_canonical_refseqs, "alternative_refseq"] = annotation.loc[empty_canonical_refseqs, "AAChange.refGene"].tolist()
-        annotation.loc[empty_canonical_refseqs, "hgnc_canonical_refseq"] = NaN
+        annotation.loc[empty_canonical_refseqs, "hgnc_canonical_refseq"] = float("nan")
 
         haloplex = pd.read_table(self.analysis.config.annotations,
                                  header=None,
@@ -252,6 +252,25 @@ class VariantCalling:
         annotation.loc[set([index[0] for index in overlaps]), "in_gene_panel"] = True
         annotation["druggable"] = annotation["Gene.refGene"].isin(panel_drug.gene_symbol)
         annotation.to_csv(os.path.join(self.analysis.out_dir, self.analysis.basename + "_variants.csv"), index=False)
+
+        config = self.analysis.config
+        if config.use_mongodb:
+            from pymongo import MongoClient
+            mongo = MongoClient(config.mongodb_host, config.mongodb_port)
+            db = mongo[config.mongodb_database]
+            db.authenticate(config.mongodb_username, config.mongodb_password)
+            db[self.analysis.sample].insert_one({
+                self.analysis.current: { "variants": [], "annotations": []}})
+            sample_collection = db[self.analysis.sample][self.analysis.current]
+            self.variants = pd.read_csv(self.variants_filename, index_col=False)
+            sample_collection["variants"].insert_many(
+                [{key.replace(".", " "): value for key, value in variant.items()
+                  if type(value) != float or not math.isnan(value)}
+                 for variant in self.variants.to_dict("records")])
+            sample_collection["annotations"].insert_many(
+                [{key.replace(".", " "): value for key, value in record.items()
+                  if type(value) != float or not math.isnan(value)}
+                 for record in annotation.to_dict("records")])
 
         self.analysis.logger.info("Finished collecting annotated variants "
                                   "from ANNOVAR")

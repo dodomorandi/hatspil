@@ -15,7 +15,8 @@ class Config:
              "indel_1", "indel_2", "annovar_basedir", "annotations")
     parameters = ("xenome_index", "xenome_threads", "strelka_threads",
                   "mean_len_library", "sd_len_library", "use_hg19", "use_hg38",
-                  "use_mm9", "use_mm10", "kit", "mails")
+                  "use_mm9", "use_mm10", "kit", "mails", "use_mongodb")
+    mongodb = ("database", "host", "port", "username", "password")
 
     def __init__(self, filename=None):
         self.java = "java"
@@ -66,11 +67,18 @@ class Config:
         self.indel_2 = "Mills_and_1000G_gold_standard.indels.hg19.sites.vcf"
         self.annotations = "48379-1473715058_Amplicons.bed"
         self.mails = ""
+        self.use_mongodb = True
+        self.mongodb_database = "hatspil"
+        self.mongodb_username = "hatspil"
+        self.mongodb_password = "hatspil"
+        self.mongodb_host = "localhost"
+        self.mongodb_port = 27017
 
         if filename:
             parser = ConfigParser()
             parser.read(filename)
-            for section_name in "EXECUTABLES", "JARS", "FILES", "PARAMETERS":
+            for section_name in "EXECUTABLES", "JARS", "FILES", "PARAMETERS",\
+                    "MONGODB":
                 if section_name not in parser:
                     sys.stderr.write("WARNING: %s section in config not "
                                      "found. Values are set to default\n" %
@@ -79,16 +87,26 @@ class Config:
 
                 section = parser[section_name]
                 for key in section:
-                    setattr(self, key, section[key])
+                    if section_name == "MONGODB":
+                        setattr(self, "mongodb_" + key, section[key])
+                    else:
+                        setattr(self, key, section[key])
 
-            self.xenome_threads = parser["PARAMETERS"].getint("xenome_threads")
-            self.strelka_threads = parser["PARAMETERS"].getint("strelka_threads")
-            self.mean_len_library = parser["PARAMETERS"].getint("mean_len_library")
-            self.sd_len_library = parser["PARAMETERS"].getint("sd_len_library")
-            self.use_hg19 = parser["PARAMETERS"].getboolean("use_hg19")
-            self.use_hg38 = parser["PARAMETERS"].getboolean("use_hg38")
-            self.use_mm9 = parser["PARAMETERS"].getboolean("use_mm9")
-            self.use_mm10 = parser["PARAMETERS"].getboolean("use_mm10")
+            if "PARAMETERS" in parser:
+                for param in "xenome_threads", "strelka_threads",\
+                        "mean_len_library", "sd_len_library":
+                    if param in parser["PARAMETERS"]:
+                        setattr(self, param,
+                                parser["PARAMETERS"].getint(param))
+                for param in "use_hg19", "use_hg38", "use_mm9", "use_mm10",\
+                        "use_mongodb":
+                    if param in parser["PARAMETERS"]:
+                        setattr(self, param,
+                                parser["PARAMETERS"].getboolean(param))
+
+            if "MONGODB" in parser:
+                if "port" in parser["MONGODB"]:
+                    self.mongodb_port = parser["MONGODB"].getint("port")
 
     def save(self, filename):
         config = ConfigParser()
@@ -112,6 +130,11 @@ class Config:
         for parameter in Config.parameters:
             parameters[parameter] = str(getattr(self, parameter))
         config["PARAMETERS"] = parameters
+
+        mongodb_params = {}
+        for mongodb_param in Config.mongodb:
+            mongodb_params["mongodb_" + mongodb_param] = str(getattr(self, mongodb_param))
+        config["MONGODB"] = mongodb_params
 
         with open(filename, "w") as fd:
             config.write(fd)

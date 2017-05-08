@@ -12,6 +12,9 @@ setup(
         "pandas",
         "tables"
     ],
+    extras_require={
+        "MongoDB": ["pymongo"]
+    },
     package_data={'': ["data.hdf"]},
     include_package_data=True,
     entry_points={
