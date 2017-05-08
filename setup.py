@@ -10,7 +10,8 @@ setup(
         "formatizer",
         "rpy2",
         "pandas",
-        "tables"
+        "tables",
+        "numpy"
     ],
     extras_require={
         "MongoDB": ["pymongo"]
