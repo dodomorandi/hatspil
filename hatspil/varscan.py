@@ -50,7 +50,7 @@ class VarScan:
             shell=True)
 
         somatic_process = subprocess.Popen(
-            f("{config.java} {config.varscan_jvm_args} {config.varscan} "
+            f("{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
               "somatic {self.first_fifo} {self.analysis.basename} "
               "--mpileup 1 "
               "--min-coverage-normal {self.min_coverage_normal} "
@@ -113,7 +113,7 @@ class VarScan:
             shell=True)
 
         snp_process = subprocess.Popen(f(
-            "{config.java} {config.varscan_jvm_args} {config.varscan} "
+            "{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
             "mpileup2snp {self.first_fifo} "
             "--min-coverage {self.min_coverage_tumor} "
             "--min-reads2 {self.minVar} "
@@ -125,7 +125,7 @@ class VarScan:
         )
 
         indel_process = subprocess.Popen(f(
-            "{config.java} {config.varscan_jvm_args} {config.varscan} "
+            "{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
             "mpileup2indel {self.second_fifo} "
             "--min-coverage {self.min_coverage_tumor} "
             "--min-reads2 {self.minVar} "
@@ -189,7 +189,7 @@ class VarScan:
 
         executor = Executor(self.analysis)
         executor(f(
-            "{config.java} {config.varscan_jvm_args} {config.varscan} "
+            "{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
             "processSomatic "
             "{{input_filename}} "
             "--min-tumor-freq {self.min_tumor_freq} "
@@ -202,7 +202,7 @@ class VarScan:
             exception_string="varscan processSomatic error")
 
         executor(f(
-            "{config.java} {config.varscan_jvm_args} {config.varscan} "
+            "{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
             "processSomatic "
             "{{input_filename}} "
             "--min-tumor-freq {self.min_tumor_freq} "
@@ -226,7 +226,7 @@ class VarScan:
 
         executor = Executor(self.analysis)
         executor(f(
-            "{config.java} {config.varscan_jvm_args} {config.varscan} "
+            "{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
             "copynumber "
             "{{input_filename}} "
             "--min-tumor-freq {self.min_tumor_freq} "

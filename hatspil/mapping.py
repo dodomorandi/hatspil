@@ -156,7 +156,7 @@ class Mapping:
 
         self.analysis.logger.info("Alignment SAM -> BAM")
         executor(f(
-            '{config.java} {config.picard_jvm_args} {config.picard} '
+            '{config.java} {config.picard_jvm_args} -jar {config.picard} '
             'SamFormatConverter '
             'I={{input_filename}} '
             'O={{output_filename}}'
@@ -169,7 +169,7 @@ class Mapping:
         )
 
         executor(f(
-            '{config.java} {config.picard_jvm_args} {config.picard} '
+            '{config.java} {config.picard_jvm_args} -jar {config.picard} '
             'AddOrReplaceReadGroups '
             'I={{input_filename}} '
             'O={{output_filename}} RGID={self.analysis.basename} '
@@ -197,7 +197,7 @@ class Mapping:
 
         executor = Executor(self.analysis)
         executor(f(
-            '{config.java} {config.picard_jvm_args} {config.picard} '
+            '{config.java} {config.picard_jvm_args} -jar {config.picard} '
             'SortSam '
             'I={{input_filename}} '
             'O={{output_filename}} SO=coordinate '
@@ -210,7 +210,7 @@ class Mapping:
         )
 
         executor(f(
-            '{config.java} {config.picard_jvm_args} {config.picard} '
+            '{config.java} {config.picard_jvm_args} -jar {config.picard} '
             'ReorderSam '
             'I={{input_filename}} '
             'O={{output_filename}} R={{genome_ref}} '
@@ -234,7 +234,7 @@ class Mapping:
         barcoded = BarcodedFilename.from_sample(self.analysis.sample)
         if barcoded.analyte == Analyte.WHOLE_EXOME:
             executor(f(
-                '{config.java} {config.picard_jvm_args} {config.picard} '
+                '{config.java} {config.picard_jvm_args} -jar {config.picard} '
                 'MarkDuplicates '
                 'I={{input_filename}} '
                 'O={{output_filename}} '
@@ -248,7 +248,7 @@ class Mapping:
             )
         elif barcoded.analyte == Analyte.GENE_PANEL:
             executor(f(
-                '{config.java} {config.picard_jvm_args} {config.picard} '
+                '{config.java} {config.picard_jvm_args} -jar {config.picard} '
                 'MarkDuplicates '
                 'I={{input_filename}} '
                 'O={{output_filename}} '
@@ -275,7 +275,7 @@ class Mapping:
 
         executor = Executor(self.analysis)
         executor(f(
-            '{config.java} {config.gatk_jvm_args} {config.gatk} '
+            '{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
             '-T RealignerTargetCreator -R {{genome_ref}} '
             '-I {{input_filename}} -nt {self.gatk_threads} '
             '-known {config.indel_1} -known {config.indel_2} '
@@ -290,7 +290,7 @@ class Mapping:
         )
 
         executor(f(
-            '{config.java} {config.gatk_jvm_args} {config.gatk} '
+            '{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
             '-T IndelRealigner -R {{genome_ref}} '
             '-I {{input_filename}} '
             '-known {config.indel_1} -known {config.indel_2} '
@@ -319,7 +319,7 @@ class Mapping:
 
         executor = Executor(self.analysis)
         executor(f(
-            '{config.java} {config.gatk_jvm_args} {config.gatk} '
+            '{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
             '-T BaseRecalibrator -R {{genome_ref}} '
             '-I {{input_filename}} -nct {self.gatk_threads} '
             '-knownSites {{dbsnp}} '
@@ -331,7 +331,7 @@ class Mapping:
         )
 
         executor(f(
-            '{config.java} {config.gatk_jvm_args} {config.gatk} '
+            '{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
             '-T PrintReads -R {{genome_ref}} '
             '-I {{input_filename}} -nct {self.gatk_threads} '
             '-BQSR {self.output_basename}{{organism_str}}.recalibration.table '
@@ -348,7 +348,7 @@ class Mapping:
             return
 
         executor(f(
-            '{config.java} {config.gatk_jvm_args} {config.gatk} '
+            '{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
             '-T BaseRecalibrator -R {{genome_ref}} '
             '-I {{input_filename}} -knownSites {{dbsnp}} '
             '-L {config.target_list} -ip 50 '
@@ -361,7 +361,7 @@ class Mapping:
         )
 
         executor(f(
-            '{config.java} {config.gatk_jvm_args} {config.gatk} '
+            '{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
             '-T AnalyzeCovariates -R {{genome_ref}} '
             '-before {self.output_basename}{{organism_str}}.recalibration.table '
             '-after {self.output_basename}{{organism_str}}.post_realignment.table '
@@ -372,7 +372,7 @@ class Mapping:
         )
 
         executor(f(
-            '{config.java} {config.picard_jvm_args} {config.picard} '
+            '{config.java} {config.picard_jvm_args} -jar {config.picard} '
             'MarkDuplicates '
             'I={{input_filename}} O={{output_filename}} '
             'REMOVE_DUPLICATES=true '
@@ -394,7 +394,7 @@ class Mapping:
 
         executor = Executor(self.analysis)
         executor(f(
-            '{config.java} {config.picard_jvm_args} {config.picard} '
+            '{config.java} {config.picard_jvm_args} -jar {config.picard} '
             'CollectHsMetrics '
             'I={{input_filename}} BI={config.bait_list} '
             'TI={config.target_list} R={{genome_ref}} '
@@ -406,7 +406,7 @@ class Mapping:
         )
 
         executor(f(
-            '{config.java} {config.picard_jvm_args} {config.picard} '
+            '{config.java} {config.picard_jvm_args} -jar {config.picard} '
             'CollectGcBiasMetrics '
             'R={{genome_ref}} I={{input_filename}} '
             'O={self.output_basename}{{organism_str}}.gcbias.metrics.txt '
@@ -426,7 +426,7 @@ class Mapping:
         config = self.analysis.config
 
         executor = Executor(self.analysis)
-        executor(f('{config.java} {config.bam2tdf} -m 10 {{input_filename}}'),
+        executor(f('{config.java} -jar {config.bam2tdf} -m 10 {{input_filename}}'),
                  error_string="Java bam2tdf exited with status {status}",
                  exception_string="bam2tdf error",
                  override_last_files=False)
