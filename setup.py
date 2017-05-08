@@ -11,7 +11,8 @@ setup(
         "rpy2",
         "pandas",
         "tables",
-        "numpy"
+        "numpy",
+        "PyVCF"
     ],
     extras_require={
         "MongoDB": ["pymongo"]
