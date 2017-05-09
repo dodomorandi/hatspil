@@ -6,7 +6,8 @@ import subprocess
 
 
 class Config:
-    executables = ("java", "perl", "novoalign", "seqtk", "fastqc", "samtools", "xenome")
+    executables = ("java", "java7", "perl", "novoalign", "seqtk", "fastqc",
+                   "samtools", "xenome")
     jars = ("picard", "varscan", "gatk", "mutect", "bam2tdf")
     files = ("strelka_basedir", "strelka_config", "hg19_ref",
              "hg19_index", "hg38_ref", "hg38_index", "mm9_ref", "mm9_index",
@@ -20,6 +21,7 @@ class Config:
 
     def __init__(self, filename=None):
         self.java = "java"
+        self.java7 = "java"
         self.perl = "perl"
         self.novoalign = "novoalign"
         self.picard = 'picard.jar'
