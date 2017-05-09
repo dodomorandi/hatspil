@@ -35,10 +35,11 @@ class Runner:
         if not self.parameters["use_normals"]:
             mutect = Mutect(analysis)
             varscan = VarScan(analysis)
-            variant_calling = VariantCalling(analysis)
 
             mutect.run()
             varscan.run()
+
+            variant_calling = VariantCalling(analysis)
             variant_calling.run()
 
         self.last_operations[sample] = analysis.last_operation_filenames
@@ -56,9 +57,10 @@ class Runner:
         mutect = Mutect(analysis)
         varscan = VarScan(analysis)
         strelka = Strelka(analysis)
-        variant_calling = VariantCalling(analysis)
 
         mutect.run()
         varscan.run()
         strelka.run()
+
+        variant_calling = VariantCalling(analysis)
         variant_calling.run()

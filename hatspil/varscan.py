@@ -51,7 +51,7 @@ class VarScan:
 
         somatic_process = subprocess.Popen(
             f("{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
-              "somatic {self.first_fifo} {self.analysis.basename} "
+              "somatic {self.first_fifo} {self.analysis.basename}.varscan2 "
               "--mpileup 1 "
               "--min-coverage-normal {self.min_coverage_normal} "
               "--min-coverage-tumor {self.min_coverage_tumor} "
@@ -242,12 +242,14 @@ class VarScan:
         self.analysis.logger.info("Running VarScan")
         self.chdir()
 
-        if not os.path.exists(self.first_fifo):
-            os.mkfifo(self.first_fifo)
+        if os.path.exists(self.first_fifo):
+            os.unlink(self.first_fifo)
+        os.mkfifo(self.first_fifo)
 
         if not self.analysis.parameters["use_normals"]:
-            if not os.path.exists(self.second_fifo):
-                os.mkfifo(self.second_fifo)
+            if os.path.exists(self.second_fifo):
+                os.unlink(self.first_fifo)
+            os.mkfifo(self.second_fifo)
 
         executor = Executor(self.analysis)
         if self.analysis.parameters["use_normals"]:
