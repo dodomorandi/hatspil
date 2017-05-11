@@ -398,7 +398,12 @@ class Mapping:
             'CollectHsMetrics '
             'I={{input_filename}} BI={config.bait_list} '
             'TI={config.target_list} R={{genome_ref}} '
-            'O={self.output_basename}{{organism_str}}.hs_metrics.txt'
+            'O={self.output_basename}{{organism_str}}.hs_metrics.txt '
+            'MINIMUM_MAPPING_QUALITY=0 '
+            'MINIMUM_BASE_QUALITY=0 '
+            'COVERAGE_CAP=10000 '
+            'CLIP_OVERLAPPING_READS=false '
+            'PER_BASE_COVERAGE={self.output_basename}{{organism_str}}.coverage.txt'
             '{self.max_records_str}'),
             error_string="Picard CollectHsMetrics exited with status {status}",
             exception_string="picard CollectHsMetrics error",
