@@ -29,8 +29,11 @@ class Runner:
             xenograft = Xenograft(analysis, self.fastq_dir)
             xenograft.run()
 
+        if self.parameters["skip_mapping"]:
+            analysis.run_fake = True
         mapping = Mapping(analysis, self.fastq_dir)
         mapping.run()
+        analysis.run_fake = False
 
         if not self.parameters["use_normals"]:
             mutect = Mutect(analysis)

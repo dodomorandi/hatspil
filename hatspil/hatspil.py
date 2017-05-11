@@ -73,6 +73,8 @@ def get_parser():
     parser.add_argument("--picard-max-records", action="store",
                         help="Sets the MAX_RECORDS_IN_RAM for Picard. "
                         "If unspecified, the parameter is not passed.")
+    parser.add_argument("--skip-mapping", action="store_true",
+                        help=argparse.SUPPRESS)
 
     list_file_group = parser.add_mutually_exclusive_group(required=False)
     list_file_group.add_argument("--list-file", action="store",
@@ -281,7 +283,8 @@ def main():
         "picard_max_records": args.picard_max_records,
         "use_normals": args.use_normals,
         "trim_5": args.trim_5,
-        "trim_3": args.trim_3
+        "trim_3": args.trim_3,
+        "skip_mapping": args.skip_mapping
     }
     logging.basicConfig(format="%(asctime)-15s %(message)s")
 

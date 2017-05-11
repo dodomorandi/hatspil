@@ -16,6 +16,7 @@ class Analysis:
         self.bamfiles = None
         self.config = config
         self.last_operation_filenames = None
+        self.run_fake = False
 
         if not os.path.exists(self.root):
             os.makedirs(self.root)

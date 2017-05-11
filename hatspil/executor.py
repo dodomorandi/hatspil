@@ -275,13 +275,22 @@ class Executor:
 
                 for command_index, current_command in enumerate(commands):
                     if isinstance(current_command, str):
-                        status = utils.run_and_log(
-                            current_command,
-                            self.analysis.logger)
+                        if not self.analysis.run_fake:
+                            status = utils.run_and_log(
+                                current_command,
+                                self.analysis.logger)
+                        else:
+                            self.analysis.logger.info(
+                                "Faking command '%s'", current_command)
+                            status = 0
                     else:
-                        local_vars = locals()
-                        del local_vars["self"]
-                        current_command(**local_vars)
+                        if not self.analysis.run_fake:
+                            local_vars = locals()
+                            del local_vars["self"]
+                            current_command(**local_vars)
+                        else:
+                            self.analysis.logger.info(
+                                "Faking lambda")
                         status = 0
 
                     if status != 0:
