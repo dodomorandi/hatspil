@@ -351,6 +351,7 @@ def main():
 
     if args.use_normals:
         samples = {}
+        normals = {}
         last_operations = {}
         for sample, last_operation in runner.last_operations.items():
             last_operations[sample] = last_operation
@@ -376,10 +377,52 @@ def main():
 
                 if sample_type == "normal":
                     samples[fake_sample]["normal"] = filename
+                    normals[filename] = barcoded_filename
                 else:
                     if "tumor" not in samples[fake_sample]:
                         samples[fake_sample]["tumor"] = []
                     samples[fake_sample]["tumor"].append((filename, sample))
+
+        samples_with_no_normal = {sample: filenames["tumor"][0][0]
+                                  for sample, filenames
+                                  in samples.items()
+                                  if "normal" not in filenames and
+                                  len(filenames["tumor"]) > 0}
+
+        for sample, filename in samples_with_no_normal.items():
+            sample_barcode = BarcodedFilename(filename)
+            candidates = {filename: barcode
+                          for filename, barcode
+                          in normals.items()
+                          if barcode.project == sample_barcode.project and
+                          barcode.patient == sample_barcode.patient and
+                          barcode.molecule == sample_barcode.molecule and
+                          barcode.analyte == sample_barcode.analyte and
+                          barcode.kit == sample_barcode.kit}
+
+            if len(candidates) == 0:
+                candidates = {filename: barcode
+                              for filename, barcode
+                              in normals.items()
+                              if barcode.project == sample_barcode.project and
+                              barcode.patient == sample_barcode.patient and
+                              barcode.molecule == sample_barcode.molecule and
+                              barcode.analyte == sample_barcode.analyte}
+
+            if len(candidates) == 0:
+                candidates = {filename: barcode
+                              for filename, barcode
+                              in normals.items()
+                              if barcode.project == sample_barcode.project and
+                              barcode.patient == sample_barcode.patient and
+                              barcode.molecule == sample_barcode.molecule}
+
+            if len(candidates) == 1:
+                samples[sample]["normal"] = list(candidates.items())[0][0]
+            elif len(candidates) > 1:
+                candidates = list(candidates.items())
+                candidates.sort(key=lambda x: os.stat(x[0]).st_size)
+                samples[sample]["normal"] = candidates[-1][0]
 
         triplets = []
         for sample, values in samples.items():
