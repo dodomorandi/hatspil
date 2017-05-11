@@ -75,16 +75,16 @@ def get_parser():
                         "If unspecified, the parameter is not passed.")
 
     list_file_group = parser.add_mutually_exclusive_group(required=False)
-    list_file_group.add_argument("--list_file", action="store",
+    list_file_group.add_argument("--list-file", action="store",
                                  help="The name of the file containing "
                                  "the name of the samples, one by line.")
     list_file_group.add_argument("--scan-samples", action="store_true",
                                  help="Scan for sample files instead of "
                                  "reading them from a file")
-    parser.add_argument("--root_dir", action="store",
+    parser.add_argument("--root-dir", action="store",
                         help="The root directory for the analysis",
                         )
-    parser.add_argument("--fastq_dir", action="store",
+    parser.add_argument("--fastq-dir", action="store",
                         help="The directory where the fastq files of the "
                         "samples are located.")
 
