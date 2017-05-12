@@ -42,8 +42,8 @@ class VarScan:
         pileup_process = subprocess.Popen(f(
             "{config.samtools} mpileup "
             "-q 1 -d 6000 -f {genome_ref} "
-            "{input_filenames[\"tumor\"]} "
-            "-B {input_filenames[\"normal\"]} ") +
+            "-B {input_filenames[\"normal\"]} " +
+            "{input_filenames[\"tumor\"]} ") +
             "| awk '{if($4 >= 6) print $0}' "
             "| awk '{if($7 != 0) print $0}'" +
             f(">{self.first_fifo}"),
