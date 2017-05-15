@@ -59,6 +59,7 @@ class Mapping:
                 "{self.analysis.sample}{{organism_str}}.clipped.R%d.fastq"),
             input_function=lambda l: " ".join(sorted(l)),
             input_split_reads=False,
+            split_by_organism=True,
             output_path=self.fastq_dir,
             output_function=lambda filename: [filename % (index + 1)
                                               for index in range(2)])
