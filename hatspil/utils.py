@@ -132,6 +132,16 @@ def gunzip(filename):
     os.unlink(filename)
 
 
+def check_gz(filename):
+    chunk_size = 2**20
+    with gz.open(filename, "rb") as fd:
+        try:
+            while fd.read(chunk_size) != '':
+                pass
+        except:
+            return False
+    return True
+
 def flatten(iterable):
     for element in iterable:
         if isinstance(element, collections.Iterable) \

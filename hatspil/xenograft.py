@@ -1,13 +1,13 @@
 from . import utils
 from .executor import Executor
 from .barcoded_filename import BarcodedFilename, Tissue
+from .exceptions import PipelineError
 
 from formatizer import f
 import os
 import re
 import itertools
 import shutil
-from multiprocessing import Pool
 
 
 class Xenograft:
@@ -89,6 +89,9 @@ class Xenograft:
             if can_skip:
                 self.already_done.update(removed)
             else:
+                if not utils.check_gz(fastqgz):
+                    raise PipelineError(
+                        "%s is corrupted. Fix the problem and retry" % fastqgz)
                 utils.gunzip(fastqgz)
                 self.input_filenames.append(fastqgz[:-3])
 
