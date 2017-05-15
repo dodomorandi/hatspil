@@ -119,6 +119,19 @@ class BarcodedFilename:
 
         return barcoded
 
+    def get_directory(self, analysis_dir=None):
+        if analysis_dir is None:
+            analysis_dir = ""
+
+        if self.analyte == Analyte.WHOLE_EXOME:
+            barcode_dir = "WXS"
+        elif self.analyte == Analyte.GENE_PANEL:
+            barcode_dir = "Panel"
+        else:
+            barcode_dir = ""
+
+        return os.path.join(analysis_dir, barcode_dir)
+
     def __repr__(self):
         repr = (
             "{project=" + str(self.project) +

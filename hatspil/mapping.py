@@ -20,9 +20,11 @@ class Mapping:
             self.analysis.sample)
         self.output_basename = os.path.join("REPORTS", self.analysis.basename)
 
-        if not os.path.exists(os.path.join(self.analysis.bam_dir, "REPORTS")):
+        if not os.path.exists(os.path.join(self.analysis.get_bam_dir(),
+                                           "REPORTS")):
             try:
-                os.makedirs(os.path.join(self.analysis.bam_dir, "REPORTS"),
+                os.makedirs(os.path.join(self.analysis.get_bam_dir(),
+                                         "REPORTS"),
                             exist_ok=True)
             except OSError:
                 pass
@@ -38,11 +40,11 @@ class Mapping:
         self.max_records_str = utils.get_picard_max_records_string(
             self.analysis.parameters["picard_max_records"])
 
-        self.sort_tempdir = os.path.join(self.analysis.bam_dir,
+        self.sort_tempdir = os.path.join(self.analysis.get_bam_dir(),
                                          "%s_sort_tmp" % self.analysis.sample)
 
     def chdir(self):
-        os.chdir(self.analysis.bam_dir)
+        os.chdir(self.analysis.get_bam_dir())
 
     def cutadapt(self):
         self.analysis.logger.info("Cutting adapters")

@@ -21,15 +21,15 @@ class VariantCalling:
 
     def __init__(self, analysis):
         self.analysis = analysis
-        self.mutect_filenames = glob.glob(os.path.join(analysis.out_dir,
+        self.mutect_filenames = glob.glob(os.path.join(analysis.get_out_dir(),
                                                        self.analysis.basename)
                                           + "*.mutect*.vcf")
         self.varscan_filenames = {}
         for varscan_type in ("snp", "indel"):
             self.varscan_filenames[varscan_type] =\
-                glob.glob(os.path.join(analysis.out_dir, self.analysis.basename)
+                glob.glob(os.path.join(analysis.get_out_dir(), self.analysis.basename)
                           + "*.varscan2." + varscan_type + ".vcf")
-        self.annovar_dirname = os.path.join(analysis.out_dir,
+        self.annovar_dirname = os.path.join(analysis.get_out_dir(),
                                             self.analysis.basename + "_annovar")
         if not os.path.exists(self.annovar_dirname):
             try:
@@ -41,7 +41,7 @@ class VariantCalling:
         self.multianno_filename = os.path.join("%s.%s_multianno.txt" % (self.annovar_file, VariantCalling.build_version))
 
     def chdir(self):
-        os.chdir(self.analysis.out_dir)
+        os.chdir(self.analysis.get_out_dir())
 
     def prepare_for_annovar(self):
         self.analysis.logger.info("Starting data preparation for ANNOVAR")
@@ -251,7 +251,7 @@ class VariantCalling:
         annotation["in_gene_panel"] = False
         annotation.loc[set([index[0] for index in overlaps]), "in_gene_panel"] = True
         annotation["druggable"] = annotation["Gene.refGene"].isin(panel_drug.gene_symbol)
-        annotation.to_csv(os.path.join(self.analysis.out_dir, self.analysis.basename + "_variants.csv"), index=False)
+        annotation.to_csv(os.path.join(self.analysis.get_out_dir(), self.analysis.basename + "_variants.csv"), index=False)
 
         config = self.analysis.config
         if config.use_mongodb:

@@ -28,7 +28,7 @@ class VarScan:
             self.second_fifo = "/data/scratch/matteo/%s.indel.fifo" % self.analysis.basename
 
     def chdir(self):
-        os.chdir(self.analysis.out_dir)
+        os.chdir(self.analysis.get_out_dir())
 
     def _run_varscan_normals(self, **kwargs):
         self.analysis.logger.info("Running VarScan Somatic")

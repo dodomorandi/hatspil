@@ -10,7 +10,7 @@ class Mutect:
         self.analysis = analysis
 
     def chdir(self):
-        os.chdir(self.analysis.out_dir)
+        os.chdir(self.analysis.get_out_dir())
 
     def run(self):
         self.analysis.logger.info("Running mutect")

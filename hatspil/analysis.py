@@ -1,4 +1,6 @@
 from . import utils
+from .exceptions import PipelineError
+from .barcoded_filename import BarcodedFilename
 
 import logging
 import os
@@ -11,8 +13,8 @@ class Analysis:
         self.current = utils.get_current()
         self.parameters = parameters
         self.basename = "%s.%s" % (self.sample, self.current)
-        self.bam_dir = os.path.join(self.root, "BAM", "Panel")
-        self.out_dir = os.path.join(self.root, "Variants", "Panel")
+        self.bam_dir = os.path.join(self.root, "BAM")
+        self.out_dir = os.path.join(self.root, "Variants")
         self.bamfiles = None
         self.config = config
         self.last_operation_filenames = None
@@ -36,3 +38,42 @@ class Analysis:
         )
         self.logger.addHandler(self.log_handler)
         self.logger.setLevel(level=logging.INFO)
+
+    def _get_first_filename(self):
+        filename = self.last_operation_filenames
+        if filename is None:
+            return None
+
+        while not isinstance(filename, str):
+            if isinstance(filename, list):
+                if len(filename) > 0:
+                    filename = filename[0]
+                else:
+                    return None
+            elif isinstance(filename, dict):
+                if len(filename) > 0:
+                    filename = next(iter(filename.values()))
+                else:
+                    return None
+            else:
+                raise PipelineError(
+                    "unexpected type for last_operation_filenames")
+
+        if len(filename) > 0:
+            return filename
+        else:
+            return None
+
+    def _get_custom_dir(self, param):
+        filename = self._get_first_filename()
+        directory = getattr(self, param)
+        if filename is None:
+            return getattr(self, directory)
+
+        return BarcodedFilename(filename).get_directory(directory)
+
+    def get_bam_dir(self):
+        return self._get_custom_dir("bam_dir")
+
+    def get_out_dir(self):
+        return self._get_custom_dir("out_dir")
