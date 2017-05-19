@@ -1,5 +1,6 @@
 from .executor import Executor
 from .ranges import GenomicRange, GenomicRanges
+from .barcoded_filename import BarcodedFilename
 
 import os
 import glob
@@ -255,22 +256,69 @@ class VariantCalling:
 
         config = self.analysis.config
         if config.use_mongodb:
-            from pymongo import MongoClient
+            from pymongo import MongoClient, ReturnDocument
+
             mongo = MongoClient(config.mongodb_host, config.mongodb_port)
             db = mongo[config.mongodb_database]
             db.authenticate(config.mongodb_username, config.mongodb_password)
-            db[self.analysis.sample].insert_one({
-                self.analysis.current: { "variants": [], "annotations": []}})
-            sample_collection = db[self.analysis.sample][self.analysis.current]
+
+            barcoded_sample = BarcodedFilename.from_sample(self.analysis.sample)
+
             self.variants = pd.read_csv(self.variants_filename, index_col=False)
-            sample_collection["variants"].insert_many(
-                [{key.replace(".", " "): value for key, value in variant.items()
-                  if type(value) != float or not math.isnan(value)}
-                 for variant in self.variants.to_dict("records")])
-            sample_collection["annotations"].insert_many(
-                [{key.replace(".", " "): value for key, value in record.items()
-                  if type(value) != float or not math.isnan(value)}
-                 for record in annotation.to_dict("records")])
+            variants = [{key.replace(".", " "): value
+                         for key, value in variant.items()
+                         if type(value) != float or not math.isnan(value)}
+                        for variant in self.variants.to_dict("records")]
+            annotations = [{key.replace(".", " "): value
+                            for key, value in record.items()
+                            if type(value) != float or not math.isnan(value)}
+                           for record in annotation.to_dict("records")]
+
+            def find_or_insert(collection, data, new_data=None):
+                set_data = dict(data)
+                if new_data is not None:
+                    set_data.update(new_data)
+                return collection.find_one_and_update(
+                    data, {"$set": set_data}, upsert=True,
+                    return_document=ReturnDocument.AFTER)
+
+            project_obj = find_or_insert(db.projects, {
+                "name": barcoded_sample.project
+            })
+
+            patient_obj = find_or_insert(db.patients, {
+                "project": project_obj["_id"],
+                "name": barcoded_sample.patient
+            })
+
+            biopsy_obj = find_or_insert(db.biopsies, {
+                "patient": patient_obj["_id"],
+                "index": barcoded_sample.biopsy,
+                "tissue": barcoded_sample.tissue
+            })
+
+            sample_obj = find_or_insert(db.samples, {
+                "biopsy": biopsy_obj["_id"],
+                "index": barcoded_sample.sample
+            })
+
+            # FIXME: a further parameter in barcode is needed
+            sequencing_obj = find_or_insert(db.sequencings, {
+                "sample": sample_obj["_id"],
+                "index": 0
+            }, {
+                "molecule": barcoded_sample.molecule,
+                "analyte": barcoded_sample.analyte,
+                "kit": barcoded_sample.kit
+            })
+
+            find_or_insert(db.analyses, {
+                "sequencing": sequencing_obj["_id"],
+                "date": self.analysis.current
+            }, {
+                "variants": variants,
+                "annotations": annotations,
+            })
 
         self.analysis.logger.info("Finished collecting annotated variants "
                                   "from ANNOVAR")

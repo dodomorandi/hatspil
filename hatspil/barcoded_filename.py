@@ -119,6 +119,12 @@ class BarcodedFilename:
 
         return barcoded
 
+    def get_barcode(self):
+        return "%s-%s-%02d-%d%d%d-%d%d" % (
+            self.project, self.patient, self.tissue, self.molecule,
+            self.analyte, self.kit, self.biopsy, self.sample,
+        )
+
     def get_directory(self, analysis_dir=None):
         if analysis_dir is None:
             analysis_dir = ""
