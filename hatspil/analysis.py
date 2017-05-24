@@ -10,7 +10,10 @@ class Analysis:
     def __init__(self, sample, root, config, parameters):
         self.sample = sample
         self.root = root
-        self.current = utils.get_current()
+        if parameters["use_date"] is None:
+            self.current = utils.get_current()
+        else:
+            self.current = parameters["use_date"]
         self.parameters = parameters
         self.basename = "%s.%s" % (self.sample, self.current)
         self.bam_dir = os.path.join(self.root, "BAM")

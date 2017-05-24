@@ -5,6 +5,7 @@ import os
 import shutil
 import gzip as gz
 import collections
+from argparse import ArgumentTypeError
 
 
 def get_current():
@@ -149,3 +150,10 @@ def flatten(iterable):
             yield from flatten(element)
         else:
             yield element
+
+def parsed_date(string):
+    try:
+        date = datetime.datetime.strptime(string, "%Y_%m_%d")
+    except:
+        raise ArgumentTypeError("expected string in format YYYY_MM_DD")
+    return "%04d_%02d_%02d" % (date.year, date.month, date.day)

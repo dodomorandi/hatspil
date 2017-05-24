@@ -73,6 +73,11 @@ def get_parser():
     parser.add_argument("--picard-max-records", action="store",
                         help="Sets the MAX_RECORDS_IN_RAM for Picard. "
                         "If unspecified, the parameter is not passed.")
+    parser.add_argument("--use-date", action="store", default=None,
+                        type=utils.parsed_date, metavar="YYYY_MM_DD",
+                        dest="use_date",
+                        help="Use the specified date instead of the current "
+                        "one")
     parser.add_argument("--skip-mapping", action="store_true",
                         help=argparse.SUPPRESS)
 
@@ -103,8 +108,8 @@ def main():
         exit(0)
     elif (not args.list_file and not args.scan_samples) or \
             not args.root_dir or not args.fastq_dir:
-        print("list_file (or --scan-samples), root_dir and fastq_dir are "
-              "mandatory unless --configout is specified")
+        print("--list-file (or --scan-samples), --root-dir and --fastq-dir "
+              "are mandatory unless --configout is specified")
         parser.print_usage()
         exit(-1)
 
@@ -284,6 +289,7 @@ def main():
         "use_normals": args.use_normals,
         "trim_5": args.trim_5,
         "trim_3": args.trim_3,
+        "use_date": args.use_date,
         "skip_mapping": args.skip_mapping
     }
     logging.basicConfig(format="%(asctime)-15s %(message)s")
