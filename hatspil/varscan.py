@@ -21,6 +21,11 @@ class VarScan:
         self.min_tumor_frequency = 0.01
         self.p_value_somatic = 0.05
 
+        try:
+            os.makedirs(analysis.get_out_dir(), exist_ok=True)
+        except OSError:
+            pass
+
         if self.analysis.parameters["use_normals"]:
             self.first_fifo = "/data/scratch/matteo/%s.fifo" % self.analysis.basename
         else:

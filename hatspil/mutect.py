@@ -9,6 +9,11 @@ class Mutect:
     def __init__(self, analysis):
         self.analysis = analysis
 
+        try:
+            os.makedirs(analysis.get_out_dir(), exist_ok=True)
+        except OSError:
+            pass
+
     def chdir(self):
         os.chdir(self.analysis.get_out_dir())
 

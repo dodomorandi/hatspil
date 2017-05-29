@@ -22,6 +22,12 @@ class VariantCalling:
 
     def __init__(self, analysis):
         self.analysis = analysis
+
+        try:
+            os.makedirs(analysis.get_out_dir(), exist_ok=True)
+        except OSError:
+            pass
+
         self.mutect_filenames = glob.glob(os.path.join(analysis.get_out_dir(),
                                                        self.analysis.basename)
                                           + "*.mutect*.vcf")
