@@ -32,11 +32,11 @@ class VariantCalling:
                           + "*.varscan2." + varscan_type + ".vcf")
         self.annovar_dirname = os.path.join(analysis.get_out_dir(),
                                             self.analysis.basename + "_annovar")
-        if not os.path.exists(self.annovar_dirname):
-            try:
-                os.makedirs(self.annovar_dirname)
-            except:
-                pass
+        try:
+            os.makedirs(self.annovar_dirname, exist_ok=True)
+        except:
+            pass
+
         self.annovar_file = os.path.join(self.annovar_dirname, self.analysis.basename + "_annovar_input")
         self.variants_filename = os.path.join(self.annovar_dirname, self.analysis.basename + "_variants.csv")
         self.multianno_filename = os.path.join("%s.%s_multianno.txt" % (self.annovar_file, VariantCalling.build_version))

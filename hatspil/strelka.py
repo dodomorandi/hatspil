@@ -15,7 +15,12 @@ class Strelka:
         self.strelka_dir = os.path.join("Strelka", self.analysis.basename)
 
         self.chdir()
-        os.makedirs("Strelka", exist_ok=True)
+
+        try:
+            os.makedirs("Strelka", exist_ok=True)
+        except OSError:
+            pass
+
         if os.path.exists(self.strelka_dir):
             shutil.rmtree(self.strelka_dir)
 

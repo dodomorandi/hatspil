@@ -219,7 +219,11 @@ class VarScan:
     def cnv(self):
         self.analysis.logger.info("Running VarScan copynumber")
         self.chdir()
-        os.makedirs("CNV")
+
+        try:
+            os.makedirs("CNV", exist_ok=True)
+        except OSError:
+            pass
         os.chdir("CNV")
 
         config = self.analysis.config

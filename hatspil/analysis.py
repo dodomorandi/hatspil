@@ -23,15 +23,22 @@ class Analysis:
         self.last_operation_filenames = None
         self.run_fake = False
 
-        if not os.path.exists(self.root):
-            os.makedirs(self.root)
+        try:
+            os.makedirs(self.root, exist_ok=True)
+        except OSError:
+            pass
 
-        if not os.path.exists(self.out_dir):
-            os.makedirs(self.out_dir)
+        try:
+            os.makedirs(self.out_dir, exist_ok=True)
+        except OSError:
+            pass
 
         logs_dir = os.path.join(self.root, "logs")
-        if not os.path.exists(logs_dir):
-            os.makedirs(logs_dir)
+
+        try:
+            os.makedirs(logs_dir, exist_ok=True)
+        except OSError:
+            pass
 
         self.logger = logging.getLogger(self.basename)
         self.log_handler = logging.FileHandler(
