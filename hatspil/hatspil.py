@@ -181,7 +181,7 @@ def main():
     if args.list_file:
         re_pattern = re.compile(R"^([^-]+)(?:-([^-]+)(?:-(\d{2}|\*)"
                                 R"(?:-(\d|\*)(?:(\d|\*)(\d|\*)?)?"
-                                R"(?:-(\d|\*)(\d|\*)?)?)?)?)?$")
+                                R"(?:-(\d|\*)(\d|\*)(\d|\*)?)?)?)?)?$")
 
         all_filenames = os.listdir(args.fastq_dir)
         filenames = set()
@@ -228,20 +228,26 @@ def main():
                                         group = match.group(8)
                                         if group:
                                             current_pattern += group.replace("*", R"\d")
+
+                                            group = match.group(9)
+                                            if group:
+                                                current_pattern += group.replace("*", R"\d")
+                                            else:
+                                                current_pattern += "R\d"
                                         else:
-                                            current_pattern += R"\d"
+                                            current_pattern += R"\d{2}"
                                     else:
-                                        current_pattern += R"\d{2}"
+                                        current_pattern += R"\d{3}"
                                 else:
-                                    current_pattern += R"\d-\d{2}"
+                                    current_pattern += R"\d-\d{3}"
                             else:
-                                current_pattern += R"\d{2}-\d{2}"
+                                current_pattern += R"\d{2}-\d{3}"
                         else:
-                            current_pattern += R"-\d{3}-\d{2}"
+                            current_pattern += R"-\d{3}-\d{3}"
                     else:
-                        current_pattern += R"-\d{2}-\d{3}-\d{2}"
+                        current_pattern += R"-\d{2}-\d{3}-\d{3}"
                 else:
-                    current_pattern += R"-[^-]+-\d{2}-\d{3}-\d{2}"
+                    current_pattern += R"-[^-]+-\d{2}-\d{3}-\d{3}"
                 current_pattern += R")(?:\.(?:hg|mm)\d+)?(?:\.R[12])?\.fastq(\.gz)?$"
 
                 re_current_pattern = re.compile(current_pattern, re.I)
@@ -366,12 +372,14 @@ def main():
             last_operations[sample] = last_operation
             for filename in utils.get_sample_filenames(last_operation):
                 barcoded_filename = BarcodedFilename(filename)
-                fake_sample = "%s-%s-%d%d%d-%d" % (barcoded_filename.project,
-                                                   barcoded_filename.patient,
-                                                   barcoded_filename.molecule,
-                                                   barcoded_filename.analyte,
-                                                   barcoded_filename.kit,
-                                                   barcoded_filename.biopsy)
+                fake_sample = "%s-%s-%d%d%d-%d%d%d" % (barcoded_filename.project,
+                                                       barcoded_filename.patient,
+                                                       barcoded_filename.molecule,
+                                                       barcoded_filename.analyte,
+                                                       barcoded_filename.kit,
+                                                       barcoded_filename.biopsy,
+                                                       barcoded_filename.sample,
+                                                       barcoded_filename.sequencing)
                 if barcoded_filename.tissue == Tissue.BONE_MARROW_NORMAL or \
                         barcoded_filename.tissue == Tissue.BUCCAL_CELL_NORMAL or \
                         barcoded_filename.tissue == Tissue.SOLID_TISSUE_NORMAL or \
@@ -407,7 +415,30 @@ def main():
                           barcode.patient == sample_barcode.patient and
                           barcode.molecule == sample_barcode.molecule and
                           barcode.analyte == sample_barcode.analyte and
-                          barcode.kit == sample_barcode.kit}
+                          barcode.kit == sample_barcode.kit and
+                          barcode.biopsy == sample_barcode.biopsy and
+                          barcode.sample == sample_barcode.sample}
+
+            if len(candidates) == 0:
+                candidates = {filename: barcode
+                              for filename, barcode
+                              in normals.items()
+                              if barcode.project == sample_barcode.project and
+                              barcode.patient == sample_barcode.patient and
+                              barcode.molecule == sample_barcode.molecule and
+                              barcode.analyte == sample_barcode.analyte and
+                              barcode.kit == sample_barcode.kit and
+                              barcode.biopsy == sample_barcode.biopsy}
+
+            if len(candidates) == 0:
+                candidates = {filename: barcode
+                              for filename, barcode
+                              in normals.items()
+                              if barcode.project == sample_barcode.project and
+                              barcode.patient == sample_barcode.patient and
+                              barcode.molecule == sample_barcode.molecule and
+                              barcode.analyte == sample_barcode.analyte and
+                              barcode.kit == sample_barcode.kit}
 
             if len(candidates) == 0:
                 candidates = {filename: barcode

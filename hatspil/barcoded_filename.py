@@ -48,10 +48,10 @@ class Tissue(IntEnum):
 
 class BarcodedFilename:
     re_filename = re.compile(R"^([^-]+)-([^-]+)-(\d{2})-(\d)(\d)(\d)-(\d)(\d)"
-                             R"(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
+                             R"(\d)(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
                              R"(?:\.R([12]))?(?:\.[^.]+)*?\.(\w+?)(\.gz)?$")
     re_sample = re.compile(R"^([^-]+)-([^-]+)-(\d{2})-(\d)(\d)(\d)-(\d)?(\d)?"
-                           R"(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
+                           R"(\d)?(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
                            R"(?:\.R([12]))?(?:\.[^.]+)*?$")
 
     def __init__(self, filename=None):
@@ -73,14 +73,15 @@ class BarcodedFilename:
         self.kit = int(match.group(6))
         self.biopsy = int(match.group(7))
         self.sample = int(match.group(8))
-        self.organism = match.group(9)
+        self.sequencing = int(match.group(9))
+        self.organism = match.group(10)
 
-        self.read_index = match.group(10)
+        self.read_index = match.group(11)
         if self.read_index:
             self.read_index = int(self.read_index)
 
-        self.extension = match.group(11)
-        if match.group(12):
+        self.extension = match.group(12)
+        if match.group(13):
             self.gzipped = True
         else:
             self.gzipped = False
@@ -108,9 +109,12 @@ class BarcodedFilename:
         barcoded.sample = match.group(8)
         if barcoded.sample:
             barcoded.sample = int(barcoded.sample)
-        barcoded.organism = match.group(9)
+        barcoded.sequencing = match.group(9)
+        if barcoded.sequencing:
+            barcoded.sequencing = int(barcoded.sequencing)
+        barcoded.organism = match.group(10)
 
-        barcoded.read_index = match.group(10)
+        barcoded.read_index = match.group(11)
         if barcoded.read_index:
             barcoded.read_index = int(barcoded.read_index)
 
@@ -120,9 +124,9 @@ class BarcodedFilename:
         return barcoded
 
     def get_barcode(self):
-        return "%s-%s-%02d-%d%d%d-%d%d" % (
+        return "%s-%s-%02d-%d%d%d-%d%d%d" % (
             self.project, self.patient, self.tissue, self.molecule,
-            self.analyte, self.kit, self.biopsy, self.sample,
+            self.analyte, self.kit, self.biopsy, self.sample, self.sequencing
         )
 
     def get_directory(self, analysis_dir=None):
@@ -148,6 +152,7 @@ class BarcodedFilename:
             " kit=" + str(self.kit) +
             " biopsy=" + str(self.biopsy) +
             " sample=" + str(self.sample) +
+            " sequencing=" + str(self.sequencing) +
             " organism=" + str(self.organism))
 
         if self.read_index:

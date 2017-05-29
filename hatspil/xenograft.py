@@ -65,7 +65,7 @@ class Xenograft:
             removed = {}
             barcoded_filename = BarcodedFilename(fastqgz)
             for organism in ("hg19", "mm10"):
-                obtained_name = "%s-%s-%d-%d%d%d-%d%d.%s" % (
+                obtained_name = "%s-%s-%d-%d%d%d-%d%d%d.%s" % (
                     barcoded_filename.project,
                     barcoded_filename.patient,
                     barcoded_filename.tissue,
@@ -74,6 +74,7 @@ class Xenograft:
                     barcoded_filename.kit,
                     barcoded_filename.biopsy,
                     barcoded_filename.sample,
+                    barcoded_filename.sequencing,
                     organism
                 )
                 if barcoded_filename.read_index:

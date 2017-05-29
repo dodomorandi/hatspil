@@ -302,10 +302,9 @@ class VariantCalling:
                 "index": barcoded_sample.sample
             })
 
-            # FIXME: a further parameter in barcode is needed
             sequencing_obj = find_or_insert(db.sequencings, {
                 "sample": sample_obj["_id"],
-                "index": 0
+                "index": barcoded_sample.sequencing
             }, {
                 "molecule": barcoded_sample.molecule,
                 "analyte": barcoded_sample.analyte,
