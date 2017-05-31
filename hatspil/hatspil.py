@@ -80,6 +80,8 @@ def get_parser():
                         "one")
     parser.add_argument("--skip-mapping", action="store_true",
                         help=argparse.SUPPRESS)
+    parser.add_argument("--only-mapping", action="store_true",
+                        help=argparse.SUPPRESS)
 
     list_file_group = parser.add_mutually_exclusive_group(required=False)
     list_file_group.add_argument("--list-file", action="store",
@@ -296,7 +298,8 @@ def main():
         "trim_5": args.trim_5,
         "trim_3": args.trim_3,
         "use_date": args.use_date,
-        "skip_mapping": args.skip_mapping
+        "skip_mapping": args.skip_mapping,
+        "only_mapping": args.only_mapping
     }
     logging.basicConfig(format="%(asctime)-15s %(message)s")
 
@@ -364,7 +367,7 @@ def main():
                 (args.list_file, traceback.format_exc()))
             msg["Subject"] = "Pipeline error"
 
-    if args.use_normals:
+    if args.use_normals and not args.only_mapping:
         samples = {}
         normals = {}
         last_operations = {}

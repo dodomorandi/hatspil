@@ -35,7 +35,8 @@ class Runner:
         mapping.run()
         analysis.run_fake = False
 
-        if not self.parameters["use_normals"]:
+        if not self.parameters["use_normals"] and \
+                not self.parameters["only_mapping"]:
             mutect = Mutect(analysis)
             varscan = VarScan(analysis)
 
@@ -48,7 +49,8 @@ class Runner:
         self.last_operations[sample] = analysis.last_operation_filenames
 
     def with_normals(self, sample, tumor, normal):
-        if not self.parameters["use_normals"]:
+        if not self.parameters["use_normals"] \
+                or self.parameters["only_mapping"]:
             return
 
         analysis = Analysis(sample, self.root, self.config, self.parameters)
