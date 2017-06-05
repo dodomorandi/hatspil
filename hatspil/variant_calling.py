@@ -258,7 +258,30 @@ class VariantCalling:
         annotation["in_gene_panel"] = False
         annotation.loc[set([index[0] for index in overlaps]), "in_gene_panel"] = True
         annotation["druggable"] = annotation["Gene.refGene"].isin(panel_drug.gene_symbol)
-        annotation.to_csv(os.path.join(self.analysis.get_out_dir(), self.analysis.basename + "_variants.csv"), index=False)
+
+        self.variants = pd.read_csv(self.variants_filename, index_col=False)
+        annotation.reset_index(inplace=True, drop=True)
+        self.variants.reset_index(inplace=True, drop=True)
+
+        annotation_all = annotation.join(self.variants.loc[
+            pd.match(annotation.id, self.variants.key)].drop("key", axis=1))
+        annotation_all.to_csv(os.path.join(
+            self.analysis.get_out_dir(),
+            self.analysis.basename + "_variants.csv"), index=False)
+        annotation_all[[
+            "id", "Chr", "Start", "End", "Ref", "Alt", "Func.refGene",
+            "Gene.refGene", "GeneDetail.refGene", "ExonicFunc.refGene",
+            "AAChange.refGene", "snp138", "cosmic70", "CLINSIG", "CLNDBN",
+            "CLNACC", "CLNDSDB", "CLNDSDBID", "1000G_ALL", "CADD13_PHRED",
+            "gene_type", "damaging", "hgnc_refseq_accession",
+            "hgnc_canonical_refseq", "alternative_refseq", "druggable", "DP",
+            "FREQ", "method"
+        ]].to_csv(os.path.join(self.analysis.get_out_dir(),
+                               self.analysis.basename +
+                               "_variants_pretty.csv"),
+                  index=False)
+
+        del annotation_all
 
         config = self.analysis.config
         if config.use_mongodb:
@@ -330,6 +353,6 @@ class VariantCalling:
 
     def run(self):
         if len(self.mutect_filenames) + sum([len(values) for values in self.varscan_filenames.values()]) > 0:
-            self.prepare_for_annovar()
-            self.annovar()
+            #self.prepare_for_annovar()
+            #self.annovar()
             self.collect_annotated_variants()
