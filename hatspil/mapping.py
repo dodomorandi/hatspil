@@ -5,6 +5,8 @@ from .barcoded_filename import BarcodedFilename, Analyte
 
 import os
 import shutil
+import re
+import math
 
 
 class Mapping:
@@ -113,6 +115,42 @@ class Mapping:
 
         self.analysis.logger.info("Finished trimming")
 
+    def filter_alignment(*args, **kwargs):
+        """
+        keep only aligned reads with maximum of N mismatches and without
+        Ns, hard clipping and padding
+        """
+        if len(kwargs['input_filename']) != 1:
+            raise "Expected a list with only one file"
+        input_filename = kwargs["input_filename"][0]
+        tmp_filename = input_filename + ".tmp"
+        reSpaces = re.compile(R"\s+")
+        reCigar = re.compile(R"N|H|P")
+        with open(input_filename) as fd, open(tmp_filename, "w") as tmp_fd:
+            for line in fd:
+                if(line[0] == "@"):
+                    tmp_fd.write(line)
+                    continue
+
+                params = reSpaces.split(line)
+                if reCigar.search(params[5]):
+                    continue
+
+                read_length = len(params[9])
+
+                params = params[11:]
+                mutations = float("inf")
+                for param in params:
+                    if param.startswith("NM:i:"):
+                        mutations = int(param[5:])
+                        break
+
+                if mutations > math.floor(read_length * 0.04):
+                    continue
+
+                tmp_fd.write(line)
+        os.rename(tmp_filename, input_filename)
+
     def align(self):
         self.analysis.logger.info("Running alignment")
         self.chdir()
@@ -138,12 +176,11 @@ class Mapping:
         elif barcoded.analyte == Analyte.GENE_PANEL:
             executor(f(
                 '{config.novoalign} '
-                '-a "AGATCGGAAGAGCACACGTCTGAACTCCAG" "AGATCGGAAGAGCGTCGTGTAGGGAAAGAG" '
                 '-C '
                 '-oSAM "@RG\tID:{self.analysis.basename}\t'
                 'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
                 '-d {{genome_index}} '
-                '-i 50-500 -h 8 -H 20 --matchreward 3 -x 4 -t 20,4 '
+                '-i 50-500 -h 8 -H 20 --matchreward 3 -t 90 '
                 '-f {{input_filename}}> {{output_filename}}'),
                 input_function=lambda l: " ".join(sorted(l)),
                 input_split_reads=False,
@@ -153,6 +190,12 @@ class Mapping:
             )
         else:
             raise Exception("Unnhandled analyte")
+
+        executor(self.filter_alignment,
+                 input_split_reads=False,
+                 split_by_organism=True,
+                 only_human=True,
+                 override_last_files=False)
 
         self.analysis.logger.info("Alignment SAM -> BAM")
         executor(f(
