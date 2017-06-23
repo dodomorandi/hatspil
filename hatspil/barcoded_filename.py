@@ -11,6 +11,7 @@ class Molecule(IntEnum):
 class Analyte(IntEnum):
     WHOLE_EXOME = 0
     GENE_PANEL = 1
+    FUSION_PANEL = 2
 
 
 class Tissue(IntEnum):
@@ -137,6 +138,8 @@ class BarcodedFilename:
             barcode_dir = "WXS"
         elif self.analyte == Analyte.GENE_PANEL:
             barcode_dir = "Panel"
+        elif self.analyte == Analyte.FUSION_PANEL:
+            barcode_dir = "Fusion"
         else:
             barcode_dir = ""
 
