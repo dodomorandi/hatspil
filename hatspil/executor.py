@@ -389,7 +389,7 @@ class Executor:
                         input_filename = [input_filename]
 
                     new_input_filename = []
-                    for filename in new_input_filename:
+                    for filename in input_filename:
                         if isinstance(filename, str):
                             new_input_filename.append(filename)
                         elif isinstance(filename, dict):

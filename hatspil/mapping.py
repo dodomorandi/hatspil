@@ -110,8 +110,7 @@ class Mapping:
                  output_path=self.fastq_dir,
                  error_string="Trimming with seqtk exited with status "
                               "{status}",
-                 exception_string="trimming error",
-                 unlink_inputs=True)
+                 exception_string="trimming error")
 
         self.analysis.logger.info("Finished trimming")
 
@@ -171,7 +170,8 @@ class Mapping:
                 input_split_reads=False,
                 output_format=f("{self.analysis.basename}{{organism_str}}.sam"),
                 split_by_organism=True,
-                only_human=True
+                only_human=True,
+                unlink_inputs=True
             )
         elif barcoded.analyte == Analyte.GENE_PANEL:
             executor(f(
@@ -186,7 +186,8 @@ class Mapping:
                 input_split_reads=False,
                 output_format=f("{self.analysis.basename}{{organism_str}}.sam"),
                 split_by_organism=True,
-                only_human=True
+                only_human=True,
+                unlink_inputs=True
             )
         else:
             raise Exception("Unnhandled analyte")
