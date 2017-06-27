@@ -497,9 +497,9 @@ class Mapping:
         if barcoded.analyte == Analyte.WHOLE_EXOME:
             if self.analysis.parameters["use_cutadapt"]:
                 self.cutadapt()
-            self.fastqc()
-            self.trim()
 
+        self.fastqc()
+        self.trim()
         self.align()
         self.sort_bam()
 
@@ -511,6 +511,7 @@ class Mapping:
             self.recalibration()
 
         self.metrics_collection()
-        self.bam2tdf()
+        if self.analysis.parameters["use_tdf"]:
+            self.bam2tdf()
         if self.analysis.parameters["compress_fastq"]:
             self.compress_fastq()

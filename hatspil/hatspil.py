@@ -35,6 +35,8 @@ def get_parser():
                         help="Do not send emails.")
     parser.add_argument("--no-cutadapt", dest="use_cutadapt",
                         action="store_false", help="Skips cutadapt.")
+    parser.add_argument("--no-tdf", dest="use_tdf",
+                        action="store_false", help="Skips tdf generation.")
     parser.add_argument("--no-R-checks", dest="r_checks",
                         action="store_false",
                         help="Skips some R dependency checks. If omitted, "
@@ -299,7 +301,8 @@ def main():
         "trim_3": args.trim_3,
         "use_date": args.use_date,
         "skip_mapping": args.skip_mapping,
-        "only_mapping": args.only_mapping
+        "only_mapping": args.only_mapping,
+        "use_tdf": args.use_tdf
     }
     logging.basicConfig(format="%(asctime)-15s %(message)s")
 
