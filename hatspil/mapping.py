@@ -295,18 +295,51 @@ class Mapping:
         elif barcoded.analyte == Analyte.GENE_PANEL:
             executor(f(
                 '{config.java} {config.picard_jvm_args} -jar {config.picard} '
-                'MarkDuplicates '
+                'FixMateInformation '
                 'I={{input_filename}} '
                 'O={{output_filename}} '
-                'M={self.output_basename}{{organism_str}}.marked_dup_metrics.txt '
+                'ADD_MATE_CIGAR=true '
+                'IGNORE_MISSING_MATES=true '
+                '{self.max_records_str}'),
+                output_format=f("{self.analysis.basename}{{organism_str}}.srt.mc.bam"),
+                error_string="Picard FixMateInformation exited with status {status}",
+                exception_string="picard FixMateInformation error",
+                unlink_inputs=True
+            )
+
+            executor(f(
+                '{config.samtools} view -H '
+                '{{input_filename}} > {{output_filename}}'),
+                output_format=f("{self.analysis.basename}{{organism_str}}.srt.mc.filtered.sam"),
+                error_string="samtools view exited with status {status}",
+                exception_string="samtools view error",
+                override_last_files=False
+            )
+
+            executor(f(
+                '{config.samtools} view '
+                '{{input_filename}} | grep "MC:" >> {{output_filename}}'),
+                output_format=f("{self.analysis.basename}{{organism_str}}.srt.mc.filtered.sam"),
+                error_string="samtools view exited with status {status}",
+                exception_string="samtools view error",
+                unlink_inputs=True
+            )
+
+            executor(f(
+                '{config.java} {config.picard_jvm_args} -jar {config.picard} '
+                'UmiAwareMarkDuplicatesWithMateCigar '
+                'I={{input_filename}} '
+                'O={{output_filename}} '
+                'UMI_METRICS_FILE={self.output_basename}{{organism_str}}.UMI_metrics.txt '
+                'METRICS_FILE={self.output_basename}{{organism_str}}.marked_dup_metrics.txt '
+                'UMI_TAG_NAME=BX '
                 'CREATE_INDEX=true '
-                'READ_ONE_BARCODE_TAG=BX '
                 'TAGGING_POLICY=All '
                 'REMOVE_DUPLICATES=true '
                 '{self.max_records_str}'),
                 output_format=f("{self.analysis.basename}{{organism_str}}.srt.no_duplicates.bam"),
-                error_string="Picard MarkDuplicates exited with status {status}",
-                exception_string="picard MarkDuplicates error",
+                error_string="Picard UmiAwareMarkDuplicatesWithMateCigar exited with status {status}",
+                exception_string="picard UmiAwareMarkDuplicatesWithMateCigar error",
                 unlink_inputs=True
             )
         else:
