@@ -381,7 +381,7 @@ class Executor:
                                         output_bamfiles[organism] = \
                                             output_filename
 
-                if unlink_inputs:
+                if unlink_inputs and not self.analysis.run_fake:
                     if input_function is not None:
                         input_filename = real_input_filename
 
