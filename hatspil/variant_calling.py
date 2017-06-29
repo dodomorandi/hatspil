@@ -353,6 +353,6 @@ class VariantCalling:
 
     def run(self):
         if len(self.mutect_filenames) + sum([len(values) for values in self.varscan_filenames.values()]) > 0:
-            #self.prepare_for_annovar()
-            #self.annovar()
+            self.prepare_for_annovar()
+            self.annovar()
             self.collect_annotated_variants()
