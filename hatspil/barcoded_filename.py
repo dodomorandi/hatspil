@@ -50,10 +50,10 @@ class Tissue(IntEnum):
 class BarcodedFilename:
     re_filename = re.compile(R"^([^-]+)-([^-]+)-(\d{2})-(\d)(\d)(\d)-(\d)(\d)"
                              R"(\d)(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
-                             R"(?:\.R([12]))?(?:\.[^.]+)*?\.(\w+?)(\.gz)?$")
+                             R"(?:\.(?:R([12])|[^.]+))*?\.(\w+?)(\.gz)?$")
     re_sample = re.compile(R"^([^-]+)-([^-]+)-(\d{2})-(\d)(\d)(\d)-(\d)?(\d)?"
                            R"(\d)?(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
-                           R"(?:\.R([12]))?(?:\.[^.]+)*?$")
+                           R"(?:\.(?:R([12])|[^.]+))*?$")
 
     def __init__(self, filename=None):
         if filename is None:

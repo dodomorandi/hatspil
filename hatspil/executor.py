@@ -39,9 +39,10 @@ class Executor:
             input_filenames = utils.get_sample_filenames(
                 self.analysis.last_operation_filenames,
                 split_by_organism)
+        else:
+            input_filenames = utils.get_sample_filenames(input_filenames,
+                                                         split_by_organism)
 
-        input_filenames = utils.get_sample_filenames(input_filenames,
-                                                     split_by_organism)
         if not isinstance(input_filenames, dict):
             input_filenames = {"": input_filenames}
 
@@ -51,32 +52,28 @@ class Executor:
                 current_splitted = {}
                 for filename in input_list:
                     barcoded_filename = BarcodedFilename(filename)
-                    sample_id = barcoded_filename.sample
-                    if sample_id not in current_splitted:
-                        current_splitted[sample_id] = {}
 
                     sample_type = barcoded_filename.tissue
                     if sample_type.is_normal():
-                        current_splitted[sample_id]["normal"] = filename
+                        current_splitted["normal"] = filename
                     else:
-                        current_splitted[sample_id]["tumor"] = filename
+                        current_splitted["tumor"] = filename
 
                 splitted_filenames[organism] = current_splitted
 
             input_filenames = {}
             for splitted_key, splitted_list in splitted_filenames.items():
-                for splitted_filename in splitted_list.values():
-                    if len(splitted_filename) == 1:
-                        if list(splitted_filename.keys())[0] == "tumor":
-                            if splitted_key not in input_filenames:
-                                input_filenames[splitted_key] = []
-                            input_filenames[splitted_key].append(
-                                list(splitted_filename.values())[0])
-                    else:
+                if len(splitted_list) == 1:
+                    if list(splitted_list.keys())[0] == "tumor":
                         if splitted_key not in input_filenames:
                             input_filenames[splitted_key] = []
+                        input_filenames[splitted_key].append(
+                            list(splitted_list.values())[0])
+                else:
+                    if splitted_key not in input_filenames:
+                        input_filenames[splitted_key] = []
 
-                        input_filenames[splitted_key].append(splitted_filename)
+                    input_filenames[splitted_key].append(splitted_list)
 
         if input_function is not None:
             mod_input_filenames = {}
@@ -223,14 +220,17 @@ class Executor:
                     for s in output_format:
                         for match in re_replacer.finditer(s):
                             try:
-                                s = re.sub(
-                                    match.group(0), str(
-                                        eval(
-                                            match.group(1))), s)
+                                evaluated = eval(match.group(1))
                             except:
                                 raise PipelineError(
-                                    "cannot replace parameter %s"
-                                    % (match.group(0)))
+                                    "cannot evaluate %s" % match.group(1))
+
+                            if evaluated is None:
+                                raise PipelineError(
+                                    "evaluation of %s is None"
+                                    % match.group(1))
+                            s = re.sub(match.group(0), str(evaluated), s)
+
                         output_filename.append(s)
 
                     if output_function is not None:
@@ -249,14 +249,17 @@ class Executor:
                         if isinstance(s, str):
                             for match in re_replacer.finditer(s):
                                 try:
-                                    s = s.replace(
-                                        match.group(0), str(
-                                            eval(
-                                                match.group(1))))
+                                    evaluated = eval(match.group(1))
                                 except:
                                     raise PipelineError(
-                                        "cannot replace parameter %s"
-                                        % (match.group(0)))
+                                        "cannot evaluate %s" % match.group(1))
+
+                                if evaluated is None:
+                                    raise PipelineError(
+                                        "evaluation of %s is None"
+                                        % (match.group(1)))
+
+                                s = s.replace(match.group(0), str(evaluated))
 
                         commands.append(s)
                 else:
@@ -264,13 +267,18 @@ class Executor:
                     if isinstance(current_command, str):
                         for match in re_replacer.finditer(command):
                             try:
-                                current_command = current_command.replace(
-                                    match.group(0), str(
-                                        eval(match.group(1))))
+                                evaluated = eval(match.group(1))
                             except:
                                 raise PipelineError(
-                                    "cannot replace parameter %s"
-                                    % (match.group(0)))
+                                    "cannot evaluate %s" % (match.group(1)))
+
+                            if evaluated is None:
+                                raise PipelineError(
+                                    "evaluation of %s is None"
+                                    % (match.group(1)))
+
+                            current_command = current_command.replace(
+                                match.group(0), str(evaluated))
                     commands.append(current_command)
 
                 for command_index, current_command in enumerate(commands):

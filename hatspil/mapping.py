@@ -268,7 +268,8 @@ class Mapping:
             unlink_inputs=True
         )
 
-        shutil.rmtree(self.sort_tempdir)
+        if os.path.exists(self.sort_tempdir):
+            shutil.rmtree(self.sort_tempdir)
         self.analysis.logger.info("Finished sorting")
 
     def mark_duplicates(self):
