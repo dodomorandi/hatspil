@@ -263,8 +263,13 @@ class VariantCalling:
         annotation.reset_index(inplace=True, drop=True)
         self.variants.reset_index(inplace=True, drop=True)
 
-        annotation_all = annotation.join(self.variants.loc[
-            pd.match(annotation.id, self.variants.key)].drop("key", axis=1))
+        annotation_all = pd.merge(annotation,
+                                  self.variants.loc[
+                                      pd.match(annotation.id,
+                                               self.variants.key)]
+                                  .rename(columns={"key": "id"}),
+                                  on="id",
+                                  how="inner")
         annotation_all.to_csv(os.path.join(
             self.analysis.get_out_dir(),
             self.analysis.basename + "_variants.csv"), index=False)
