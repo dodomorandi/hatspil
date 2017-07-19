@@ -77,10 +77,10 @@ class Xenograft:
             raise BarcodeError("max supported parents and children are 3 each")
 
         if self.generation == 0:
-            if self.child != 0:
+            if self.parent != 0:
                 raise BarcodeError("the first generation of xenograft must "
-                                   "have the child attribute set to 0 (ie the "
-                                   "sample field can only be 0, 3 or 6)")
+                                   "have the parent attribute set to 0 (ie "
+                                   "the sample field can only be 0, 1 or 2)")
 
     @staticmethod
     def create(raw_tissue, raw_sample):
