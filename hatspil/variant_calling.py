@@ -331,10 +331,14 @@ class VariantCalling:
                 "tissue": barcoded_sample.tissue
             })
 
-            sample_obj = find_or_insert(db.samples, {
-                "biopsy": biopsy_obj["_id"],
-                "index": barcoded_sample.sample
-            })
+            sample_data = {
+                "biopsy": biopsy_obj["_id"]
+            }
+            if barcoded_sample.xenograft is None:
+                sample_data["index"] = barcoded_sample.sample
+            else:
+                sample_data["xenograft"] = barcoded_sample.xenograft.to_dict()
+            sample_obj = find_or_insert(db.samples, sample_data)
 
             sequencing_obj = find_or_insert(db.sequencings, {
                 "sample": sample_obj["_id"],

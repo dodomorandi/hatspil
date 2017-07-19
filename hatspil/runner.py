@@ -5,7 +5,7 @@ from .mutect import Mutect
 from .varscan import VarScan
 from .strelka import Strelka
 from .variant_calling import VariantCalling
-from .barcoded_filename import BarcodedFilename
+from .barcoded_filename import BarcodedFilename, Tissue
 from .starter import Starter
 
 
@@ -24,8 +24,9 @@ class Runner:
 
         Starter.run(analysis, self.fastq_dir)
 
-        if self.parameters["use_xenome"] and\
-                barcoded_filename.tissue == 60:
+        if self.parameters["use_xenome"] and (
+                barcoded_filename.tissue == Tissue.PRIMARY_XENOGRAFT_TISSUE or
+                barcoded_filename.tissue == Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE):
             xenograft = Xenograft(analysis, self.fastq_dir)
             xenograft.run()
 

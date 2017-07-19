@@ -183,7 +183,7 @@ def main():
             exit(-4)
 
     if args.list_file:
-        re_pattern = re.compile(R"^([^-]+)(?:-([^-]+)(?:-(\d{2}|\*)"
+        re_pattern = re.compile(R"^([^-]+)(?:-([^-]+)(?:-(\d[0-9A-Za-z]|\*)"
                                 R"(?:-(\d|\*)(?:(\d|\*)(\d|\*)?)?"
                                 R"(?:-(\d|\*)(\d|\*)(\d|\*)?)?)?)?)?$")
 
@@ -249,9 +249,9 @@ def main():
                         else:
                             current_pattern += R"-\d{3}-\d{3}"
                     else:
-                        current_pattern += R"-\d{2}-\d{3}-\d{3}"
+                        current_pattern += R"-\d[0-9A-Za-z]-\d{3}-\d{3}"
                 else:
-                    current_pattern += R"-[^-]+-\d{2}-\d{3}-\d{3}"
+                    current_pattern += R"-[^-]+-\d[0-9A-Za-z]-\d{3}-\d{3}"
                 current_pattern += R")(?:\.(?:hg|mm)\d+)?(?:\.R[12])?\.fastq(\.gz)?$"
 
                 re_current_pattern = re.compile(current_pattern, re.I)
@@ -262,7 +262,7 @@ def main():
                     if match:
                         barcoded_filename = BarcodedFilename(filename)
                         if (barcoded_filename.tissue != Tissue.PRIMARY_XENOGRAFT_TISSUE and
-                            barcoded_filename.tissue != Tissue.PRIMARY_XENOGRAFT_TISSUE) or \
+                            barcoded_filename.tissue != Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE) or \
                                 barcoded_filename.organism is None:
                             filenames.add(match.group(1))
                             added_files += 1
@@ -378,14 +378,16 @@ def main():
             last_operations[sample] = last_operation
             for filename in utils.get_sample_filenames(last_operation):
                 barcoded_filename = BarcodedFilename(filename)
-                fake_sample = "%s-%s-%d%d%d-%d%d%d" % (barcoded_filename.project,
-                                                       barcoded_filename.patient,
-                                                       barcoded_filename.molecule,
-                                                       barcoded_filename.analyte,
-                                                       barcoded_filename.kit,
-                                                       barcoded_filename.biopsy,
-                                                       barcoded_filename.sample,
-                                                       barcoded_filename.sequencing)
+                fake_sample = "%s-%s-%d%d%d-%d%d%d" % (
+                    barcoded_filename.project,
+                    barcoded_filename.patient,
+                    barcoded_filename.molecule,
+                    barcoded_filename.analyte,
+                    barcoded_filename.kit,
+                    barcoded_filename.biopsy,
+                    barcoded_filename.get_sample_index(),
+                    barcoded_filename.sequencing)
+
                 if barcoded_filename.tissue == Tissue.BONE_MARROW_NORMAL or \
                         barcoded_filename.tissue == Tissue.BUCCAL_CELL_NORMAL or \
                         barcoded_filename.tissue == Tissue.SOLID_TISSUE_NORMAL or \

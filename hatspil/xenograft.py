@@ -67,18 +67,9 @@ class Xenograft:
             removed = {}
             barcoded_filename = BarcodedFilename(fastqgz)
             for organism in ("hg19", "mm10"):
-                obtained_name = "%s-%s-%d-%d%d%d-%d%d%d.%s" % (
-                    barcoded_filename.project,
-                    barcoded_filename.patient,
-                    barcoded_filename.tissue,
-                    barcoded_filename.molecule,
-                    barcoded_filename.analyte,
-                    barcoded_filename.kit,
-                    barcoded_filename.biopsy,
-                    barcoded_filename.sample,
-                    barcoded_filename.sequencing,
-                    organism
-                )
+                obtained_name = "%s.%s" % (barcoded_filename.get_barcode(),
+                                           organism)
+
                 if barcoded_filename.read_index:
                     obtained_name += ".R%s" % barcoded_filename.read_index
                 obtained_name += ".fastq"
@@ -144,8 +135,8 @@ class Xenograft:
         self.analysis.logger.info("Finished xenome")
 
     def fix_fastq(self):
-        match = re.match(R"^[^-]+-[^-]+-(\d{2})", self.analysis.sample)
-        if not match or match.group(1) != "60":
+        match = re.match(R"^[^-]+-[^-]+-(\d)", self.analysis.sample)
+        if not match or match.group(1) != "6":
             self.analysis.last_operation_filenames = self.skip_filenames
             return
 

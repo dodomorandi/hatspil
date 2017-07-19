@@ -137,11 +137,10 @@ def check_gz(filename):
     chunk_size = 2**20
     with gz.open(filename, "rb") as fd:
         try:
-            while fd.read(chunk_size) != '':
-                pass
+            fd.seek(-1, os.SEEK_END)
+            return fd.read(1) == bytes('.', 'utf8')
         except:
             return False
-    return True
 
 def flatten(iterable):
     for element in iterable:
