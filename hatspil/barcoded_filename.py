@@ -116,6 +116,25 @@ class Xenograft:
             "child": self.child
         }
 
+    @staticmethod
+    def from_dict(dictionary):
+        assert "generation" in dictionary
+        assert "parent" in dictionary
+        assert "child" in dictionary
+
+        return Xenograft(int(dictionary["generation"]),
+                         int(dictionary["parent"]),
+                         int(dictionary["child"]))
+
+    def to_human(self):
+        if self.generation == 0:
+            return "%d%s" % (self.generation + 1,
+                             chr(ord('A') + self.child))
+        else:
+            return "%d%s%s" % (self.generation + 1,
+                               chr(ord('a') + self.parent),
+                               chr(ord('A') + self.child))
+
 
 class BarcodedFilename:
     re_filename = re.compile(R"^([^-]+)-([^-]+)-(\d[0-9A-Za-z])-(\d)(\d)(\d)-"
