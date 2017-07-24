@@ -13,6 +13,7 @@ class Analyte(IntEnum):
     WHOLE_EXOME = 0
     GENE_PANEL = 1
     FUSION_PANEL = 2
+    RNASEQ = 3
 
 
 class Tissue(IntEnum):
