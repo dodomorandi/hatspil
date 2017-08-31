@@ -63,6 +63,12 @@ class Tissue(IntEnum):
             Tissue.EBV_IMMORTALIZED_NORMAL,
             Tissue.BONE_MARROW_NORMAL)
 
+    def is_xenograft(self):
+        return self in (
+            Tissue.PRIMARY_XENOGRAFT_TISSUE,
+            Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE
+        )
+
 
 class Xenograft:
     def __init__(self, generation, parent, child):
