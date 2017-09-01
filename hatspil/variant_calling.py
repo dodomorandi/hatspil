@@ -1,6 +1,7 @@
 from .executor import Executor
 from .ranges import GenomicRange, GenomicRanges
 from .barcoded_filename import BarcodedFilename
+from .exceptions import PipelineError
 
 import os
 import glob
@@ -88,121 +89,178 @@ class VariantCalling:
         for varscan_type in ("snp", "indel"):
             filenames = self.varscan_filenames[varscan_type]
             if len(filenames) > 0:
+                withNormals = True
                 varscan_data_list = []
                 for varscan_filename in filenames:
                     for record in vcf.Reader(filename=varscan_filename):
                         for sample in record.samples:
-                            varscan_data_list.append({
+                            sample_data = {
                                 "chr": record.CHROM,
                                 "start": record.start + 1,
                                 "end": record.end,
                                 "width": record.end - record.start,
                                 "ref": str(record.REF),
-                                "alt": ",".join([str(alt) for alt in record.ALT]),
+                                "alt": ",".join([str(alt) for alt
+                                                 in record.ALT]),
                                 "totalDepth": sample.data.DP,
                                 "refDepth": sample.data.RD,
                                 "altDepth": sample.data.AD,
-                                "sampleNames": sample.sample,
-                                "indelError": "indelError" not in record.FILTER,
+                                "indelError": "indelError"
+                                              not in record.FILTER,
                                 "QUAL": record.QUAL,
-                                "DP": record.INFO["DP"],
-                                "SOMATIC": "SOMATIC" in record.INFO and record.INFO["SOMATIC"],
-                                "SS": record.INFO["SS"],
-                                "SSC": record.INFO["SSC"],
-                                "GPV": record.INFO["GPV"],
-                                "SPV": record.INFO["SPV"],
                                 "GT": sample.data.GT,
                                 "GQ": sample.data.GQ,
                                 "RD": sample.data.RD,
                                 "FREQ": float(sample.data.FREQ[:-1]) / 100,
-                                "DP4": int(sample.data.DP4.split(",")[0])
-                            })
+                            }
+
+                            if hasattr(sample.data, "DP4"):
+                                if not withNormals:
+                                    raise PipelineError("mixed varscan data "
+                                                        "with/without normals")
+                                dp4 = sample.data.DP4.split(",")
+                                sample_data.update({
+                                    "sampleNames": sample.sample,
+                                    "DP": record.INFO["DP"],
+                                    "SOMATIC": "SOMATIC" in record.INFO
+                                               and record.INFO["SOMATIC"],
+                                    "SS": record.INFO["SS"],
+                                    "SSC": record.INFO["SSC"],
+                                    "GPV": record.INFO["GPV"],
+                                    "SPV": record.INFO["SPV"],
+                                    "DP4": int(dp4[0]),
+                                    "ADF": int(dp4[2]),
+                                    "ADR": int(dp4[3])
+                                })
+                            else:
+                                if withNormals:
+                                    if len(varscan_data_list) != 0:
+                                        raise PipelineError(
+                                            "mixed varscan data with/without "
+                                            "normals")
+                                    withNormals = False
+
+                                sample_data.update({
+                                    "sampleNames": "TUMOR",
+                                    "DP": None,
+                                    "SOMATIC": None,
+                                    "SS": None,
+                                    "SSC": None,
+                                    "GPV": None,
+                                    "SPV": None,
+                                    "DP4": None,
+                                    "ADF": sample.data.ADF,
+                                    "ADR": sample.data.ADR
+                                })
+
+                            varscan_data_list.append(sample_data)
 
                 current_data = pd.DataFrame(data=varscan_data_list, columns=[
                     "chr", "start", "end", "width", "ref", "alt", "totalDepth",
                     "refDepth", "altDepth", "sampleNames", "indelError", "QUAL", "DP",
                     "SOMATIC", "SS", "SSC", "GPV", "SPV", "GT", "GQ", "RD", "FREQ",
-                    "DP4"])
+                    "DP4", "ADF", "ADR"])
                 current_data.drop_duplicates(inplace=True)
                 current_data["key"] = current_data.apply(lambda row: "%s:%d-%d_%s_%s" % (row.chr, row.start, row.end, row.ref, row.alt), axis=1)
                 tumor = current_data[current_data.sampleNames == "TUMOR"].copy()
-                normal = current_data[current_data.sampleNames == "NORMAL"]
-
-                normal.reset_index(inplace=True, drop=True)
                 tumor.reset_index(inplace=True, drop=True)
-                normals = normal.loc[pd.match(tumor.key, normal.key)][["totalDepth", "refDepth", "altDepth"]]
-                tumor["totalDepth.NORMAL"] = normals["totalDepth"].values
-                tumor["refDepth.NORMAL"] = normals["refDepth"].values
-                tumor["altDepth.NORMAL"] = normals["altDepth"].values
 
-                tumor.drop(tumor[(~tumor.indelError) | (~tumor.SOMATIC) | (tumor.DP < VariantCalling.min_cov_position) | (tumor.FREQ < VariantCalling.min_allele_frequency)].index, inplace=True)
+                if withNormals:
+                    normal = current_data[current_data.sampleNames == "NORMAL"]
+                    normal.reset_index(inplace=True, drop=True)
+
+                    normals = normal.loc[pd.match(tumor.key, normal.key)][["totalDepth", "refDepth", "altDepth"]]
+                    tumor["totalDepth.NORMAL"] = normals["totalDepth"].values
+                    tumor["refDepth.NORMAL"] = normals["refDepth"].values
+                    tumor["altDepth.NORMAL"] = normals["altDepth"].values
+
+                if withNormals:
+                    tumor.drop(tumor[(~tumor.indelError) |
+                                     (~tumor.SOMATIC) |
+                                     (tumor.DP <
+                                      VariantCalling.min_cov_position) |
+                                     (tumor.FREQ <
+                                      VariantCalling.min_allele_frequency) |
+                                     (tumor.ADF <= 0) | (tumor.ADR <= 0)
+                                    ].index, inplace=True)
+                else:
+                    tumor.drop(tumor[(~tumor.indelError) |
+                                     (tumor.totalDepth <
+                                      VariantCalling.min_cov_position) |
+                                     (tumor.FREQ <
+                                      VariantCalling.min_allele_frequency) |
+                                     (tumor.ADF <= 0) | (tumor.ADR <= 0)
+                                    ].index, inplace=True)
 
                 if varscan_data is None:
                     varscan_data = tumor
                 else:
                     varscan_data = pd.concat((varscan_data, tumor))
 
-        strelka_data_list = []
-        for strelka_type in ("snvs", "indels"):
-            passed_vcf_filename = os.path.join(self.strelka_results_dir,
-                                               "passed.somatic.%s.vcf"
-                                               % strelka_type)
-            for record in vcf.Reader(filename=passed_vcf_filename):
-                samples = {}
-                for sample in record.samples:
-                    if sample.sample == "NORMAL":
-                        samples["normal"] = sample
-                    elif sample.sample == "TUMOR":
-                        samples["tumor"] = sample
+        if os.path.exists(self.strelka_results_dir):
+            strelka_data_list = []
+            for strelka_type in ("snvs", "indels"):
+                passed_vcf_filename = os.path.join(self.strelka_results_dir,
+                                                "passed.somatic.%s.vcf"
+                                                % strelka_type)
+                for record in vcf.Reader(filename=passed_vcf_filename):
+                    samples = {}
+                    for sample in record.samples:
+                        if sample.sample == "NORMAL":
+                            samples["normal"] = sample
+                        elif sample.sample == "TUMOR":
+                            samples["tumor"] = sample
 
-                tumor_data = samples["tumor"].data
-                if strelka_type == "snvs":
-                    coverage = tumor_data.AU[VariantCalling.strelka_tier] +\
-                        tumor_data.CU[VariantCalling.strelka_tier] +\
-                        tumor_data.GU[VariantCalling.strelka_tier] +\
-                        tumor_data.TU[VariantCalling.strelka_tier]
-                else:
-                    if VariantCalling.strelka_tier == 0:
-                        coverage = tumor_data.DP
-                    else:
-                        coverage = tumor_data.DP2
-
-                # This is how the Strelka manual whats the frequency to be
-                # calculated. Disclaimer: this does not make sense from a math
-                # point of view. If you are concerned about this method, go ask
-                # Illumina.
-                for alternative_base in record.ALT:
+                    tumor_data = samples["tumor"].data
                     if strelka_type == "snvs":
-                        reference_coverage = \
-                            getattr(tumor_data,
-                                    str(record.REF) + "U"
-                                    )[VariantCalling.strelka_tier]
-                        alternative_coverage = \
-                            getattr(tumor_data,
-                                    str(alternative_base) + "U"
-                                    )[VariantCalling.strelka_tier]
+                        coverage = tumor_data.AU[VariantCalling.strelka_tier] +\
+                            tumor_data.CU[VariantCalling.strelka_tier] +\
+                            tumor_data.GU[VariantCalling.strelka_tier] +\
+                            tumor_data.TU[VariantCalling.strelka_tier]
                     else:
-                        reference_coverage = \
-                            tumor_data.TAR[VariantCalling.strelka_tier]
-                        alternative_coverage = \
-                            tumor_data.TIR[VariantCalling.strelka_tier]
+                        if VariantCalling.strelka_tier == 0:
+                            coverage = tumor_data.DP
+                        else:
+                            coverage = tumor_data.DP2
 
-                    current_data = {
-                        "key": "%s:%d-%d_%s_%s" % (record.CHROM,
-                                                   record.POS,
-                                                   record.POS +
-                                                   len(record.REF) - 1,
-                                                   record.REF,
-                                                   alternative_base),
-                        "DP": coverage,
-                        "FREQ": alternative_coverage / (reference_coverage +
-                                                        alternative_coverage)
-                    }
-                    strelka_data_list.append(current_data)
+                    # This is how the Strelka manual whats the frequency to be
+                    # calculated. Disclaimer: this does not make sense from a math
+                    # point of view. If you are concerned about this method, go ask
+                    # Illumina.
+                    for alternative_base in record.ALT:
+                        if strelka_type == "snvs":
+                            reference_coverage = \
+                                getattr(tumor_data,
+                                        str(record.REF) + "U"
+                                        )[VariantCalling.strelka_tier]
+                            alternative_coverage = \
+                                getattr(tumor_data,
+                                        str(alternative_base) + "U"
+                                        )[VariantCalling.strelka_tier]
+                        else:
+                            reference_coverage = \
+                                tumor_data.TAR[VariantCalling.strelka_tier]
+                            alternative_coverage = \
+                                tumor_data.TIR[VariantCalling.strelka_tier]
 
-        strelka_data = pd.DataFrame(data=strelka_data_list,
-                                    columns=("key", "DP", "FREQ"))
-        del strelka_data_list
+                        current_data = {
+                            "key": "%s:%d-%d_%s_%s" % (record.CHROM,
+                                                    record.POS,
+                                                    record.POS +
+                                                    len(record.REF) - 1,
+                                                    record.REF,
+                                                    alternative_base),
+                            "DP": coverage,
+                            "FREQ": alternative_coverage / (reference_coverage +
+                                                            alternative_coverage)
+                        }
+                        strelka_data_list.append(current_data)
+
+            strelka_data = pd.DataFrame(data=strelka_data_list,
+                                        columns=("key", "DP", "FREQ"))
+            del strelka_data_list
+        else:
+            strelka_data = None
 
         self.variants = pd.DataFrame(columns=("key", "DP", "FREQ", "method"))
 
@@ -229,13 +287,19 @@ class VariantCalling:
         self.variants.drop_duplicates(("key",), inplace=True)
         methods = []
 
+        keysets = {
+            "mutect": set(mutect_data.key),
+            "varscan": set(varscan_data.key),
+            "strelka": set(strelka_data.key)
+        }
+
         def set_methods(row):
             current_methods = []
-            if mutect_data.key.str.match(row.key).any():
+            if row.key in keysets["mutect"]:
                 current_methods.append("Mutect1.17")
-            if varscan_data.key.str.match(row.key).any():
+            if row.key in keysets["varscan"]:
                 current_methods.append("VarScan2")
-            if strelka_data.key.str.match(row.key).any():
+            if row.key in keysets["strelka"]:
                 current_methods.append("Strelka")
 
             methods.append(":".join(current_methods))
