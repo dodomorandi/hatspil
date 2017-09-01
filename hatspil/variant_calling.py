@@ -19,6 +19,7 @@ class VariantCalling:
     dataset_filename = os.path.join(os.path.dirname(__file__), "data.hdf")
     medium_damage = 5
     high_damage = 20
+    strelka_tier = 0
 
     def __init__(self, analysis):
         self.analysis = analysis
@@ -38,6 +39,12 @@ class VariantCalling:
                           + "*.varscan2." + varscan_type + ".vcf")
         self.annovar_dirname = os.path.join(analysis.get_out_dir(),
                                             self.analysis.basename + "_annovar")
+
+        self.strelka_results_dir = os.path.join(analysis.root,
+                                                "Strelka",
+                                                analysis.basename,
+                                                "results")
+
         try:
             os.makedirs(self.annovar_dirname, exist_ok=True)
         except:
@@ -57,6 +64,7 @@ class VariantCalling:
 
         mutect_data = None
         varscan_data = None
+        strelka_data = None
 
         if len(self.mutect_filenames) > 0:
             for mutect_filename in self.mutect_filenames:
@@ -134,7 +142,74 @@ class VariantCalling:
                 else:
                     varscan_data = pd.concat((varscan_data, tumor))
 
+        strelka_data_list = []
+        for strelka_type in ("snvs", "indels"):
+            passed_vcf_filename = os.path.join(self.strelka_results_dir,
+                                               "passed.somatic.%s.vcf"
+                                               % strelka_type)
+            for record in vcf.Reader(filename=passed_vcf_filename):
+                samples = {}
+                for sample in record.samples:
+                    if sample.sample == "NORMAL":
+                        samples["normal"] = sample
+                    elif sample.sample == "TUMOR":
+                        samples["tumor"] = sample
+
+                tumor_data = samples["tumor"].data
+                if strelka_type == "snvs":
+                    coverage = tumor_data.AU[VariantCalling.strelka_tier] +\
+                        tumor_data.CU[VariantCalling.strelka_tier] +\
+                        tumor_data.GU[VariantCalling.strelka_tier] +\
+                        tumor_data.TU[VariantCalling.strelka_tier]
+                else:
+                    if VariantCalling.strelka_tier == 0:
+                        coverage = tumor_data.DP
+                    else:
+                        coverage = tumor_data.DP2
+
+                # This is how the Strelka manual whats the frequency to be
+                # calculated. Disclaimer: this does not make sense from a math
+                # point of view. If you are concerned about this method, go ask
+                # Illumina.
+                for alternative_base in record.ALT:
+                    if strelka_type == "snvs":
+                        reference_coverage = \
+                            getattr(tumor_data,
+                                    str(record.REF) + "U"
+                                    )[VariantCalling.strelka_tier]
+                        alternative_coverage = \
+                            getattr(tumor_data,
+                                    str(alternative_base) + "U"
+                                    )[VariantCalling.strelka_tier]
+                    else:
+                        reference_coverage = \
+                            tumor_data.TAR[VariantCalling.strelka_tier]
+                        alternative_coverage = \
+                            tumor_data.TIR[VariantCalling.strelka_tier]
+
+                    current_data = {
+                        "key": "%s:%d-%d_%s_%s" % (record.CHROM,
+                                                   record.POS,
+                                                   record.POS +
+                                                   len(record.REF) - 1,
+                                                   record.REF,
+                                                   alternative_base),
+                        "DP": coverage,
+                        "FREQ": alternative_coverage / (reference_coverage +
+                                                        alternative_coverage)
+                    }
+                    strelka_data_list.append(current_data)
+
+        strelka_data = pd.DataFrame(data=strelka_data_list,
+                                    columns=("key", "DP", "FREQ"))
+        del strelka_data_list
+
         self.variants = pd.DataFrame(columns=("key", "DP", "FREQ", "method"))
+
+        if strelka_data is None:
+            strelka_data = pd.DataFrame(columns=("key", "DP", "FREQ"))
+        else:
+            self.variants = pd.concat([self.variants, strelka_data])
 
         if varscan_data is None:
             varscan_data = pd.DataFrame(columns=("key", "DP", "FREQ"))
@@ -145,13 +220,28 @@ class VariantCalling:
         if mutect_data is None:
             mutect_data = pd.DataFrame(columns=("key", "DP", "FREQ"))
         else:
-            mutect_data = mutect_data.rename(index=str, columns={"tot_cov": "DP", "tumor_f": "FREQ"})[["key", "DP", "FREQ"]].copy()
+            mutect_data = mutect_data.rename(index=str,
+                                             columns={"tot_cov": "DP",
+                                                      "tumor_f": "FREQ"}
+                                             )[["key", "DP", "FREQ"]].copy()
             self.variants = pd.concat([self.variants, mutect_data])
 
         self.variants.drop_duplicates(("key",), inplace=True)
-        self.variants.loc[(self.variants.key.isin(mutect_data.key)) & (~self.variants.key.isin(varscan_data.key)), "method"] = "Mutect1.17"
-        self.variants.loc[(~self.variants.key.isin(mutect_data.key)) & (self.variants.key.isin(varscan_data.key)), "method"] = "VarScan2"
-        self.variants.loc[(self.variants.key.isin(mutect_data.key)) & (self.variants.key.isin(varscan_data.key)), "method"] = "Mutect1.17:VarScan2"
+        methods = []
+
+        def set_methods(row):
+            current_methods = []
+            if mutect_data.key.str.match(row.key).any():
+                current_methods.append("Mutect1.17")
+            if varscan_data.key.str.match(row.key).any():
+                current_methods.append("VarScan2")
+            if strelka_data.key.str.match(row.key).any():
+                current_methods.append("Strelka")
+
+            methods.append(":".join(current_methods))
+
+        self.variants.apply(set_methods, axis=1)
+        self.variants.method = methods
 
         with open(self.annovar_file, "w") as fd:
             for key in self.variants.key:
