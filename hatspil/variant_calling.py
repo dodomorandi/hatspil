@@ -243,6 +243,11 @@ class VariantCalling:
                             alternative_coverage = \
                                 tumor_data.TIR[VariantCalling.strelka_tier]
 
+                        total_coverage = reference_coverage +\
+                            alternative_coverage
+                        if total_coverage == 0:
+                            continue
+
                         current_data = {
                             "key": "%s:%d-%d_%s_%s" % (record.CHROM,
                                                     record.POS,
@@ -251,8 +256,7 @@ class VariantCalling:
                                                     record.REF,
                                                     alternative_base),
                             "DP": coverage,
-                            "FREQ": alternative_coverage / (reference_coverage +
-                                                            alternative_coverage)
+                            "FREQ": alternative_coverage / total_coverage
                         }
                         strelka_data_list.append(current_data)
 
