@@ -78,7 +78,7 @@ class Analysis:
         filename = self._get_first_filename()
         directory = getattr(self, param)
         if filename is None:
-            return getattr(self, directory)
+            return directory
 
         return BarcodedFilename(filename).get_directory(directory)
 
