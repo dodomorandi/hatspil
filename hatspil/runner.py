@@ -38,14 +38,7 @@ class Runner:
 
         if not self.parameters["use_normals"] and \
                 not self.parameters["only_mapping"]:
-            mutect = Mutect(analysis)
-            varscan = VarScan(analysis)
-
-            mutect.run()
-            varscan.run()
-
-            variant_calling = VariantCalling(analysis)
-            variant_calling.run()
+            self._run(analysis, False)
 
         self.last_operations[sample] = analysis.last_operation_filenames
 
@@ -55,18 +48,27 @@ class Runner:
             return
 
         analysis = Analysis(sample, self.root, self.config, self.parameters)
-        analysis.last_operation_filenames = {
-            "tumor": [tumor],
-            "normal": [normal]
-        }
+        if normal is None:
+            analysis.last_operation_filenames = {
+                "tumor": [tumor],
+                "normal": []
+            }
 
+            self._run(analysis, False)
+        else:
+            analysis.last_operation_filenames = tumor
+            self._run(analysis, True)
+
+    def _run(self, analysis, use_strelka):
         mutect = Mutect(analysis)
         varscan = VarScan(analysis)
-        strelka = Strelka(analysis)
 
         mutect.run()
         varscan.run()
-        strelka.run()
+
+        if use_strelka:
+            strelka = Strelka(analysis)
+            strelka.run()
 
         variant_calling = VariantCalling(analysis)
         variant_calling.run()

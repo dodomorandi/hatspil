@@ -26,7 +26,7 @@ class VarScan:
         except OSError:
             pass
 
-        if self.analysis.parameters["use_normals"]:
+        if self.analysis.using_normals:
             self.first_fifo = "/data/scratch/matteo/%s.fifo" % self.analysis.basename
         else:
             self.first_fifo = "/data/scratch/matteo/%s.fifo" % self.analysis.basename
@@ -255,13 +255,13 @@ class VarScan:
             os.unlink(self.first_fifo)
         os.mkfifo(self.first_fifo)
 
-        if not self.analysis.parameters["use_normals"]:
+        if not self.analysis.using_normals:
             if os.path.exists(self.second_fifo):
                 os.unlink(self.first_fifo)
             os.mkfifo(self.second_fifo)
 
         executor = Executor(self.analysis)
-        if self.analysis.parameters["use_normals"]:
+        if self.analysis.using_normals:
             executor(
                 self._run_varscan_normals,
                 override_last_files=False,
@@ -270,7 +270,7 @@ class VarScan:
             executor(self._run_varscan_no_normals, override_last_files=False)
 
         os.unlink(self.first_fifo)
-        if not self.analysis.parameters["use_normals"]:
+        if not self.analysis.using_normals:
             os.unlink(self.second_fifo)
 
         self.analysis.logger.info("Finished VarScan")

@@ -449,6 +449,7 @@ class VariantCalling:
         config = self.analysis.config
         if config.use_mongodb:
             from pymongo import MongoClient, ReturnDocument
+            from pymongo.errors import DocumentTooLarge
 
             mongo = MongoClient(config.mongodb_host, config.mongodb_port)
             db = mongo[config.mongodb_database]
@@ -507,13 +508,28 @@ class VariantCalling:
                 "kit": barcoded_sample.kit
             })
 
-            find_or_insert(db.analyses, {
-                "sequencing": sequencing_obj["_id"],
-                "date": self.analysis.current
-            }, {
-                "variants": variants,
-                "annotations": annotations,
-            })
+            try:
+                find_or_insert(db.analyses, {
+                    "sequencing": sequencing_obj["_id"],
+                    "date": self.analysis.current
+                }, {
+                    "variants": variants,
+                    "annotations": annotations,
+                })
+
+            except DocumentTooLarge:
+                self.analysis.logger.warning("annotations and variants cannot "
+                                             "be saved inside the MongoDB, "
+                                             "document too large. Saving data "
+                                             "using empty objects")
+                find_or_insert(db.analyses, {
+                    "sequencing": sequencing_obj["_id"],
+                    "date": self.analysis.current
+                }, {
+                    "variants": [],
+                    "annotations": [],
+                })
+
 
         self.analysis.logger.info("Finished collecting annotated variants "
                                   "from ANNOVAR")

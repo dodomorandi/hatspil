@@ -474,10 +474,11 @@ def main():
 
         triplets = []
         for sample, values in samples.items():
-            if len(values) < 2:
-                continue
             for tumor in values["tumor"]:
-                triplets.append((tumor[1], tumor[0], values["normal"]))
+                if "normal" in values:
+                    triplets.append((tumor[1], tumor[0], values["normal"]))
+                else:
+                    triplets.append((tumor[1], tumor[0], None))
 
         error_raised = False
         try:

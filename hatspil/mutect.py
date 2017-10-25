@@ -23,7 +23,7 @@ class Mutect:
         config = self.analysis.config
 
         executor = Executor(self.analysis)
-        if self.analysis.parameters["use_normals"]:
+        if self.analysis.using_normals:
             executor(f(
                 "{config.java7} {config.mutect_jvm_args} -jar {config.mutect} "
                 '{config.mutect_args} --reference_sequence '
