@@ -66,7 +66,7 @@ class Runner:
         mutect.run()
         varscan.run()
 
-        if use_strelka:
+        if use_strelka and analysis.using_normals:
             strelka = Strelka(analysis)
             strelka.run()
 
