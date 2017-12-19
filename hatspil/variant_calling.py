@@ -161,6 +161,9 @@ class VariantCalling:
                     "SOMATIC", "SS", "SSC", "GPV", "SPV", "GT", "GQ", "RD", "FREQ",
                     "DP4", "ADF", "ADR"])
                 current_data.drop_duplicates(inplace=True)
+                if current_data.empty:
+                    continue
+
                 current_data["key"] = current_data.apply(lambda row: "%s:%d-%d_%s_%s" % (row.chr, row.start, row.end, row.ref, row.alt), axis=1)
                 tumor = current_data[current_data.sampleNames == "TUMOR"].copy()
                 tumor.reset_index(inplace=True, drop=True)
@@ -466,6 +469,7 @@ class VariantCalling:
                             for key, value in record.items()
                             if type(value) != float or not math.isnan(value)}
                            for record in annotation.to_dict("records")]
+            del annotation
 
             def find_or_insert(collection, data, new_data=None):
                 set_data = dict(data)
@@ -474,6 +478,13 @@ class VariantCalling:
                 return collection.find_one_and_update(
                     data, {"$set": set_data}, upsert=True,
                     return_document=ReturnDocument.AFTER)
+
+            annotation_ids = [
+                find_or_insert(db.annotations,
+                               {"id": annotation["id"]},
+                               annotation)["_id"]
+                for annotation in annotations
+            ]
 
             project_obj = find_or_insert(db.projects, {
                 "name": barcoded_sample.project
@@ -514,7 +525,7 @@ class VariantCalling:
                     "date": self.analysis.current
                 }, {
                     "variants": variants,
-                    "annotations": annotations,
+                    "annotations": annotation_ids,
                 })
 
             except DocumentTooLarge:
