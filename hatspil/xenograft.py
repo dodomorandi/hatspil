@@ -154,8 +154,12 @@ class Xenograft:
                     open(out_filename, "w") as out_fd:
                 for line_index, line in enumerate(in_fd):
                     if line_index % 4 == 0:
-                        splitted = line.strip().split(" ")
-                        out_fd.write("@%s %s\n" % (splitted[0], splitted[1]))
+                        line = line.strip()
+                        space_pos = line.find(" ")
+                        if space_pos != -1:
+                            space_pos = line.find(" ", space_pos + 1)
+
+                        out_fd.write("@%s\n" % line[:space_pos])
                     elif line_index % 4 == 2:
                         out_fd.write("+\n")
                     else:
