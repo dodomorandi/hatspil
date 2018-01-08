@@ -135,7 +135,8 @@ class Config:
 
         mongodb_params = {}
         for mongodb_param in Config.mongodb:
-            mongodb_params["mongodb_" + mongodb_param] = str(getattr(self, mongodb_param))
+            mongodb_params["mongodb_" + mongodb_param] = \
+                str(getattr(self, "mongodb_" + mongodb_param))
         config["MONGODB"] = mongodb_params
 
         with open(filename, "w") as fd:
