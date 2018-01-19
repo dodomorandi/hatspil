@@ -182,6 +182,9 @@ def main():
                   "config file under the section MONGODB")
             exit(-4)
 
+    args.fastq_dir = os.path.abspath(args.fastq_dir)
+    args.root_dir = os.path.abspath(args.root_dir)
+
     if args.list_file:
         re_pattern = re.compile(R"^([^-]+)(?:-([^-]+)(?:-(\d[0-9A-Za-z]|\*)"
                                 R"(?:-(\d|\*)(?:(\d|\*)(\d|\*)?)?"
