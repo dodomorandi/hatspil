@@ -126,10 +126,6 @@ class Executor:
         output_filenames = {}
         output_bamfiles = {}
         for current_organism in input_filenames.keys():
-            if only_human and (current_organism != "" and
-                               not current_organism.startswith("hg")):
-                continue
-
             current_input_filenames = input_filenames[current_organism]
 
             if input_function is not None:
@@ -174,79 +170,48 @@ class Executor:
                             index = barcoded_filename.read_index
                         read_index.append(index)
 
-                if only_human and (organism != "" and organism is not None and
-                                   not organism.startswith("hg")):
-                    continue
-
                 if input_function is not None:
                     real_input_filename = input_filename
                     input_filename = mod_input_filename
 
-                organism_str = None
-                if organism is None or organism == "":
-                    organism_str = ""
-                    organism = "hg19"
-                else:
-                    organism_str = "." + organism
+                if not only_human or organism is None or organism == "" or \
+                        organism.startswith("hg"):
+                    organism_str = None
+                    if organism is None or organism == "":
+                        organism_str = ""
+                        organism = "hg19"
+                    else:
+                        organism_str = "." + organism
 
-                try:
-                    genome_ref, genome_index = \
-                        utils.get_genome_ref_index_by_organism(
+                    try:
+                        genome_ref, genome_index = \
+                            utils.get_genome_ref_index_by_organism(
+                                self.analysis.config, organism)
+                    except:
+                        pass
+
+                    try:
+                        dbsnp = utils.get_dbsnp_by_organism(
                             self.analysis.config, organism)
-                except:
-                    pass
+                    except:
+                        pass
 
-                try:
-                    dbsnp = utils.get_dbsnp_by_organism(
-                        self.analysis.config, organism)
-                except:
-                    pass
+                    try:
+                        cosmic = utils.get_cosmic_by_organism(
+                            self.analysis.config, organism)
+                    except:
+                        pass
 
-                try:
-                    cosmic = utils.get_cosmic_by_organism(
-                        self.analysis.config, organism)
-                except:
-                    pass
+                    if output_format is not None:
+                        if not isinstance(output_format, list):
+                            output_format = [output_format]
 
-                if output_format is not None:
-                    if not isinstance(output_format, list):
-                        output_format = [output_format]
+                        if output_path is not None:
+                            output_format = [os.path.join(output_path, s)
+                                            for s in output_format]
 
-                    if output_path is not None:
-                        output_format = [os.path.join(output_path, s)
-                                         for s in output_format]
-
-                    output_filename = []
-                    for s in output_format:
-                        for match in re_replacer.finditer(s):
-                            try:
-                                evaluated = eval(match.group(1))
-                            except:
-                                raise PipelineError(
-                                    "cannot evaluate %s" % match.group(1))
-
-                            if evaluated is None:
-                                raise PipelineError(
-                                    "evaluation of %s is None"
-                                    % match.group(1))
-                            s = re.sub(match.group(0), str(evaluated), s)
-
-                        output_filename.append(s)
-
-                    if output_function is not None:
-                        output_filename = [filename for filename
-                                           in map(output_function,
-                                                  output_filename)]
-
-                    if len(output_filename) == 1:
-                        output_filename = output_filename[0]
-                else:
-                    output_filename = None
-
-                commands = []
-                if isinstance(command, list):
-                    for s in command:
-                        if isinstance(s, str):
+                        output_filename = []
+                        for s in output_format:
                             for match in re_replacer.finditer(s):
                                 try:
                                     evaluated = eval(match.group(1))
@@ -257,113 +222,159 @@ class Executor:
                                 if evaluated is None:
                                     raise PipelineError(
                                         "evaluation of %s is None"
+                                        % match.group(1))
+                                s = re.sub(match.group(0), str(evaluated), s)
+
+                            output_filename.append(s)
+
+                        if output_function is not None:
+                            output_filename = [filename for filename
+                                            in map(output_function,
+                                                    output_filename)]
+
+                        if len(output_filename) == 1:
+                            output_filename = output_filename[0]
+                    else:
+                        output_filename = None
+
+                    commands = []
+                    if isinstance(command, list):
+                        for s in command:
+                            if isinstance(s, str):
+                                for match in re_replacer.finditer(s):
+                                    try:
+                                        evaluated = eval(match.group(1))
+                                    except:
+                                        raise PipelineError(
+                                            "cannot evaluate %s" % match.group(1))
+
+                                    if evaluated is None:
+                                        raise PipelineError(
+                                            "evaluation of %s is None"
+                                            % (match.group(1)))
+
+                                    s = s.replace(match.group(0), str(evaluated))
+
+                            commands.append(s)
+                    else:
+                        current_command = command
+                        if isinstance(current_command, str):
+                            for match in re_replacer.finditer(command):
+                                try:
+                                    evaluated = eval(match.group(1))
+                                except:
+                                    raise PipelineError(
+                                        "cannot evaluate %s" % (match.group(1)))
+
+                                if evaluated is None:
+                                    raise PipelineError(
+                                        "evaluation of %s is None"
                                         % (match.group(1)))
 
-                                s = s.replace(match.group(0), str(evaluated))
+                                current_command = current_command.replace(
+                                    match.group(0), str(evaluated))
+                        commands.append(current_command)
 
-                        commands.append(s)
-                else:
-                    current_command = command
-                    if isinstance(current_command, str):
-                        for match in re_replacer.finditer(command):
-                            try:
-                                evaluated = eval(match.group(1))
-                            except:
-                                raise PipelineError(
-                                    "cannot evaluate %s" % (match.group(1)))
-
-                            if evaluated is None:
-                                raise PipelineError(
-                                    "evaluation of %s is None"
-                                    % (match.group(1)))
-
-                            current_command = current_command.replace(
-                                match.group(0), str(evaluated))
-                    commands.append(current_command)
-
-                for command_index, current_command in enumerate(commands):
-                    if isinstance(current_command, str):
-                        if not self.analysis.run_fake:
-                            status = utils.run_and_log(
-                                current_command,
-                                self.analysis.logger)
-                        else:
-                            self.analysis.logger.info(
-                                "Faking command '%s'", current_command)
-                            status = 0
-                    else:
-                        if not self.analysis.run_fake:
-                            local_vars = locals()
-                            del local_vars["self"]
-                            current_command(**local_vars)
-                        else:
-                            self.analysis.logger.info(
-                                "Faking lambda")
-                        status = 0
-
-                    if status != 0:
-                        arg_zero = os.path.basename(command.split(" ")[0])
-
-                        if error_string is None:
-                            error_string = "%s exited with status %d" % (
-                                arg_zero,
-                                status)
-
-                        if exception_string is None:
-                            exception_string = "%s error" % arg_zero
-
-                        for match in re_replacer.finditer(error_string):
-                            try:
-                                error_string = re.sub(
-                                    match.group(0),
-                                    str(eval(match.group(1))),
-                                    error_string)
-                            except:
-                                raise PipelineError(
-                                    "cannot replace parameter %s"
-                                    % (match.group(0)))
-
-                        for match in re_replacer.finditer(exception_string):
-                            try:
-                                exception_string = re.sub(
-                                    match.group(0), str(
-                                        eval(
-                                            match.group(1))), exception_string)
-                            except:
-                                raise PipelineError(
-                                    "cannot replace parameter %s"
-                                    % (match.group(0)))
-                        self.analysis.logger.error(error_string)
-                        raise PipelineError(exception_string)
-
-                    if output_filename:
-                        if not isinstance(output_filename, list):
-                            output_filename = [output_filename]
-
-                        new_filename = []
-                        for filename in output_filename:
-                            dirname = os.path.dirname(filename)
-                            if dirname == "" or dirname == ".":
-                                new_filename.append(
-                                    os.path.join(
-                                        os.getcwd(),
-                                        filename))
+                    for command_index, current_command in enumerate(commands):
+                        if isinstance(current_command, str):
+                            if not self.analysis.run_fake:
+                                status = utils.run_and_log(
+                                    current_command,
+                                    self.analysis.logger)
                             else:
-                                new_filename.append(filename)
-                        output_filename = new_filename
+                                self.analysis.logger.info(
+                                    "Faking command '%s'", current_command)
+                                status = 0
+                        else:
+                            if not self.analysis.run_fake:
+                                local_vars = locals()
+                                del local_vars["self"]
+                                current_command(**local_vars)
+                            else:
+                                self.analysis.logger.info(
+                                    "Faking lambda")
+                            status = 0
 
-                        if save_only_last:
-                            if command_index == len(commands) - 1:
-                                if organism in output_filenames:
-                                    output_filenames[
-                                        organism] += output_filename
+                        if status != 0:
+                            arg_zero = os.path.basename(command.split(" ")[0])
+
+                            if error_string is None:
+                                error_string = "%s exited with status %d" % (
+                                    arg_zero,
+                                    status)
+
+                            if exception_string is None:
+                                exception_string = "%s error" % arg_zero
+
+                            for match in re_replacer.finditer(error_string):
+                                try:
+                                    error_string = re.sub(
+                                        match.group(0),
+                                        str(eval(match.group(1))),
+                                        error_string)
+                                except:
+                                    raise PipelineError(
+                                        "cannot replace parameter %s"
+                                        % (match.group(0)))
+
+                            for match in re_replacer.finditer(exception_string):
+                                try:
+                                    exception_string = re.sub(
+                                        match.group(0), str(
+                                            eval(
+                                                match.group(1))), exception_string)
+                                except:
+                                    raise PipelineError(
+                                        "cannot replace parameter %s"
+                                        % (match.group(0)))
+                            self.analysis.logger.error(error_string)
+                            raise PipelineError(exception_string)
+
+                        if output_filename:
+                            if not isinstance(output_filename, list):
+                                output_filename = [output_filename]
+
+                            new_filename = []
+                            for filename in output_filename:
+                                dirname = os.path.dirname(filename)
+                                if dirname == "" or dirname == ".":
+                                    new_filename.append(
+                                        os.path.join(
+                                            os.getcwd(),
+                                            filename))
                                 else:
-                                    output_filenames[
-                                        organism] = output_filename
+                                    new_filename.append(filename)
+                            output_filename = new_filename
+
+                            if save_only_last:
+                                if command_index == len(commands) - 1:
+                                    if organism in output_filenames:
+                                        output_filenames[
+                                            organism] += output_filename
+                                    else:
+                                        output_filenames[
+                                            organism] = output_filename
+
+                                    for filename in output_filename:
+                                        output_extension = \
+                                            os.path.splitext(filename)[1]
+                                        if output_extension == ".bam":
+                                            if organism in output_bamfiles:
+                                                output_bamfiles[organism] += \
+                                                    output_filename
+                                            else:
+                                                output_bamfiles[organism] = \
+                                                    output_filename
+
+                            else:
+                                if organism in output_filenames:
+                                    output_filenames[organism] += output_filename
+                                else:
+                                    output_filenames[organism] = output_filename
 
                                 for filename in output_filename:
-                                    output_extension = \
-                                        os.path.splitext(filename)[1]
+                                    output_extension = os.path.splitext(
+                                        filename)[1]
                                     if output_extension == ".bam":
                                         if organism in output_bamfiles:
                                             output_bamfiles[organism] += \
@@ -371,23 +382,6 @@ class Executor:
                                         else:
                                             output_bamfiles[organism] = \
                                                 output_filename
-
-                        else:
-                            if organism in output_filenames:
-                                output_filenames[organism] += output_filename
-                            else:
-                                output_filenames[organism] = output_filename
-
-                            for filename in output_filename:
-                                output_extension = os.path.splitext(
-                                    filename)[1]
-                                if output_extension == ".bam":
-                                    if organism in output_bamfiles:
-                                        output_bamfiles[organism] += \
-                                            output_filename
-                                    else:
-                                        output_bamfiles[organism] = \
-                                            output_filename
 
                 if unlink_inputs and not self.analysis.run_fake:
                     if input_function is not None:
