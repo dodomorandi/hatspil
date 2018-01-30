@@ -6,8 +6,10 @@ from .barcoded_filename import BarcodedFilename, Analyte
 import os
 import shutil
 import re
+import tempfile
 import math
-
+import logging
+import csv
 
 class Mapping:
 
@@ -155,42 +157,66 @@ class Mapping:
         self.chdir()
 
         config = self.analysis.config
-
         executor = Executor(self.analysis)
-
         barcoded = BarcodedFilename.from_sample(self.analysis.sample)
-        if barcoded.analyte == Analyte.WHOLE_EXOME:
-            executor(f(
-                '{config.novoalign} -oSAM "@RG\tID:{self.analysis.basename}\t'
-                'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
-                '-d {{genome_index}} '
-                '-i PE {config.mean_len_library},{config.sd_len_library} '
-                '-t 90 -f {{input_filename}}> {{output_filename}}'),
-                input_function=lambda l: " ".join(sorted(l)),
-                input_split_reads=False,
-                output_format=f("{self.analysis.basename}{{organism_str}}.sam"),
-                split_by_organism=True,
-                only_human=True,
-                unlink_inputs=True
-            )
-        elif barcoded.analyte == Analyte.GENE_PANEL:
-            executor(f(
-                '{config.novoalign} '
-                '-C '
-                '-oSAM "@RG\tID:{self.analysis.basename}\t'
-                'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
-                '-d {{genome_index}} '
-                '-i 50-500 -h 8 -H 20 --matchreward 3 -t 90 '
-                '-f {{input_filename}}> {{output_filename}}'),
-                input_function=lambda l: " ".join(sorted(l)),
-                input_split_reads=False,
-                output_format=f("{self.analysis.basename}{{organism_str}}.sam"),
-                split_by_organism=True,
-                only_human=True,
-                unlink_inputs=True
-            )
-        else:
-            raise Exception("Unnhandled analyte")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            filename = os.path.join(tmpdir, "align.log")
+
+            fh = logging.FileHandler(filename)
+            self.analysis.logger.addHandler(fh)
+
+            if barcoded.analyte == Analyte.WHOLE_EXOME:
+                executor(f(
+                    '{config.novoalign} -oSAM "@RG\tID:{self.analysis.basename}\t'
+                    'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
+                    '-d {{genome_index}} '
+                    '-i PE {config.mean_len_library},{config.sd_len_library} '
+                    '-t 90 -f {{input_filename}}> {{output_filename}}'),
+                    input_function=lambda l: " ".join(sorted(l)),
+                    input_split_reads=False,
+                    output_format=f("{self.analysis.basename}{{organism_str}}.sam"),
+                    split_by_organism=True,
+                    only_human=True,
+                    unlink_inputs=True
+                )
+            elif barcoded.analyte == Analyte.GENE_PANEL:
+                executor(f(
+                    '{config.novoalign} '
+                    '-C '
+                    '-oSAM "@RG\tID:{self.analysis.basename}\t'
+                    'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
+                    '-d {{genome_index}} '
+                    '-i 50-500 -h 8 -H 20 --matchreward 3 -t 90 '
+                    '-f {{input_filename}}> {{output_filename}}'),
+                    input_function=lambda l: " ".join(sorted(l)),
+                    input_split_reads=False,
+                    output_format=f("{self.analysis.basename}{{organism_str}}.sam"),
+                    split_by_organism=True,
+                    only_human=True,
+                    unlink_inputs=True
+                )
+            else:
+                raise Exception("Unnhandled analyte")
+            self.analysis.logger.removeHandler(fh)
+            fh.close()
+
+            with open(filename, 'r') as file_log, \
+                    open(self.output_basename + "_novoalign.csv", 'w') \
+                    as csv_file:
+                writer = csv.writer(csv_file)
+                is_csv = False
+                for line in file_log:
+                    row = line.split()
+                    if is_csv is True:
+                        if row[1] == "Mean":
+                            is_csv = False
+                        else:
+                            writer.writerow(row[1:4])
+                    else:
+                        if row[1] == "From":
+                            writer.writerow(row[1:4])
+                            is_csv = True
 
         executor(self.filter_alignment,
                  input_split_reads=False,
