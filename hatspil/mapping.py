@@ -203,11 +203,32 @@ class Mapping:
 
             with open(filename, 'r') as file_log, \
                     open(self.output_basename + "_novoalign.csv", 'w') \
-                    as csv_file:
+                    as csv_file, \
+                    open(self.output_basename + "_stat_novoalign.csv","w") \
+                    as stat_csv_file:
                 writer = csv.writer(csv_file)
+                writer_stat = csv.writer(stat_csv_file)
                 is_csv = False
+                is_stat = False
+                value = []
+                label = []
                 for line in file_log:
                     row = line.split()
+                    if is_stat is True:
+                        if row[1] == "No":
+                            value.append(row[4])
+                            label.append(row[1] + " " + row[2] + " " + row[3][:-1])
+                            is_stat = False
+                        else:
+                            #salvo in label array, salvo in value array
+                            value.append(row[3])
+                            label.append(row[1] + " " + row[2][:-1])
+                    else:
+                        if row[1] == "Paired":
+                            #salvo in label array, salvo in value array
+                            value.append(row[3])
+                            label.append(row[1] + " " + row[2][:-1])
+                            is_stat = True
                     if is_csv is True:
                         if row[1] == "Mean":
                             is_csv = False
@@ -217,7 +238,8 @@ class Mapping:
                         if row[1] == "From":
                             writer.writerow(row[1:4])
                             is_csv = True
-
+                writer_stat.writerow(label)
+                writer_stat.writerow(value)
         executor(self.filter_alignment,
                  input_split_reads=False,
                  split_by_organism=True,
