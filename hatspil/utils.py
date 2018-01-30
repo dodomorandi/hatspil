@@ -137,8 +137,10 @@ def check_gz(filename):
     chunk_size = 2**20
     with gz.open(filename, "rb") as fd:
         try:
-            fd.seek(-1, os.SEEK_END)
-            return fd.read(1) == bytes('.', 'utf8')
+            while fd.read(1):
+                fd.seek(chunk_size, os.SEEK_CUR)
+
+            return True
         except:
             return False
 
