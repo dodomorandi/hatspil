@@ -229,7 +229,7 @@ class Mapping:
                         fields = line.split()
                         if is_csv is True:
                             if fields[1] == "Mean":
-                                is_csv = False
+                                break
                             else:
                                 writer.writerow(fields[1:4])
                         elif fields[1] == "From":
