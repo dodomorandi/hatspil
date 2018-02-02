@@ -213,27 +213,27 @@ class Mapping:
                 values = []
                 labels = []
                 for line in file_log:
-                    field1 = line.split(":")
-                    label = field1[0][1:].strip()
+                    fields = line.split(":")
+                    label = fields[0][1:].strip()
 
                     if is_stat is True:
                         if label == "No Mapping Found":
                             is_stat = False
-                        values.append(field1[1].strip().split()[0])
+                        values.append(fields[1].strip().split()[0])
                         labels.append(label)
                     elif label == "Paired Reads":
-                        values.append(field1[1].strip().split()[0])
+                        values.append(fields[1].strip().split()[0])
                         labels.append(label)
                         is_stat = True
                     else:
-                        field = line.split()
+                        fields = line.split()
                         if is_csv is True:
-                            if field[1] == "Mean":
+                            if fields[1] == "Mean":
                                 is_csv = False
                             else:
-                                writer.writerow(field[1:4])
-                        elif field[1] == "From":
-                            writer.writerow(field[1:4])
+                                writer.writerow(fields[1:4])
+                        elif fields[1] == "From":
+                            writer.writerow(fields[1:4])
                             is_csv = True
                 writer_stat.writerow(labels)
                 writer_stat.writerow(values)
