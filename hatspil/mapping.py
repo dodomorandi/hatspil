@@ -203,20 +203,40 @@ class Mapping:
 
             with open(filename, 'r') as file_log, \
                     open(self.output_basename + "_novoalign.csv", 'w') \
-                    as csv_file:
+                    as csv_file, \
+                    open(self.output_basename + "_stat_novoalign.csv","w") \
+                    as stat_csv_file:
                 writer = csv.writer(csv_file)
+                writer_stat = csv.writer(stat_csv_file)
                 is_csv = False
+                is_stat = False
+                values = []
+                labels = []
                 for line in file_log:
-                    row = line.split()
-                    if is_csv is True:
-                        if row[1] == "Mean":
-                            is_csv = False
-                        else:
-                            writer.writerow(row[1:4])
+                    fields = line.split(":")
+                    label = fields[0][1:].strip()
+
+                    if is_stat is True:
+                        if label == "No Mapping Found":
+                            is_stat = False
+                        values.append(fields[1].strip().split()[0])
+                        labels.append(label)
+                    elif label == "Paired Reads":
+                        values.append(fields[1].strip().split()[0])
+                        labels.append(label)
+                        is_stat = True
                     else:
-                        if row[1] == "From":
-                            writer.writerow(row[1:4])
+                        fields = line.split()
+                        if is_csv is True:
+                            if fields[1] == "Mean":
+                                break
+                            else:
+                                writer.writerow(fields[1:4])
+                        elif fields[1] == "From":
+                            writer.writerow(fields[1:4])
                             is_csv = True
+                writer_stat.writerow(labels)
+                writer_stat.writerow(values)
 
         executor(self.filter_alignment,
                  input_split_reads=False,
