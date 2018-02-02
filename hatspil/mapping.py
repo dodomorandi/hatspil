@@ -210,35 +210,33 @@ class Mapping:
                 writer_stat = csv.writer(stat_csv_file)
                 is_csv = False
                 is_stat = False
-                values1 = []
+                values = []
                 labels = []
                 for line in file_log:
-                    row = line.split()
-                    row1 = line.split(":")
-                    label = row1[0][1:].strip()
+                    field1 = line.split(":")
+                    label = field1[0][1:].strip()
 
                     if is_stat is True:
                         if label == "No Mapping Found":
                             is_stat = False
-                        values1.append(row1[1].strip().split()[0])
+                        values.append(field1[1].strip().split()[0])
                         labels.append(label)
+                    elif label == "Paired Reads":
+                        values.append(field1[1].strip().split()[0])
+                        labels.append(label)
+                        is_stat = True
                     else:
-                        if label == "Paired Reads":
-                            values1.append(row1[1].strip().split()[0])
-                            labels.append(label)
-                            is_stat = True
-
-                    if is_csv is True:
-                        if row[1] == "Mean":
-                            is_csv = False
-                        else:
-                            writer.writerow(row[1:4])
-                    else:
-                        if row[1] == "From":
-                            writer.writerow(row[1:4])
+                        field = line.split()
+                        if is_csv is True:
+                            if field[1] == "Mean":
+                                is_csv = False
+                            else:
+                                writer.writerow(field[1:4])
+                        elif field[1] == "From":
+                            writer.writerow(field[1:4])
                             is_csv = True
                 writer_stat.writerow(labels)
-                writer_stat.writerow(values1)
+                writer_stat.writerow(values)
 
         executor(self.filter_alignment,
                  input_split_reads=False,
