@@ -64,6 +64,7 @@ class Mapping:
             input_split_reads=False,
             split_by_organism=True,
             output_path=self.fastq_dir,
+            unlink_inputs=True,
             output_function=lambda filename: [filename % (index + 1)
                                               for index in range(2)])
 
@@ -110,6 +111,7 @@ class Mapping:
                      "%s{organism_str}.trimmed.R{read_index}.fastq"
                      % self.analysis.sample),
                  output_path=self.fastq_dir,
+                 unlink_inputs=True,
                  error_string="Trimming with seqtk exited with status "
                               "{status}",
                  exception_string="trimming error")

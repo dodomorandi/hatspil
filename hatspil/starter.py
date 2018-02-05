@@ -16,3 +16,4 @@ class Starter:
         executor(lambda **kwargs: None,
                  input_filenames=input_filenames,
                  output_format="{input_filename}")
+        analysis.can_unlink = False

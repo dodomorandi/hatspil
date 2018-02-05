@@ -383,7 +383,8 @@ class Executor:
                                             output_bamfiles[organism] = \
                                                 output_filename
 
-                if unlink_inputs and not self.analysis.run_fake:
+                if unlink_inputs and self.analysis.can_unlink and\
+                        not self.analysis.run_fake:
                     if input_function is not None:
                         input_filename = real_input_filename
 
@@ -410,6 +411,7 @@ class Executor:
 
         if override_last_files:
             self.analysis.last_operation_filenames = output_filenames
+            self.analysis.can_unlink = True
 
         if write_bam_files and len(output_bamfiles) != 0:
             self.analysis.bamfiles = output_bamfiles

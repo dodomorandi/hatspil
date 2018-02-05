@@ -22,6 +22,7 @@ class Analysis:
         self.config = config
         self.last_operation_filenames = None
         self.run_fake = False
+        self.can_unlink = True
 
         try:
             os.makedirs(self.root, exist_ok=True)
