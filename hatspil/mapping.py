@@ -1,4 +1,3 @@
-from formatizer import f
 from . import utils
 from .executor import Executor
 from .barcoded_filename import BarcodedFilename, Analyte
@@ -10,6 +9,7 @@ import tempfile
 import math
 import logging
 import csv
+
 
 class Mapping:
 
@@ -53,13 +53,13 @@ class Mapping:
 
         executor = Executor(self.analysis)
         executor(
-            f('cutadapt -a AGATCGGAAGAGCACACGTCTGAACTCCAG '
-              '-A AGATCGGAAGAGCGTCGTGTAGGGAAAGAG '
-              '-m 20 -o "{{output_filename[0]}}" -p '
-              '"{{output_filename[1]}}" {{input_filename}} '
-              '> "{self.sample_base_out}.cutadapt.txt"'),
-            output_format=f(
-                "{self.analysis.sample}{{organism_str}}.clipped.R%d.fastq"),
+            f'cutadapt -a AGATCGGAAGAGCACACGTCTGAACTCCAG '
+             '-A AGATCGGAAGAGCGTCGTGTAGGGAAAGAG '
+            f'-m 20 -o "{{output_filename[0]}}" -p '
+            f'"{{output_filename[1]}}" {{input_filename}} '
+            f'> "{self.sample_base_out}.cutadapt.txt"',
+            output_format=
+                f"{self.analysis.sample}{{organism_str}}.clipped.R%d.fastq",
             input_function=lambda l: " ".join(sorted(l)),
             input_split_reads=False,
             split_by_organism=True,
@@ -75,8 +75,8 @@ class Mapping:
         self.chdir()
 
         executor = Executor(self.analysis)
-        executor(f('{self.analysis.config.fastqc} '
-                   '"{{input_filename}}" --outdir REPORTS'),
+        executor(f'{self.analysis.config.fastqc} '
+                 f'"{{input_filename}}" --outdir REPORTS',
                  override_last_files=False)
 
         self.analysis.logger.info("Finished fastqc")
@@ -102,10 +102,10 @@ class Mapping:
 
         trim_5 = self.analysis.parameters["trim_5"]
         executor = Executor(self.analysis)
-        executor(f('{config.seqtk} trimfq -b {trim_5} '
-                   '{trim_end_cmd}'
-                   '"{{input_filename}}" '
-                   '> "{{output_filename}}"'),
+        executor(f'{config.seqtk} trimfq -b {trim_5} '
+                 f'{trim_end_cmd}'
+                 f'"{{input_filename}}" '
+                 f'> "{{output_filename}}"',
                  output_format=os.path.join(
                      self.fastq_dir,
                      "%s{organism_str}.trimmed.R{read_index}.fastq"
@@ -169,31 +169,31 @@ class Mapping:
             self.analysis.logger.addHandler(fh)
 
             if barcoded.analyte == Analyte.WHOLE_EXOME:
-                executor(f(
-                    '{config.novoalign} -oSAM "@RG\tID:{self.analysis.basename}\t'
-                    'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
-                    '-d {{genome_index}} '
-                    '-i PE {config.mean_len_library},{config.sd_len_library} '
-                    '-t 90 -f {{input_filename}}> {{output_filename}}'),
+                executor(
+                    f'{config.novoalign} -oSAM "@RG\tID:{self.analysis.basename}\t'
+                    f'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
+                    f'-d {{genome_index}} '
+                    f'-i PE {config.mean_len_library},{config.sd_len_library} '
+                    f'-t 90 -f {{input_filename}}> {{output_filename}}',
                     input_function=lambda l: " ".join(sorted(l)),
                     input_split_reads=False,
-                    output_format=f("{self.analysis.basename}{{organism_str}}.sam"),
+                    output_format=f"{self.analysis.basename}{{organism_str}}.sam",
                     split_by_organism=True,
                     only_human=True,
                     unlink_inputs=True
                 )
             elif barcoded.analyte == Analyte.GENE_PANEL:
-                executor(f(
-                    '{config.novoalign} '
-                    '-C '
-                    '-oSAM "@RG\tID:{self.analysis.basename}\t'
-                    'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
-                    '-d {{genome_index}} '
-                    '-i 50-500 -h 8 -H 20 --matchreward 3 -t 90 '
-                    '-f {{input_filename}}> {{output_filename}}'),
+                executor(
+                    f'{config.novoalign} '
+                    f'-C '
+                    f'-oSAM "@RG\tID:{self.analysis.basename}\t'
+                    f'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
+                    f'-d {{genome_index}} '
+                    f'-i 50-500 -h 8 -H 20 --matchreward 3 -t 90 '
+                    f'-f {{input_filename}}> {{output_filename}}',
                     input_function=lambda l: " ".join(sorted(l)),
                     input_split_reads=False,
-                    output_format=f("{self.analysis.basename}{{organism_str}}.sam"),
+                    output_format=f"{self.analysis.basename}{{organism_str}}.sam",
                     split_by_organism=True,
                     only_human=True,
                     unlink_inputs=True
@@ -247,35 +247,35 @@ class Mapping:
                  override_last_files=False)
 
         self.analysis.logger.info("Alignment SAM -> BAM")
-        executor(f(
-            '{config.java} {config.picard_jvm_args} -jar {config.picard} '
-            'SamFormatConverter '
-            'I={{input_filename}} '
-            'O={{output_filename}}'
-            '{self.max_records_str}'),
-            output_format=f("{self.analysis.basename}{{organism_str}}.bam"),
+        executor(
+            f'{config.java} {config.picard_jvm_args} -jar {config.picard} '
+            f'SamFormatConverter '
+            f'I={{input_filename}} '
+            f'O={{output_filename}}'
+            f'{self.max_records_str}',
+            output_format=f"{self.analysis.basename}{{organism_str}}.bam",
             error_string="Picard SamFormatConverter exited with status "
                          "{status}",
             exception_string="picard SamFormatConverter error",
             unlink_inputs=True
         )
 
-        executor(f(
-            '{config.java} {config.picard_jvm_args} -jar {config.picard} '
-            'AddOrReplaceReadGroups '
-            'I={{input_filename}} '
-            'O={{output_filename}} RGID={self.analysis.basename} '
-            'RGLB=lib1 RGPL=ILLUMINA RGPU={config.kit} '
-            'RGSM={self.analysis.basename}'
-            '{self.max_records_str}'),
-            output_format=f("{self.analysis.basename}{{organism_str}}.rg.bam"),
+        executor(
+            f'{config.java} {config.picard_jvm_args} -jar {config.picard} '
+            f'AddOrReplaceReadGroups '
+            f'I={{input_filename}} '
+            f'O={{output_filename}} RGID={self.analysis.basename} '
+            f'RGLB=lib1 RGPL=ILLUMINA RGPU={config.kit} '
+            f'RGSM={self.analysis.basename}'
+            f'{self.max_records_str}',
+            output_format=f"{self.analysis.basename}{{organism_str}}.rg.bam",
             error_string="Picard AddOrReplaceReadGroups exited with status {status}",
             exception_string="picard AddOrReplaceReadGroups error",
             unlink_inputs=True
         )
 
         executor(lambda **kwargs: os.rename(kwargs["input_filename"], kwargs["output_filename"]),
-                 output_format=f("{self.analysis.basename}{{organism_str}}.bam"))
+                 output_format=f"{self.analysis.basename}{{organism_str}}.bam")
 
         self.analysis.logger.info("Finished alignment")
 
@@ -290,27 +290,27 @@ class Mapping:
             pass
 
         executor = Executor(self.analysis)
-        executor(f(
-            '{config.java} {config.picard_jvm_args} -jar {config.picard} '
-            'SortSam '
-            'I={{input_filename}} '
-            'O={{output_filename}} SO=coordinate '
-            "TMP_DIR={self.sort_tempdir}"
-            '{self.max_records_str}'),
-            output_format=f("{self.analysis.basename}{{organism_str}}.srt.bam"),
+        executor(
+            f'{config.java} {config.picard_jvm_args} -jar {config.picard} '
+            f'SortSam '
+            f'I={{input_filename}} '
+            f'O={{output_filename}} SO=coordinate '
+            f"TMP_DIR={self.sort_tempdir}"
+            f'{self.max_records_str}',
+            output_format=f"{self.analysis.basename}{{organism_str}}.srt.bam",
             error_string="Picard SortSam exited with status {status}",
             exception_string="picard SortSam error",
             unlink_inputs=True
         )
 
-        executor(f(
-            '{config.java} {config.picard_jvm_args} -jar {config.picard} '
-            'ReorderSam '
-            'I={{input_filename}} '
-            'O={{output_filename}} R={{genome_ref}} '
-            'CREATE_INDEX=true'
-            '{self.max_records_str}'),
-            output_format=f("{self.analysis.basename}{{organism_str}}.srt.reorder.bam"),
+        executor(
+            f'{config.java} {config.picard_jvm_args} -jar {config.picard} '
+            f'ReorderSam '
+            f'I={{input_filename}} '
+            f'O={{output_filename}} R={{genome_ref}} '
+            f'CREATE_INDEX=true'
+            f'{self.max_records_str}',
+            output_format=f"{self.analysis.basename}{{organism_str}}.srt.reorder.bam",
             error_string="Picard ReorderSam exited with status {status}",
             exception_string="picard ReorderSam error",
             unlink_inputs=True
@@ -328,65 +328,65 @@ class Mapping:
         executor = Executor(self.analysis)
         barcoded = BarcodedFilename.from_sample(self.analysis.sample)
         if barcoded.analyte == Analyte.WHOLE_EXOME:
-            executor(f(
-                '{config.java} {config.picard_jvm_args} -jar {config.picard} '
-                'MarkDuplicates '
-                'I={{input_filename}} '
-                'O={{output_filename}} '
-                'M={self.output_basename}{{organism_str}}.marked_dup_metrics.txt '
-                'CREATE_INDEX=true '
-                '{self.max_records_str}'),
-                output_format=f("{self.analysis.basename}{{organism_str}}.srt.marked.dup.bam"),
+            executor(
+                f'{config.java} {config.picard_jvm_args} -jar {config.picard} '
+                f'MarkDuplicates '
+                f'I={{input_filename}} '
+                f'O={{output_filename}} '
+                f'M={self.output_basename}{{organism_str}}.marked_dup_metrics.txt '
+                f'CREATE_INDEX=true '
+                f'{self.max_records_str}',
+                output_format=f"{self.analysis.basename}{{organism_str}}.srt.marked.dup.bam",
                 error_string="Picard MarkDuplicates exited with status {status}",
                 exception_string="picard MarkDuplicates error",
                 unlink_inputs=True
             )
         elif barcoded.analyte == Analyte.GENE_PANEL:
-            executor(f(
-                '{config.java} {config.picard_jvm_args} -jar {config.picard} '
-                'FixMateInformation '
-                'I={{input_filename}} '
-                'O={{output_filename}} '
-                'ADD_MATE_CIGAR=true '
-                'IGNORE_MISSING_MATES=true '
-                '{self.max_records_str}'),
-                output_format=f("{self.analysis.basename}{{organism_str}}.srt.mc.bam"),
+            executor(
+                f'{config.java} {config.picard_jvm_args} -jar {config.picard} '
+                f'FixMateInformation '
+                f'I={{input_filename}} '
+                f'O={{output_filename}} '
+                f'ADD_MATE_CIGAR=true '
+                f'IGNORE_MISSING_MATES=true '
+                f'{self.max_records_str}',
+                output_format=f"{self.analysis.basename}{{organism_str}}.srt.mc.bam",
                 error_string="Picard FixMateInformation exited with status {status}",
                 exception_string="picard FixMateInformation error",
                 unlink_inputs=True
             )
 
-            executor(f(
-                '{config.samtools} view -H '
-                '{{input_filename}} > {{output_filename}}'),
-                output_format=f("{self.analysis.basename}{{organism_str}}.srt.mc.filtered.sam"),
+            executor(
+                f'{config.samtools} view -H '
+                f'{{input_filename}} > {{output_filename}}',
+                output_format=f"{self.analysis.basename}{{organism_str}}.srt.mc.filtered.sam",
                 error_string="samtools view exited with status {status}",
                 exception_string="samtools view error",
                 override_last_files=False
             )
 
-            executor(f(
-                '{config.samtools} view '
-                '{{input_filename}} | grep "MC:" >> {{output_filename}}'),
-                output_format=f("{self.analysis.basename}{{organism_str}}.srt.mc.filtered.sam"),
+            executor(
+                f'{config.samtools} view '
+                f'{{input_filename}} | grep "MC:" >> {{output_filename}}',
+                output_format=f"{self.analysis.basename}{{organism_str}}.srt.mc.filtered.sam",
                 error_string="samtools view exited with status {status}",
                 exception_string="samtools view error",
                 unlink_inputs=True
             )
 
-            executor(f(
-                '{config.java} {config.picard_jvm_args} -jar {config.picard} '
-                'UmiAwareMarkDuplicatesWithMateCigar '
-                'I={{input_filename}} '
-                'O={{output_filename}} '
-                'UMI_METRICS_FILE={self.output_basename}{{organism_str}}.UMI_metrics.txt '
-                'METRICS_FILE={self.output_basename}{{organism_str}}.marked_dup_metrics.txt '
-                'UMI_TAG_NAME=BX '
-                'CREATE_INDEX=true '
-                'TAGGING_POLICY=All '
-                'REMOVE_DUPLICATES=true '
-                '{self.max_records_str}'),
-                output_format=f("{self.analysis.basename}{{organism_str}}.srt.no_duplicates.bam"),
+            executor(
+                f'{config.java} {config.picard_jvm_args} -jar {config.picard} '
+                f'UmiAwareMarkDuplicatesWithMateCigar '
+                f'I={{input_filename}} '
+                f'O={{output_filename}} '
+                f'UMI_METRICS_FILE={self.output_basename}{{organism_str}}.UMI_metrics.txt '
+                f'METRICS_FILE={self.output_basename}{{organism_str}}.marked_dup_metrics.txt '
+                f'UMI_TAG_NAME=BX '
+                f'CREATE_INDEX=true '
+                f'TAGGING_POLICY=All '
+                f'REMOVE_DUPLICATES=true '
+                f'{self.max_records_str}',
+                output_format=f"{self.analysis.basename}{{organism_str}}.srt.no_duplicates.bam",
                 error_string="Picard UmiAwareMarkDuplicatesWithMateCigar exited with status {status}",
                 exception_string="picard UmiAwareMarkDuplicatesWithMateCigar error",
                 unlink_inputs=True
@@ -402,30 +402,30 @@ class Mapping:
         config = self.analysis.config
 
         executor = Executor(self.analysis)
-        executor(f(
-            '{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
-            '-T RealignerTargetCreator -R {{genome_ref}} '
-            '-I {{input_filename}} -nt {self.gatk_threads} '
-            '-known {config.indel_1} -known {config.indel_2} '
-            '-L {config.target_list} '
-            '-ip 50 -o {{output_filename}}'),
-            output_format=f("{self.output_basename}{{organism_str}}"
-                            ".realignment.intervals"),
+        executor(
+            f'{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
+            f'-T RealignerTargetCreator -R {{genome_ref}} '
+            f'-I {{input_filename}} -nt {self.gatk_threads} '
+            f'-known {config.indel_1} -known {config.indel_2} '
+            f'-L {config.target_list} '
+            f'-ip 50 -o {{output_filename}}',
+            output_format=f"{self.output_basename}{{organism_str}}"
+                           ".realignment.intervals",
             error_string="Gatk RalignerTargetCreator exited with status "
                          "{status}",
             exception_string="gatk RealignerTargetCreator error",
             override_last_files=False
         )
 
-        executor(f(
-            '{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
-            '-T IndelRealigner -R {{genome_ref}} '
-            '-I {{input_filename}} '
-            '-known {config.indel_1} -known {config.indel_2} '
-            '-targetIntervals {self.output_basename}{{organism_str}}'
-            '.realignment.intervals -o {{output_filename}}'),
-            output_format=f("{self.analysis.basename}{{organism_str}}"
-                            ".srt.realigned.bam"),
+        executor(
+            f'{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
+            f'-T IndelRealigner -R {{genome_ref}} '
+            f'-I {{input_filename}} '
+            f'-known {config.indel_1} -known {config.indel_2} '
+            f'-targetIntervals {self.output_basename}{{organism_str}}'
+            f'.realignment.intervals -o {{output_filename}}',
+            output_format=f"{self.analysis.basename}{{organism_str}}"
+                           ".srt.realigned.bam",
             error_string="Gatk IndelRealigner exited with status {status}",
             exception_string="gatk IndelRealigner error",
             unlink_inputs=True
@@ -446,26 +446,26 @@ class Mapping:
         config = self.analysis.config
 
         executor = Executor(self.analysis)
-        executor(f(
-            '{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
-            '-T BaseRecalibrator -R {{genome_ref}} '
-            '-I {{input_filename}} -nct {self.gatk_threads} '
-            '-knownSites {{dbsnp}} '
-            '-o {self.output_basename}{{organism_str}}.recalibration.table'),
+        executor(
+            f'{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
+            f'-T BaseRecalibrator -R {{genome_ref}} '
+            f'-I {{input_filename}} -nct {self.gatk_threads} '
+            f'-knownSites {{dbsnp}} '
+            f'-o {self.output_basename}{{organism_str}}.recalibration.table',
             input_function=lambda filename: self._filter_non_hg(filename),
             error_string="Gatk BaseRecalibrator exited with status {status}",
             exception_string="gatk BaseRecalibrator error",
             override_last_files=False
         )
 
-        executor(f(
-            '{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
-            '-T PrintReads -R {{genome_ref}} '
-            '-I {{input_filename}} -nct {self.gatk_threads} '
-            '-BQSR {self.output_basename}{{organism_str}}.recalibration.table '
-            '-o {{output_filename}}'),
-            output_format=f("{self.analysis.basename}{{organism_str}}"
-                            ".srt.realigned.recal.bam"),
+        executor(
+            f'{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
+            f'-T PrintReads -R {{genome_ref}} '
+            f'-I {{input_filename}} -nct {self.gatk_threads} '
+            f'-BQSR {self.output_basename}{{organism_str}}.recalibration.table '
+            f'-o {{output_filename}}',
+            output_format=f"{self.analysis.basename}{{organism_str}}"
+                            ".srt.realigned.recal.bam",
             error_string="Gatk PrintReads exited with status {status}",
             exception_string="gatk PrintReads error",
             unlink_inputs=True
@@ -475,39 +475,39 @@ class Mapping:
             self.analysis.logger.info("Finished recalibration")
             return
 
-        executor(f(
-            '{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
-            '-T BaseRecalibrator -R {{genome_ref}} '
-            '-I {{input_filename}} -knownSites {{dbsnp}} '
-            '-L {config.target_list} -ip 50 '
-            '-nct {self.gatk_threads} '
-            '-o {self.output_basename}{{organism_str}}'
-            '.post_realignment.table'),
+        executor(
+            f'{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
+            f'-T BaseRecalibrator -R {{genome_ref}} '
+            f'-I {{input_filename}} -knownSites {{dbsnp}} '
+            f'-L {config.target_list} -ip 50 '
+            f'-nct {self.gatk_threads} '
+            f'-o {self.output_basename}{{organism_str}}'
+            f'.post_realignment.table',
             error_string="Gatk BaseRecalibrator exited with status {status}",
             exception_string="gatk BaseRecalibrator error",
             override_last_files=False
         )
 
-        executor(f(
-            '{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
-            '-T AnalyzeCovariates -R {{genome_ref}} '
-            '-before {self.output_basename}{{organism_str}}.recalibration.table '
-            '-after {self.output_basename}{{organism_str}}.post_realignment.table '
-            '-plots {self.output_basename}{{organism_str}}.recalibration_plots.pdf'),
+        executor(
+            f'{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
+            f'-T AnalyzeCovariates -R {{genome_ref}} '
+            f'-before {self.output_basename}{{organism_str}}.recalibration.table '
+            f'-after {self.output_basename}{{organism_str}}.post_realignment.table '
+            f'-plots {self.output_basename}{{organism_str}}.recalibration_plots.pdf',
             error_string="Gatk AnalyzeCovariates exited with status {status}",
             exception_string="gatk AnalyzeCovariates error",
             override_last_files=False
         )
 
-        executor(f(
-            '{config.java} {config.picard_jvm_args} -jar {config.picard} '
-            'MarkDuplicates '
-            'I={{input_filename}} O={{output_filename}} '
-            'REMOVE_DUPLICATES=true '
-            'M={self.output_basename}{{organism_str}}.no_dup_metrics.txt '
-            'CREATE_INDEX=true'
-            '{self.max_records_str}'),
-            output_format=f("{self.analysis.basename}{{organism_str}}.srt.realigned.recal.no_dup.bam"),
+        executor(
+            f'{config.java} {config.picard_jvm_args} -jar {config.picard} '
+            f'MarkDuplicates '
+            f'I={{input_filename}} O={{output_filename}} '
+            f'REMOVE_DUPLICATES=true '
+            f'M={self.output_basename}{{organism_str}}.no_dup_metrics.txt '
+            f'CREATE_INDEX=true'
+            f'{self.max_records_str}',
+            output_format=f"{self.analysis.basename}{{organism_str}}.srt.realigned.recal.no_dup.bam",
             error_string="Picard MarkDuplicates exited with status {status}",
             exception_string="picard MarkDuplicates error",
             unlink_inputs=True
@@ -521,31 +521,31 @@ class Mapping:
         config = self.analysis.config
 
         executor = Executor(self.analysis)
-        executor(f(
-            '{config.java} {config.picard_jvm_args} -jar {config.picard} '
-            'CollectHsMetrics '
-            'I={{input_filename}} BI={config.bait_list} '
-            'TI={config.target_list} R={{genome_ref}} '
-            'O={self.output_basename}{{organism_str}}.hs_metrics.txt '
-            'MINIMUM_MAPPING_QUALITY=0 '
-            'MINIMUM_BASE_QUALITY=0 '
-            'COVERAGE_CAP=10000 '
-            'CLIP_OVERLAPPING_READS=false '
-            'PER_BASE_COVERAGE={self.output_basename}{{organism_str}}.coverage.txt'
-            '{self.max_records_str}'),
+        executor(
+            f'{config.java} {config.picard_jvm_args} -jar {config.picard} '
+            f'CollectHsMetrics '
+            f'I={{input_filename}} BI={config.bait_list} '
+            f'TI={config.target_list} R={{genome_ref}} '
+            f'O={self.output_basename}{{organism_str}}.hs_metrics.txt '
+            f'MINIMUM_MAPPING_QUALITY=0 '
+            f'MINIMUM_BASE_QUALITY=0 '
+            f'COVERAGE_CAP=10000 '
+            f'CLIP_OVERLAPPING_READS=false '
+            f'PER_BASE_COVERAGE={self.output_basename}{{organism_str}}.coverage.txt'
+            f'{self.max_records_str}',
             error_string="Picard CollectHsMetrics exited with status {status}",
             exception_string="picard CollectHsMetrics error",
             override_last_files=False
         )
 
-        executor(f(
-            '{config.java} {config.picard_jvm_args} -jar {config.picard} '
-            'CollectGcBiasMetrics '
-            'R={{genome_ref}} I={{input_filename}} '
-            'O={self.output_basename}{{organism_str}}.gcbias.metrics.txt '
-            'CHART={self.output_basename}{{organism_str}}.gcbias_metrics.pdf '
-            'S={self.output_basename}{{organism_str}}.gcbias_summ_metrics.txt'
-            '{self.max_records_str}'),
+        executor(
+            f'{config.java} {config.picard_jvm_args} -jar {config.picard} '
+            f'CollectGcBiasMetrics '
+            f'R={{genome_ref}} I={{input_filename}} '
+            f'O={self.output_basename}{{organism_str}}.gcbias.metrics.txt '
+            f'CHART={self.output_basename}{{organism_str}}.gcbias_metrics.pdf '
+            f'S={self.output_basename}{{organism_str}}.gcbias_summ_metrics.txt'
+            f'{self.max_records_str}',
             error_string="Picard CollectGcBiasMetrics exited with status {status}",
             exception_string="picard CollectGcBiasMetrics error",
             override_last_files=False
@@ -559,7 +559,7 @@ class Mapping:
         config = self.analysis.config
 
         executor = Executor(self.analysis)
-        executor(f('{config.java} -jar {config.bam2tdf} -m 10 {{input_filename}}'),
+        executor(f'{config.java} -jar {config.bam2tdf} -m 10 {{input_filename}}',
                  error_string="Java bam2tdf exited with status {status}",
                  exception_string="bam2tdf error",
                  override_last_files=False)

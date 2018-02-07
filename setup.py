@@ -3,11 +3,11 @@
 from setuptools import setup, find_packages
 setup(
     name="HatsPil",
-    version="0.3rc0",
+    version="0.4rc0",
     packages=find_packages(),
+    python_requires='>=3.6',
     install_requires=[
         "cutadapt",
-        "formatizer",
         "rpy2",
         "pandas",
         "tables",

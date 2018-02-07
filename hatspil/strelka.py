@@ -1,6 +1,5 @@
 from .executor import Executor
 
-from formatizer import f
 import os
 import shutil
 
@@ -32,13 +31,13 @@ class Strelka:
         self.chdir()
 
         executor = Executor(self.analysis)
-        executor(f(
-            "{self.strelka_perl} "
-            "--tumor={{input_filename[\"tumor\"]}} "
-            "--normal={{input_filename[\"normal\"]}} "
-            "--ref={{genome_ref}} "
-            "--config={self.analysis.config.strelka_config} "
-            "--output-dir={self.strelka_dir}"),
+        executor(
+            f"{self.strelka_perl} "
+            f"--tumor={{input_filename[\"tumor\"]}} "
+            f"--normal={{input_filename[\"normal\"]}} "
+            f"--ref={{genome_ref}} "
+            f"--config={self.analysis.config.strelka_config} "
+            f"--output-dir={self.strelka_dir}",
             override_last_files=False,
             use_normals=True
         )
@@ -51,8 +50,8 @@ class Strelka:
         os.chdir(self.strelka_dir)
 
         executor = Executor(self.analysis)
-        executor(f(
-            "make -j {self.analysis.config.strelka_threads}"),
+        executor(
+            f"make -j {self.analysis.config.strelka_threads}",
             override_last_files=False,
             use_normals=True
         )

@@ -3,7 +3,6 @@ from .executor import Executor
 from .barcoded_filename import BarcodedFilename, Tissue
 from .exceptions import PipelineError
 
-from formatizer import f
 import os
 import re
 import itertools
@@ -15,10 +14,10 @@ class Xenograft:
     def __init__(self, analysis, fastq_dir):
         self.analysis = analysis
         self.fastq_dir = fastq_dir
-        self.xenome_command = f(
-            "{analysis.config.xenome} classify "
-            "-T {analysis.config.xenome_threads} "
-            "-P {analysis.config.xenome_index} --pairs")
+        self.xenome_command = \
+            f"{analysis.config.xenome} classify "\
+            f"-T {analysis.config.xenome_threads} "\
+            f"-P {analysis.config.xenome_index} --pairs"
         reports_dir = os.path.join(self.fastq_dir, "REPORTS")
         try:
             os.makedirs(reports_dir, exist_ok=True)
@@ -115,15 +114,15 @@ class Xenograft:
             os.mkdir(temp_dir)
 
         executor = Executor(self.analysis)
-        executor(f(
-            "{self.xenome_command} --graft-name hg19 --host-name mm10 "
-            "--output-filename-prefix {self.analysis.sample} "
-            "{{input_filename}} "
-            "--tmp-dir {temp_dir} "
-            "> \"{self.sample_base_out}.xenome_summary.txt\""),
+        executor(
+            f"{self.xenome_command} --graft-name hg19 --host-name mm10 "
+            f"--output-filename-prefix {self.analysis.sample} "
+            f"{{input_filename}} "
+            f"--tmp-dir {temp_dir} "
+            f"> \"{self.sample_base_out}.xenome_summary.txt\"",
             input_filenames=self.input_filenames,
             input_function=lambda filenames: " ".join(["-i %s" % filename for filename in filenames]),
-            output_format=f("{self.analysis.sample}_%s_%d.fastq"),
+            output_format=f"{self.analysis.sample}_%s_%d.fastq",
             output_function=lambda filename: [filename % (organism, index)
                                               for organism, index
                                               in itertools.product(["hg19", "mm10"],

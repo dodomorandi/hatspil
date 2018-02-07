@@ -1,7 +1,6 @@
 from .executor import Executor
 
 import os
-from formatizer import f
 
 
 class Mutect:
@@ -24,25 +23,25 @@ class Mutect:
 
         executor = Executor(self.analysis)
         if self.analysis.using_normals:
-            executor(f(
-                "{config.java7} {config.mutect_jvm_args} -jar {config.mutect} "
-                '{config.mutect_args} --reference_sequence '
-                '{{genome_ref}} --dbsnp {{dbsnp}} --cosmic '
-                '{{cosmic}} --input_file:tumor {{input_filename["tumor"]}} '
-                '--input_file:normal {{input_filename["normal"]}} --out '
-                '{self.analysis.basename}{{organism_str}}.mutect.1.17.vcf '),
+            executor(
+                f"{config.java7} {config.mutect_jvm_args} -jar {config.mutect} "
+                f'{config.mutect_args} --reference_sequence '
+                f'{{genome_ref}} --dbsnp {{dbsnp}} --cosmic '
+                f'{{cosmic}} --input_file:tumor {{input_filename["tumor"]}} '
+                f'--input_file:normal {{input_filename["normal"]}} --out '
+                f'{self.analysis.basename}{{organism_str}}.mutect.1.17.vcf ',
                 override_last_files=False,
                 error_string="Mutect exited with status {status}",
                 exception_string="mutect error",
                 use_normals=True
             )
         else:
-            executor(f(
-                "{config.java7} {config.mutect_jvm_args} -jar {config.mutect} "
-                '{config.mutect_args} --reference_sequence '
-                '{{genome_ref}} --dbsnp {{dbsnp}} --cosmic '
-                '{{cosmic}} --input_file:tumor {{input_filename}} --out '
-                '{self.analysis.basename}{{organism_str}}.mutect.1.17.vcf '),
+            executor(
+                f"{config.java7} {config.mutect_jvm_args} -jar {config.mutect} "
+                f'{config.mutect_args} --reference_sequence '
+                f'{{genome_ref}} --dbsnp {{dbsnp}} --cosmic '
+                f'{{cosmic}} --input_file:tumor {{input_filename}} --out '
+                f'{self.analysis.basename}{{organism_str}}.mutect.1.17.vcf ',
                 override_last_files=False,
                 error_string="Mutect exited with status {status}",
                 exception_string="mutect error"

@@ -8,7 +8,6 @@ import glob
 import pandas as pd
 import vcf
 import math
-from formatizer import f
 import re
 
 
@@ -332,12 +331,12 @@ class VariantCalling:
         os.chdir(config.annovar_basedir)
         executor = Executor(self.analysis)
 
-        executor(f(
-            "{config.perl} table_annovar.pl "
-            "{{input_filename}} humandb/ "
-            "-buildver {VariantCalling.build_version} "
-            "-protocol refGene,snp138,cosmic70,clinvar_20160302,popfreq_all_20150413,dbnsfp30a,cadd13 "
-            "-operation g,f,f,f,f,f,f -nastring NA -remove -v"),
+        executor(
+            f"{config.perl} table_annovar.pl "
+            f"{{input_filename}} humandb/ "
+            f"-buildver {VariantCalling.build_version} "
+            f"-protocol refGene,snp138,cosmic70,clinvar_20160302,popfreq_all_20150413,dbnsfp30a,cadd13 "
+            f"-operation g,f,f,f,f,f,f -nastring NA -remove -v",
             input_filenames=self.annovar_file,
             override_last_files=False,
             error_string="ANNOVAR exited with status {status}",

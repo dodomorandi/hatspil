@@ -3,7 +3,6 @@ from .executor import Executor
 
 import os
 import subprocess
-from formatizer import f
 
 
 class VarScan:
@@ -44,27 +43,27 @@ class VarScan:
 
         config = self.analysis.config
 
-        pileup_process = subprocess.Popen(f(
-            "{config.samtools} mpileup "
-            "-q 1 -d 6000 -f {genome_ref} "
-            "-B {input_filenames[\"normal\"]} " +
-            "{input_filenames[\"tumor\"]} ") +
+        pileup_process = subprocess.Popen(
+            f"{config.samtools} mpileup "
+            f"-q 1 -d 6000 -f {genome_ref} "
+            f"-B {input_filenames['normal']} "
+            f"{input_filenames['tumor']} "
             "| awk '{if($4 >= 6) print $0}' "
-            "| awk '{if($7 != 0) print $0}'" +
-            f(">{self.first_fifo}"),
+            "| awk '{if($7 != 0) print $0}'" 
+            f">{self.first_fifo}",
             shell=True)
 
         somatic_process = subprocess.Popen(
-            f("{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
-              "somatic {self.first_fifo} {self.analysis.basename}.varscan2 "
-              "--mpileup 1 "
-              "--min-coverage-normal {self.min_coverage_normal} "
-              "--min-coverage-tumor {self.min_coverage_tumor} "
-              "--min-var-freq {self.min_var_frequency} "
-              "--strand-filter 1 "
-              "--normal-purity {self.normal_purity} "
-              "--tumor-purity {self.tumor_purity} "
-              "--output-vcf 1"),
+            f"{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
+            f"somatic {self.first_fifo} {self.analysis.basename}.varscan2 "
+            f"--mpileup 1 "
+            f"--min-coverage-normal {self.min_coverage_normal} "
+            f"--min-coverage-tumor {self.min_coverage_tumor} "
+            f"--min-var-freq {self.min_var_frequency} "
+            f"--strand-filter 1 "
+            f"--normal-purity {self.normal_purity} "
+            f"--tumor-purity {self.tumor_purity} "
+            f"--output-vcf 1",
             shell=True)
 
         self.analysis.logger.info("Waiting for VarScan somatic for id "
@@ -112,33 +111,33 @@ class VarScan:
 
         config = self.analysis.config
 
-        pileup_process = subprocess.Popen(f(
-            "{config.samtools} mpileup -d 8000 -f {genome_ref} "
-            "{input_filename} | tee {self.first_fifo} > {self.second_fifo}"),
+        pileup_process = subprocess.Popen(
+            f"{config.samtools} mpileup -d 8000 -f {genome_ref} "
+            f"{input_filename} | tee {self.first_fifo} > {self.second_fifo}",
             shell=True)
 
-        snp_process = subprocess.Popen(f(
-            "{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
-            "mpileup2snp {self.first_fifo} "
-            "--min-coverage {self.min_coverage_tumor} "
-            "--min-reads2 {self.minVar} "
-            "--min-avg-qual {self.minQ} "
-            "--min-var-freq {self.min_var_frequency} "
-            "--p-value 1 --output-vcf 1 "
-            ">{self.analysis.basename}{organism_str}.varscan2.vcf"
-            ), shell=True
+        snp_process = subprocess.Popen(
+            f"{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
+            f"mpileup2snp {self.first_fifo} "
+            f"--min-coverage {self.min_coverage_tumor} "
+            f"--min-reads2 {self.minVar} "
+            f"--min-avg-qual {self.minQ} "
+            f"--min-var-freq {self.min_var_frequency} "
+            f"--p-value 1 --output-vcf 1 "
+            f">{self.analysis.basename}{organism_str}.varscan2.vcf",
+            shell=True
         )
 
-        indel_process = subprocess.Popen(f(
-            "{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
-            "mpileup2indel {self.second_fifo} "
-            "--min-coverage {self.min_coverage_tumor} "
-            "--min-reads2 {self.minVar} "
-            "--min-avg-qual {self.minQ} "
-            "--min-var-freq {self.min_var_frequency} "
-            "--p-value 1 --output-vcf 1 "
-            ">{self.analysis.basename}{organism_str}.varscan2.indel.vcf"
-            ), shell=True
+        indel_process = subprocess.Popen(
+            f"{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
+            f"mpileup2indel {self.second_fifo} "
+            f"--min-coverage {self.min_coverage_tumor} "
+            f"--min-reads2 {self.minVar} "
+            f"--min-avg-qual {self.minQ} "
+            f"--min-var-freq {self.min_var_frequency} "
+            f"--p-value 1 --output-vcf 1 "
+            f">{self.analysis.basename}{organism_str}.varscan2.indel.vcf",
+            shell=True
         )
 
         self.analysis.logger.info("Waiting for Variant and InDel calls for id "
@@ -193,29 +192,27 @@ class VarScan:
         config = self.analysis.config
 
         executor = Executor(self.analysis)
-        executor(f(
-            "{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
-            "processSomatic "
-            "{{input_filename}} "
-            "--min-tumor-freq {self.min_tumor_freq} "
-            "--p-value {self.p_value_somatic}"
-            ),
+        executor(
+            f"{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
+            f"processSomatic "
+            f"{{input_filename}} "
+            f"--min-tumor-freq {self.min_tumor_freq} "
+            f"--p-value {self.p_value_somatic}",
             shell=True,
             override_last_files=False,
-            input_filename=[f("{self.analysis.basename}.varscan2.snp.vcf")],
+            input_filename=[f"{self.analysis.basename}.varscan2.snp.vcf"],
             error_string="VarScan processSomatic exited with status {status}",
             exception_string="varscan processSomatic error")
 
-        executor(f(
-            "{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
-            "processSomatic "
-            "{{input_filename}} "
-            "--min-tumor-freq {self.min_tumor_freq} "
-            "--p-value {self.p_value_somatic}"
-            ),
+        executor(
+            f"{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
+            f"processSomatic "
+            f"{{input_filename}} "
+            f"--min-tumor-freq {self.min_tumor_freq} "
+            f"--p-value {self.p_value_somatic}",
             shell=True,
             override_last_files=False,
-            input_filename=[f("{self.analysis.basename}.varscan2.snp.vcf")],
+            input_filename=[f"{self.analysis.basename}.varscan2.snp.vcf"],
             error_string="VarScan processSomatic exited with status {status}",
             exception_string="varscan processSomatic error")
 
@@ -234,16 +231,15 @@ class VarScan:
         config = self.analysis.config
 
         executor = Executor(self.analysis)
-        executor(f(
-            "{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
-            "copynumber "
-            "{{input_filename}} "
-            "--min-tumor-freq {self.min_tumor_freq} "
-            "--p-value {self.p_value_somatic}"
-            ),
+        executor(
+            f"{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
+            f"copynumber "
+            f"{{input_filename}} "
+            f"--min-tumor-freq {self.min_tumor_freq} "
+            f"--p-value {self.p_value_somatic}",
             shell=True,
             override_last_files=False,
-            input_filename=[f("{self.analysis.basename}.varscan2.cnv.vcf")],
+            input_filename=[f"{self.analysis.basename}.varscan2.cnv.vcf"],
             error_string="VarScan copynumber exited with status {status}",
             exception_string="varscan copynumber error")
 
