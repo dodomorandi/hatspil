@@ -18,7 +18,7 @@ class Xenograft:
             f"{analysis.config.xenome} classify "\
             f"-T {analysis.config.xenome_threads} "\
             f"-P {analysis.config.xenome_index} --pairs"
-        reports_dir = os.path.join(self.fastq_dir, "REPORTS")
+        reports_dir = os.path.join(self.analysis.bam_dir, "REPORTS")
         try:
             os.makedirs(reports_dir, exist_ok=True)
         except OSError:
