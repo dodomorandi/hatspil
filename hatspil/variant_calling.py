@@ -24,11 +24,7 @@ class VariantCalling:
     def __init__(self, analysis):
         self.analysis = analysis
 
-        try:
-            os.makedirs(analysis.get_out_dir(), exist_ok=True)
-        except OSError:
-            pass
-
+        os.makedirs(analysis.get_out_dir(), exist_ok=True)
         self.mutect_filenames = glob.glob(os.path.join(analysis.get_out_dir(),
                                                        self.analysis.basename)
                                           + "*.mutect*.vcf")
@@ -45,10 +41,7 @@ class VariantCalling:
                                                 analysis.basename,
                                                 "results")
 
-        try:
-            os.makedirs(self.annovar_dirname, exist_ok=True)
-        except:
-            pass
+        os.makedirs(self.annovar_dirname, exist_ok=True)
 
         self.annovar_file = os.path.join(self.annovar_dirname, self.analysis.basename + "_annovar_input")
         self.variants_filename = os.path.join(self.annovar_dirname, self.analysis.basename + "_variants.csv")

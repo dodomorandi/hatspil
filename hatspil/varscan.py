@@ -20,10 +20,7 @@ class VarScan:
         self.min_tumor_frequency = 0.01
         self.p_value_somatic = 0.05
 
-        try:
-            os.makedirs(analysis.get_out_dir(), exist_ok=True)
-        except OSError:
-            pass
+        os.makedirs(analysis.get_out_dir(), exist_ok=True)
 
         if self.analysis.using_normals:
             self.first_fifo = "/data/scratch/matteo/%s.fifo" % self.analysis.basename
@@ -222,10 +219,7 @@ class VarScan:
         self.analysis.logger.info("Running VarScan copynumber")
         self.chdir()
 
-        try:
-            os.makedirs("CNV", exist_ok=True)
-        except OSError:
-            pass
+        os.makedirs("CNV", exist_ok=True)
         os.chdir("CNV")
 
         config = self.analysis.config
