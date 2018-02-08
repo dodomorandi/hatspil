@@ -171,7 +171,7 @@ class VariantCalling:
                     normal = current_data[current_data.sampleNames == "NORMAL"]
                     normal.reset_index(inplace=True, drop=True)
 
-                    normals = normal.loc[pd.match(tumor.key, normal.key)][["totalDepth", "refDepth", "altDepth"]]
+                    normals = normal.merge(tumor, on="key", how="left")[["totalDepth", "refDepth", "altDepth"]]
                     tumor["totalDepth.NORMAL"] = normals["totalDepth"].values
                     tumor["refDepth.NORMAL"] = normals["refDepth"].values
                     tumor["altDepth.NORMAL"] = normals["altDepth"].values
@@ -361,7 +361,7 @@ class VariantCalling:
 
         annotation.reset_index(inplace=True, drop=True)
         gene_info.reset_index(inplace=True, drop=True)
-        annotation["gene_type"] = gene_info.loc[pd.match(annotation["Gene.refGene"], gene_info.symbol)].cancer_type.values
+        annotation["gene_type"] = annotation.merge(gene_info, left_on="Gene.refGene", right_on="symbol", how="left").cancer_type.values
         annotation.loc[annotation.gene_type == "rst", "gene_type"] = float("nan")
         annotation["cancer_gene_site"] = float("nan")
         annotation.loc[annotation["Gene.refGene"].isin(selected_cancer_genes.symbol), "cancer_gene_site"] = VariantCalling.cancer_site
@@ -423,13 +423,7 @@ class VariantCalling:
         annotation.reset_index(inplace=True, drop=True)
         self.variants.reset_index(inplace=True, drop=True)
 
-        annotation_all = pd.merge(annotation,
-                                  self.variants.loc[
-                                      pd.match(annotation.id,
-                                               self.variants.key)]
-                                  .rename(columns={"key": "id"}),
-                                  on="id",
-                                  how="inner")
+        annotation_all = annotation.merge(self.variants.rename(columns={"key": "id"}), on="id", how="inner")
         annotation_all.to_csv(os.path.join(
             self.analysis.get_out_dir(),
             self.analysis.basename + "_variants.csv"), index=False)
