@@ -199,9 +199,13 @@ class Xenograft:
         self.analysis.last_operation_filenames.update(self.skip_filenames)
         self.analysis.last_operation_filenames.update(self.already_done)
 
+    def cannot_unlink_results(self):
+        self.analysis.can_unlink = False
+
     def run(self):
         if self.check():
             self.xenome()
             self.fix_fastq()
             self.compress()
         self.update_last_filenames()
+        self.cannot_unlink_results()
