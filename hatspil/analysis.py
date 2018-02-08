@@ -24,22 +24,12 @@ class Analysis:
         self.run_fake = False
         self.can_unlink = True
 
-        try:
-            os.makedirs(self.root, exist_ok=True)
-        except OSError:
-            pass
-
-        try:
-            os.makedirs(self.out_dir, exist_ok=True)
-        except OSError:
-            pass
+        os.makedirs(self.root, exist_ok=True)
+        os.makedirs(self.out_dir, exist_ok=True)
 
         logs_dir = os.path.join(self.root, "logs")
 
-        try:
-            os.makedirs(logs_dir, exist_ok=True)
-        except OSError:
-            pass
+        os.makedirs(logs_dir, exist_ok=True)
 
         self.logger = logging.getLogger(self.basename)
         self.log_handler = logging.FileHandler(
