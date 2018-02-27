@@ -6,8 +6,8 @@ import subprocess
 
 
 class Config:
-    executables = ("java", "java7", "perl", "novoalign", "seqtk", "fastqc",
-                   "samtools", "xenome")
+    executables = ("java", "java7", "perl", "novoalign", "bwa", "seqtk",
+                   "fastqc", "samtools", "xenome")
     jars = ("picard", "varscan", "gatk", "mutect", "bam2tdf")
     files = ("strelka_basedir", "strelka_config", "hg19_ref",
              "hg19_index", "hg38_ref", "hg38_index", "mm9_ref", "mm9_index",
@@ -23,6 +23,7 @@ class Config:
         self.java = "java"
         self.java7 = "java"
         self.perl = "perl"
+        self.bwa = "bwa"
         self.novoalign = "novoalign"
         self.picard = 'picard.jar'
         self.picard_jvm_args = '-Xmx128g'
@@ -164,7 +165,6 @@ class Config:
                 ok = False
 
         return ok
-
 
     def check_files(self):
         ok = True

@@ -1,6 +1,7 @@
 from . import utils
 from .executor import Executor
 from .barcoded_filename import BarcodedFilename, Analyte
+from enum import Enum, auto
 
 import os
 import shutil
@@ -9,6 +10,11 @@ import tempfile
 import math
 import logging
 import csv
+
+
+class Aligner(Enum):
+    NOVOALIGN = auto()
+    BWA = auto()
 
 
 class Mapping:
@@ -154,92 +160,10 @@ class Mapping:
                 tmp_fd.write(line)
         os.rename(tmp_filename, input_filename)
 
-    def align(self):
-        self.analysis.logger.info("Running alignment")
+    def convert_alignment(self):
         self.chdir()
-
         config = self.analysis.config
         executor = Executor(self.analysis)
-        barcoded = BarcodedFilename.from_sample(self.analysis.sample)
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            filename = os.path.join(tmpdir, "align.log")
-
-            fh = logging.FileHandler(filename)
-            self.analysis.logger.addHandler(fh)
-
-            if barcoded.analyte == Analyte.WHOLE_EXOME:
-                executor(
-                    f'{config.novoalign} -oSAM "@RG\tID:{self.analysis.basename}\t'
-                    f'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
-                    f'-d {{genome_index}} '
-                    f'-i PE {config.mean_len_library},{config.sd_len_library} '
-                    f'-t 90 -f {{input_filename}}> {{output_filename}}',
-                    input_function=lambda l: " ".join(sorted(l)),
-                    input_split_reads=False,
-                    output_format=f"{self.analysis.basename}{{organism_str}}.sam",
-                    split_by_organism=True,
-                    only_human=True,
-                    unlink_inputs=True
-                )
-            elif barcoded.analyte == Analyte.GENE_PANEL:
-                executor(
-                    f'{config.novoalign} '
-                    f'-C '
-                    f'-oSAM "@RG\tID:{self.analysis.basename}\t'
-                    f'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
-                    f'-d {{genome_index}} '
-                    f'-i 50-500 -h 8 -H 20 --matchreward 3 -t 90 '
-                    f'-f {{input_filename}}> {{output_filename}}',
-                    input_function=lambda l: " ".join(sorted(l)),
-                    input_split_reads=False,
-                    output_format=f"{self.analysis.basename}{{organism_str}}.sam",
-                    split_by_organism=True,
-                    only_human=True,
-                    unlink_inputs=True
-                )
-            else:
-                raise Exception("Unnhandled analyte")
-            self.analysis.logger.removeHandler(fh)
-            fh.close()
-
-            with open(filename, 'r') as file_log, \
-                    open(self.output_basename + "_novoalign.csv", 'w') \
-                    as csv_file, \
-                    open(self.output_basename + "_stat_novoalign.csv","w") \
-                    as stat_csv_file:
-                writer = csv.writer(csv_file)
-                writer_stat = csv.writer(stat_csv_file)
-                is_csv = False
-                is_stat = False
-                values = []
-                labels = []
-                for line in file_log:
-                    fields = line.split(":")
-                    label = fields[0][1:].strip()
-
-                    if is_stat is True:
-                        if label == "No Mapping Found":
-                            is_stat = False
-                        values.append(fields[1].strip().split()[0])
-                        labels.append(label)
-                    elif label == "Paired Reads":
-                        values.append(fields[1].strip().split()[0])
-                        labels.append(label)
-                        is_stat = True
-                    else:
-                        fields = line.split()
-                        if is_csv is True:
-                            if fields[1] == "Mean":
-                                break
-                            else:
-                                writer.writerow(fields[1:4])
-                        elif fields[1] == "From":
-                            writer.writerow(fields[1:4])
-                            is_csv = True
-                writer_stat.writerow(labels)
-                writer_stat.writerow(values)
-
         executor(self.filter_alignment,
                  input_split_reads=False,
                  split_by_organism=True,
@@ -278,6 +202,98 @@ class Mapping:
                  output_format=f"{self.analysis.basename}{{organism_str}}.bam")
 
         self.analysis.logger.info("Finished alignment")
+
+    def align_novoalign(self):
+        self.analysis.logger.info("Running alignment")
+        self.chdir()
+        config = self.analysis.config
+        executor = Executor(self.analysis)
+        barcoded = BarcodedFilename.from_sample(self.analysis.sample)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            filename = os.path.join(tmpdir, "align.log")
+            fh = logging.FileHandler(filename)
+            self.analysis.logger.addHandler(fh)
+            if barcoded.analyte == Analyte.WHOLE_EXOME:
+                executor(
+                    f'{config.novoalign} -oSAM "@RG\tID:{self.analysis.basename}\t'
+                    f'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
+                    f'-d {{genome_index}} '
+                    f'-i PE {config.mean_len_library},{config.sd_len_library} '
+                    f'-t 90 -f {{input_filename}}> {{output_filename}}',
+                    input_function=lambda l: " ".join(sorted(l)),
+                    input_split_reads=False,
+                    output_format=f"{self.analysis.basename}{{organism_str}}.sam",
+                    split_by_organism=True,
+                    only_human=True,
+                    unlink_inputs=True
+                )
+            elif barcoded.analyte == Analyte.GENE_PANEL:
+                executor(
+                    f'{config.novoalign} '
+                    f'-C '
+                    f'-oSAM "@RG\tID:{self.analysis.basename}\t'
+                    f'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
+                    f'-d {{genome_index}} '
+                    f'-i 50-500 -h 8 -H 20 --matchreward 3 -t 90 '
+                    f'-f {{input_filename}}> {{output_filename}}',
+                    input_function=lambda l: " ".join(sorted(l)),
+                    input_split_reads=False,
+                    output_format=f"{self.analysis.basename}{{organism_str}}.sam",
+                    split_by_organism=True,
+                    only_human=True,
+                    unlink_inputs=True
+                )
+            else:
+                raise Exception("Unnhandled analyte")
+            #  CSV NOVOALIGN
+            with open(filename, 'r') as file_log, \
+                    open(self.output_basename + "_novoalign.csv", 'w') \
+                    as csv_file, \
+                    open(self.output_basename + "_stat_novoalign.csv", "w") \
+                    as stat_csv_file:
+                writer = csv.writer(csv_file)
+                writer_stat = csv.writer(stat_csv_file)
+                is_csv = False
+                is_stat = False
+                values = []
+                labels = []
+                for line in file_log:
+                    fields = line.split(":")
+                    label = fields[0][1:].strip()
+
+                    if is_stat is True:
+                        if label == "No Mapping Found":
+                            is_stat = False
+                        values.append(fields[1].strip().split()[0])
+                        labels.append(label)
+                    elif label == "Paired Reads":
+                        values.append(fields[1].strip().split()[0])
+                        labels.append(label)
+                        is_stat = True
+                    else:
+                        fields = line.split()
+                        if is_csv is True:
+                            if fields[1] == "Mean":
+                                break
+                            else:
+                                writer.writerow(fields[1:4])
+                        elif fields[1] == "From":
+                            writer.writerow(fields[1:4])
+                            is_csv = True
+                writer_stat.writerow(labels)
+                writer_stat.writerow(values)
+        self.analysis.logger.removeHandler(fh)
+        fh.close()
+
+    def align_bwa(self):
+        self.analysis.logger.info("Running alignment")
+        self.chdir()
+        config = self.analysis.config
+        executor = Executor(self.analysis)
+        executor(
+            f'{config.bwa} -t 6 -L 5,10 -v 1 {{genome_index}}'
+            f'{{input_filename}}> {{output_filename}}'
+        )
 
     def sort_bam(self):
         self.analysis.logger.info("Sorting BAM(s)")
@@ -583,7 +599,15 @@ class Mapping:
 
         self.fastqc()
         self.trim()
-        self.align()
+
+        if self.analysis.parameters["aligner"] == Aligner.NOVOALIGN:
+            self.align_novoalign()
+        elif self.analysis.parameters["aligner"] == Aligner.BWA:
+            self.align_bwa()
+        else:
+            raise Exception("unexpected aligner")
+        # parte comune
+        self.convert_alignment()
         self.sort_bam()
 
         if self.analysis.parameters["mark_duplicates"]:

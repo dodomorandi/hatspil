@@ -2,6 +2,8 @@ from .config import Config
 from . import utils
 from .barcoded_filename import BarcodedFilename, Tissue
 from .runner import Runner
+from .mapping import Aligner
+from distutils.spawn import find_executable
 
 import logging
 import sys
@@ -13,11 +15,15 @@ import traceback
 import argparse
 import re
 
-
 def get_parser():
     parser = argparse.ArgumentParser(
         description="Makes your life easier when performing some HTS "
                     "analysis.")
+    parser.add_argument("--aligner", action="store",
+                        dest="aligner",
+                        choices=[aligner.name.lower()
+                                 for aligner in Aligner] + ["auto"],
+                        help="")
     parser.add_argument("--configout", action="store",
                         metavar="filename",
                         help="Dumps a default (almost empty configuration) in "
@@ -307,6 +313,42 @@ def main():
         "only_mapping": args.only_mapping,
         "use_tdf": args.use_tdf
     }
+
+    #  PARSE PARAMETRO --align
+    if args.aligner == "auto":
+        aligners = [Aligner.NOVOALIGN, Aligner.BWA]
+        for aligner in aligners:
+            # lowercase del nome
+            aligner_name = aligner.name.lower()
+            # devo vedere se config ha un valore valido
+            aligner_exec = getattr(config, aligner_name)
+            if (find_executable(aligner_exec)):
+                # exist
+                parameters.update["aligner": aligner.name]
+                break
+            # controllo se esiste un eseguibile con quel nom
+            else:
+                # non è eseguibile
+                print("The chosen aligner is not executable", file=sys.stderr)
+                exit(-5)
+        if "aligner" not in parameters:
+            print("Aligner not found", file=sys.stderr)
+            # non l'ha trovato
+            exit(-5)
+    else:  # viene passato 'novoalign' o 'bwa'
+        #  CORREGGERE ALIGN IN ALIGNER
+        aligner_name = args.aligner
+        aligner_exec = getattr(config, aligner_name)
+        if find_executable(aligner_exec):
+            parameters.update["aligner": Aligner[aligner_name.upper()]]
+        else:
+            # non è eseguibile
+            print("The chosen aligner is not executable", file=sys.stderr)
+            exit(-5)
+        if "aligner" not in parameters:
+            print("Aligner not found", file=sys.stderr)
+            exit(-5)
+
     logging.basicConfig(format="%(asctime)-15s %(message)s")
 
     if args.r_checks and args.post_recalibration:
