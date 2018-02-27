@@ -204,7 +204,7 @@ class Mapping:
         self.analysis.logger.info("Finished alignment")
 
     def align_novoalign(self):
-        self.analysis.logger.info("Running alignment")
+        self.analysis.logger.info("Running alignment with NovoAlign")
         self.chdir()
         config = self.analysis.config
         executor = Executor(self.analysis)
@@ -286,13 +286,19 @@ class Mapping:
         fh.close()
 
     def align_bwa(self):
-        self.analysis.logger.info("Running alignment")
+        self.analysis.logger.info("Running alignment with BWA")
         self.chdir()
         config = self.analysis.config
         executor = Executor(self.analysis)
         executor(
-            f'{config.bwa} -t 6 -L 5,10 -v 1 {{genome_index}}'
-            f'{{input_filename}}> {{output_filename}}'
+            f'{config.bwa} mem -t 6 -L 5,10 -v 1 {{genome_index}}.fasta '
+            f'{{input_filename}}> {{output_filename}}',
+            input_function=lambda l: " ".join(sorted(l)),
+            input_split_reads=False,
+            output_format=f"{self.analysis.basename}{{organism_str}}.sam",
+            split_by_organism=True,
+            only_human=True,
+            unlink_inputs=True
         )
 
     def sort_bam(self):
