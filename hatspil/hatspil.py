@@ -450,4 +450,103 @@ def main():
                                   for sample, filenames
                                   in samples.items()
                                   if "normal" not in filenames and
-                                  len(filenames["tumor
+                                  len(filenames["tumor"]) > 0}
+
+        for sample, filename in samples_with_no_normal.items():
+            sample_barcode = BarcodedFilename(filename)
+            candidates = {filename: barcode
+                          for filename, barcode
+                          in normals.items()
+                          if barcode.project == sample_barcode.project and
+                          barcode.patient == sample_barcode.patient and
+                          barcode.molecule == sample_barcode.molecule and
+                          barcode.analyte == sample_barcode.analyte and
+                          barcode.kit == sample_barcode.kit and
+                          barcode.biopsy == sample_barcode.biopsy and
+                          barcode.sample == sample_barcode.sample}
+
+            if len(candidates) == 0:
+                candidates = {filename: barcode
+                              for filename, barcode
+                              in normals.items()
+                              if barcode.project == sample_barcode.project and
+                              barcode.patient == sample_barcode.patient and
+                              barcode.molecule == sample_barcode.molecule and
+                              barcode.analyte == sample_barcode.analyte and
+                              barcode.kit == sample_barcode.kit and
+                              barcode.biopsy == sample_barcode.biopsy}
+
+            if len(candidates) == 0:
+                candidates = {filename: barcode
+                              for filename, barcode
+                              in normals.items()
+                              if barcode.project == sample_barcode.project and
+                              barcode.patient == sample_barcode.patient and
+                              barcode.molecule == sample_barcode.molecule and
+                              barcode.analyte == sample_barcode.analyte and
+                              barcode.kit == sample_barcode.kit}
+
+            if len(candidates) == 0:
+                candidates = {filename: barcode
+                              for filename, barcode
+                              in normals.items()
+                              if barcode.project == sample_barcode.project and
+                              barcode.patient == sample_barcode.patient and
+                              barcode.molecule == sample_barcode.molecule and
+                              barcode.analyte == sample_barcode.analyte}
+
+            if len(candidates) == 0:
+                candidates = {filename: barcode
+                              for filename, barcode
+                              in normals.items()
+                              if barcode.project == sample_barcode.project and
+                              barcode.patient == sample_barcode.patient and
+                              barcode.molecule == sample_barcode.molecule}
+
+            if len(candidates) == 1:
+                samples[sample]["normal"] = list(candidates.items())[0][0]
+            elif len(candidates) > 1:
+                candidates = list(candidates.items())
+                candidates.sort(key=lambda x: os.stat(x[0]).st_size)
+                samples[sample]["normal"] = candidates[-1][0]
+
+        triplets = []
+        for sample, values in samples.items():
+            for tumor in values["tumor"]:
+                if "normal" in values:
+                    triplets.append((tumor[1], tumor[0], values["normal"]))
+                else:
+                    triplets.append((tumor[1], tumor[0], None))
+
+        error_raised = False
+        try:
+            with Pool(5) as pool:
+                pool.starmap(runner.with_normals, triplets)
+
+            if args.mail:
+                msg = MIMEText(
+                    "Pipeline for file list %s successfully completed." %
+                    args.list_file)
+                msg["Subject"] = "Pipeline completed"
+
+        except RuntimeError:
+            error_raised = True
+            traceback.print_exc(file=sys.stdout)
+
+            if args.mail:
+                msg = MIMEText(
+                    "Error while executing pipeline for file list %s.\n"
+                    "Raised exception:\n%s" %
+                    (args.list_file, traceback.format_exc()))
+                msg["Subject"] = "Pipeline error"
+
+    if args.mail and len(config.mails) > 0:
+        msg["From"] = "UV2000 Pipeline <pipeline@uv2000.hugef>"
+        msg["To"] = config.mails
+
+        smtp = smtplib.SMTP("localhost")
+        smtp.send_message(msg)
+        smtp.quit()
+
+    if error_raised:
+        exit(-1)
