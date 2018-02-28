@@ -23,6 +23,7 @@ def get_parser():
                         dest="aligner",
                         choices=[aligner.name.lower()
                                  for aligner in Aligner] + ["auto"],
+                        default="auto",
                         help="Select the aligner. When this option is set to "
                         "'auto' will be used the first aligner available")
     parser.add_argument("--configout", action="store",
