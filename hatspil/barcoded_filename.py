@@ -234,6 +234,46 @@ class BarcodedFilename:
 
         return barcoded
 
+    @staticmethod
+    def from_parameters(project, patient, tissue, biopsy, sample, xenograft_generation, xenograft_parent, xenograft_child, sequencing, molecule, analyte, kit):
+        barcoded = BarcodedFilename()
+        barcoded.project = project
+        barcoded.patient = patient
+        barcoded.tissue = Tissue.create(tissue)
+        barcoded.biopsy = int(biopsy)
+
+        if xenograft_generation is not None:
+            if xenograft_parent is None or\
+                    xenograft_child is None:
+                raise Exception("all three xenograft parameters (generation, parent and child) must be specified")
+
+            if not barcoded.tissue.is_xenograft():
+                raise Exception("xenograft parameters have been passed, but the tissue is not a xenograft")
+
+            barcoded.xenograft = Xenograft(int(xenograft_generation), int(xenograft_parent), int(xenograft_child))
+            barcoded.sample = None
+        else:
+            if sample is None:
+                raise Exception("'sample' or all xenograft parameters must be specified")
+
+            if barcoded.tissue.is_xenograft():
+                raise Exception("'sample' parameter has been passed, but tissue is xenograft")
+
+            barcoded.sample = sample
+            barcoded.xenograft = None
+
+        barcoded.sequencing = int(sequencing)
+        barcoded.molecule = Molecule(int(molecule))
+        barcoded.analyte = Analyte(int(analyte))
+        barcoded.kit = int(kit)
+
+        barcoded.organism = None
+        barcoded.read_index = None
+        barcoded.extension = None
+        barcoded.gzipped = None
+
+        return barcoded
+
     def get_barcode(self):
         return "%s-%s-%02s-%d%d%d-%d%d%d" % (
             self.project, self.patient, self.get_tissue_str(), self.molecule,
@@ -266,14 +306,18 @@ class BarcodedFilename:
             " kit=" + str(self.kit) +
             " biopsy=" + str(self.biopsy) +
             " sample=" + str(self.get_sample_index()) +
-            " sequencing=" + str(self.sequencing) +
-            " organism=" + str(self.organism))
+            " sequencing=" + str(self.sequencing))
 
+        if self.organism:
+            repr += " organism=" + str(self.organism)
         if self.read_index:
             repr += " read_index=" + str(self.read_index)
-        repr += (
-            " extension=" + self.extension +
-            " gzipped=" + str(self.gzipped) + "}")
+        if self.extension:
+            repr += " extension=" + self.extension
+        if self.gzipped:
+            " gzipped=" + str(self.gzipped)
+
+        repr += "}"
 
         return repr
 
