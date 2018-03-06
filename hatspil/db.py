@@ -8,12 +8,12 @@ class Collection:
         assert isinstance(db, Db)
 
         self.collection_name = collection_name
-        if not db.config.use_db:
+        if db.config.use_mongodb:
+            self.db = db
+            self.collection = db.db[collection_name]
+        else:
+            self.db = None
             self.collection = None
-            return
-
-        self.db = db
-        self.collection = db.db[collection_name]
 
     def find_or_insert(self, data, new_data=None):
         if not self.db.config.use_mongodb:
@@ -49,9 +49,6 @@ class Db:
         assert isinstance(config, Config)
 
         self.config = config
-        for collection_name in Db._collections:
-            setattr(self, f"_{collection_name}",
-                    Collection(self, collection_name))
 
         if config.use_mongodb:
             mongo = MongoClient(config.mongodb_host, config.mongodb_port)
@@ -61,13 +58,16 @@ class Db:
         else:
             self.db = None
 
+        for collection_name in Db._collections:
+            setattr(self, collection_name, Collection(self, collection_name))
+
     def store_barcoded(self, barcoded):
         if not self.config.use_mongodb:
             return None
 
         project = self.projects.find_or_insert({"name": barcoded.project})
 
-        patient = self.patient.find_or_insert({
+        patient = self.patients.find_or_insert({
             "project": project["_id"],
             "name": barcoded.patient
         })
