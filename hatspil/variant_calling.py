@@ -1,3 +1,9 @@
+from .executor import Executor
+from .ranges import GenomicRange, GenomicRanges
+from .barcoded_filename import BarcodedFilename
+from .exceptions import PipelineError
+from .db import Db
+
 import glob
 import math
 import os
@@ -624,13 +630,8 @@ class VariantCalling:
 
         config = self.analysis.config
         if config.use_mongodb:
-            from pymongo import MongoClient, ReturnDocument
             from pymongo.errors import DocumentTooLarge
             from pymongo.collection import Collection
-
-            mongo = MongoClient(config.mongodb_host, config.mongodb_port)
-            db = mongo[config.mongodb_database]
-            db.authenticate(config.mongodb_username, config.mongodb_password)
 
             barcoded_sample = BarcodedFilename.from_sample(self.analysis.sample)
 
@@ -653,87 +654,35 @@ class VariantCalling:
             ]
             del annotation
 
-            def find_or_insert(
-                collection: Collection,
-                data: Dict[str, Any],
-                new_data: Optional[Dict[str, Any]] = None,
-            ) -> Dict[str, Any]:
-
-                set_data = dict(data)
-                if new_data is not None:
-                    set_data.update(new_data)
-
-                return cast(
-                    Dict[str, Any],
-                    collection.find_one_and_update(
-                        data,
-                        {"$set": set_data},
-                        upsert=True,
-                        return_document=ReturnDocument.AFTER,
-                    ),
-                )
+            db = Db(self.analysis.config)
 
             annotation_ids = [
-                find_or_insert(db.annotations, {"id": annotation["id"]}, annotation)[
-                    "_id"
-                ]
+                db.annotations.find_or_insert(
+                    {"id": annotation["id"]},
+                    annotation,
+                )["_id"]
                 for annotation in annotations
             ]
 
-            project_obj = find_or_insert(db.projects, {"name": barcoded_sample.project})
-
-            patient_obj = find_or_insert(
-                db.patients,
-                {"project": project_obj["_id"], "name": barcoded_sample.patient},
-            )
-
-            biopsy_obj = find_or_insert(
-                db.biopsies,
-                {
-                    "patient": patient_obj["_id"],
-                    "index": barcoded_sample.biopsy,
-                    "tissue": barcoded_sample.tissue,
-                },
-            )
-
-            sample_data = {"biopsy": biopsy_obj["_id"]}
-            if barcoded_sample.xenograft is None:
-                sample_data["index"] = barcoded_sample.sample
-            else:
-                sample_data["xenograft"] = barcoded_sample.xenograft.to_dict()
-            sample_obj = find_or_insert(db.samples, sample_data)
-
-            sequencing_obj = find_or_insert(
-                db.sequencings,
-                {"sample": sample_obj["_id"], "index": barcoded_sample.sequencing},
-                {
-                    "molecule": barcoded_sample.molecule,
-                    "analyte": barcoded_sample.analyte,
-                    "kit": barcoded_sample.kit,
-                },
-            )
+            sequencing = db.from_barcoded(barcoded_sample)["sequencing"]
+            assert sequencing is not None
 
             try:
-                find_or_insert(
-                    db.analyses,
+                db.analyses.find_or_insert(
                     {
-                        "sequencing": sequencing_obj["_id"],
-                        "date": self.analysis.current,
+                        "sequencing": sequencing["_id"],
+                        "date": self.analysis.current
                     },
                     {"variants": variants, "annotations": annotation_ids},
                 )
 
             except DocumentTooLarge:
                 self.analysis.logger.warning(
-                    "annotations and variants cannot "
-                    "be saved inside the MongoDB, "
-                    "document too large. Saving data "
-                    "using empty objects"
-                )
-                find_or_insert(
-                    db.analyses,
+                    "annotations and variants cannot be saved inside the MongoDB, "
+                    "document too large. Saving data using empty objects")
+                db.analyses.find_or_insert(
                     {
-                        "sequencing": sequencing_obj["_id"],
+                        "sequencing": sequencing["_id"],
                         "date": self.analysis.current,
                     },
                     {"variants": [], "annotations": []},

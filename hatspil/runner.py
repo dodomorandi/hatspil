@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional
 from .analysis import Analysis
 from .barcoded_filename import Analyte, BarcodedFilename, Tissue
 from .config import Config
+from .db import Db
 from .mapping import Mapping
 from .mutect import Mutect
 from .starter import Starter
@@ -31,6 +32,9 @@ class Runner:
     def __call__(self, sample: str) -> None:
         analysis = Analysis(sample, self.root, self.config, self.parameters)
         barcoded_filename = BarcodedFilename.from_sample(sample)
+
+        db = Db(analysis.config)
+        db.store_barcoded(barcoded_filename)
 
         Starter.run(analysis, self.fastq_dir)
 
