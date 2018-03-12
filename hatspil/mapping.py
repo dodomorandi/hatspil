@@ -602,7 +602,6 @@ class Mapping:
             self.align_bwa()
         else:
             raise Exception("unexpected aligner")
-        # parte comune
         self.convert_alignment()
         self.sort_bam()
 
