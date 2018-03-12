@@ -3,7 +3,6 @@ from configparser import ConfigParser
 import os
 import sys
 import subprocess
-from .mapping import Aligner
 
 class Config:
     executables = ("java", "java7", "perl", "seqtk",
@@ -161,10 +160,9 @@ class Config:
                                stdin=subprocess.DEVNULL,
                                stdout=subprocess.DEVNULL,
                                stderr=subprocess.DEVNULL) == 127:
-                        # non è eseguibile
-                        sys.stderr.write("ERROR: %s cannot be executed. "
-                                         "Check config.\n" % param)
-                        ok = False
+                sys.stderr.write("ERROR: %s cannot be executed. "
+                                 "Check config.\n" % param)
+                ok = False
 
         aligner_exec = False
         for param in Config.optional_executables:
@@ -174,8 +172,8 @@ class Config:
                                stdin=subprocess.DEVNULL,
                                stdout=subprocess.DEVNULL,
                                stderr=subprocess.DEVNULL) == 127:
-                        sys.stderr.write("ERROR: %s cannot be executed. "
-                                         "Check config.\n" % param)
+                sys.stderr.write("ERROR: %s cannot be executed. "
+                                 "Check config.\n" % param)
             else:
                 aligner_exec = True
         if aligner_exec is False:
