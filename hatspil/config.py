@@ -3,11 +3,12 @@ from configparser import ConfigParser
 import os
 import sys
 import subprocess
-
+from .mapping import Aligner
 
 class Config:
-    executables = ("java", "java7", "perl", "novoalign", "bwa", "seqtk",
+    executables = ("java", "java7", "perl", "seqtk",
                    "fastqc", "samtools", "xenome")
+    optional_executables = ("novoalign", "bwa")
     jars = ("picard", "varscan", "gatk", "mutect", "bam2tdf")
     files = ("strelka_basedir", "strelka_config", "hg19_ref",
              "hg19_index", "hg38_ref", "hg38_index", "mm9_ref", "mm9_index",
@@ -160,11 +161,26 @@ class Config:
                                stdin=subprocess.DEVNULL,
                                stdout=subprocess.DEVNULL,
                                stderr=subprocess.DEVNULL) == 127:
-                sys.stderr.write("ERROR: %s cannot be executed. "
-                                 "Check config.\n" % param)
-                ok = False
+                        # non è eseguibile
+                        sys.stderr.write("ERROR: %s cannot be executed. "
+                                         "Check config.\n" % param)
+                        ok = False
 
-        return ok
+        aligner_exec = False
+        for param in Config.optional_executables:
+            executable = getattr(self, param)
+            if subprocess.call(executable,
+                               shell=True,
+                               stdin=subprocess.DEVNULL,
+                               stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL) == 127:
+                        sys.stderr.write("ERROR: %s cannot be executed. "
+                                         "Check config.\n" % param)
+            else:
+                aligner_exec = True
+        if aligner_exec is False:
+            sys.stderr.write("No aligner available")
+        return aligner_exec and ok
 
     def check_files(self):
         ok = True
