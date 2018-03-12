@@ -323,12 +323,8 @@ def main():
             aligner_name = aligner.name.lower()
             aligner_exec = getattr(config, aligner_name)
             if (find_executable(aligner_exec)):
-                print(aligner)
                 parameters["aligner"] = aligner
                 break
-            else:
-                print("The chosen aligner is not executable", file=sys.stderr)
-                exit(-5)
         if "aligner" not in parameters:
             print("Aligner not found", file=sys.stderr)
             exit(-5)
