@@ -2,6 +2,8 @@ from .config import Config
 from . import utils
 from .barcoded_filename import BarcodedFilename, Tissue
 from .runner import Runner
+from .mapping import Aligner
+from distutils.spawn import find_executable
 
 import logging
 import sys
@@ -18,6 +20,13 @@ def get_parser():
     parser = argparse.ArgumentParser(
         description="Makes your life easier when performing some HTS "
                     "analysis.")
+    parser.add_argument("--aligner", action="store",
+                        dest="aligner",
+                        choices=[aligner.name.lower()
+                                 for aligner in Aligner] + ["auto"],
+                        default="auto",
+                        help="Select the aligner. When this option is set to "
+                        "'auto' will be used the first aligner available")
     parser.add_argument("--configout", action="store",
                         metavar="filename",
                         help="Dumps a default (almost empty configuration) in "
@@ -307,6 +316,31 @@ def main():
         "only_mapping": args.only_mapping,
         "use_tdf": args.use_tdf
     }
+
+    #  Parse parameter --align
+    if args.aligner == "auto":
+        aligners = [Aligner.NOVOALIGN, Aligner.BWA]
+        for aligner in aligners:
+            aligner_name = aligner.name.lower()
+            aligner_exec = getattr(config, aligner_name)
+            if (find_executable(aligner_exec)):
+                parameters["aligner"] = aligner
+                break
+        if "aligner" not in parameters:
+            print("Aligner not found", file=sys.stderr)
+            exit(-5)
+    else:
+        aligner_name = args.aligner
+        aligner_exec = getattr(config, aligner_name)
+        if find_executable(aligner_exec):
+            parameters["aligner"] = Aligner[aligner_name.upper()]
+        else:
+            print("The chosen aligner is not executable", file=sys.stderr)
+            exit(-5)
+        if "aligner" not in parameters:
+            print("Aligner not found", file=sys.stderr)
+            exit(-5)
+
     logging.basicConfig(format="%(asctime)-15s %(message)s")
 
     if args.r_checks and args.post_recalibration:
