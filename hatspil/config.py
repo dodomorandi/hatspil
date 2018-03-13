@@ -177,7 +177,7 @@ class Config:
             else:
                 aligner_exec = True
         if aligner_exec is False:
-            sys.stderr.write("No aligner available")
+            sys.stderr.write("No aligner available\n")
         return aligner_exec and ok
 
     def check_files(self):
