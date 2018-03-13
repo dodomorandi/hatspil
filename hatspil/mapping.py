@@ -194,7 +194,7 @@ class Mapping:
         executor(lambda **kwargs: os.rename(kwargs["input_filename"], kwargs["output_filename"]),
                  output_format=f"{self.analysis.basename}{{organism_str}}.bam")
 
-        self.analysis.logger.info("Finished alignment")
+        self.analysis.logger.info("Finished alignment SAM->BAM")
 
     def align_novoalign(self):
         self.analysis.logger.info("Running alignment with NovoAlign")
@@ -275,8 +275,9 @@ class Mapping:
                             is_csv = True
                 writer_stat.writerow(labels)
                 writer_stat.writerow(values)
-        self.analysis.logger.removeHandler(fh)
-        fh.close()
+            self.analysis.logger.removeHandler(fh)
+            fh.close()
+        self.analysis.logger.info("Alignment finished. Aligner used: NovoAlign")
 
     def align_bwa(self):
         self.analysis.logger.info("Running alignment with BWA")
@@ -293,6 +294,7 @@ class Mapping:
             only_human=True,
             unlink_inputs=True
         )
+        self.analysis.logger.info("Alignment finished. Aligner used: BWA")
 
     def sort_bam(self):
         self.analysis.logger.info("Sorting BAM(s)")

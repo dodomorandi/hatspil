@@ -15,6 +15,7 @@ import traceback
 import argparse
 import re
 
+
 def get_parser():
     parser = argparse.ArgumentParser(
         description="Makes your life easier when performing some HTS "
