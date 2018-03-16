@@ -128,6 +128,12 @@ class Xenograft:
         )
         shutil.rmtree(temp_dir)
 
+        if self.analysis.run_fake:
+            for filenames in self.analysis.last_operation_filenames.values():
+                for filename in filenames:
+                    with open(filename, "a"):
+                        pass
+
         self.analysis.logger.info("Finished xenome")
 
     def fix_fastq(self):
@@ -146,20 +152,22 @@ class Xenograft:
             organism = match.group(1)
             read_index = int(match.group(2))
             out_filename = "%s.%s.R%d.fastq" % (self.analysis.sample, organism, read_index)
-            with open(filename, "r") as in_fd,\
-                    open(out_filename, "w") as out_fd:
-                for line_index, line in enumerate(in_fd):
-                    if line_index % 4 == 0:
-                        line = line.strip()
-                        space_pos = line.find(" ")
-                        if space_pos != -1:
-                            space_pos = line.find(" ", space_pos + 1)
 
-                        out_fd.write("@%s\n" % line[:space_pos])
-                    elif line_index % 4 == 2:
-                        out_fd.write("+\n")
-                    else:
-                        out_fd.write("%s\n" % line.strip())
+            if not self.analysis.run_fake:
+                with open(filename, "r") as in_fd,\
+                        open(out_filename, "w") as out_fd:
+                    for line_index, line in enumerate(in_fd):
+                        if line_index % 4 == 0:
+                            line = line.strip()
+                            space_pos = line.find(" ")
+                            if space_pos != -1:
+                                space_pos = line.find(" ", space_pos + 1)
+
+                            out_fd.write("@%s\n" % line[:space_pos])
+                        elif line_index % 4 == 2:
+                            out_fd.write("+\n")
+                        else:
+                            out_fd.write("%s\n" % line.strip())
 
             if not organism in self.analysis.last_operation_filenames:
                 self.analysis.last_operation_filenames[organism] = []
