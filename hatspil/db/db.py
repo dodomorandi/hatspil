@@ -1,53 +1,28 @@
-from pymongo import MongoClient, ReturnDocument
+from typing import Dict, Any
 
-from .config import Config
+from pymongo import MongoClient
 
-
-class Collection:
-    def __init__(self, db, collection_name):
-        assert isinstance(db, Db)
-
-        self.collection_name = collection_name
-        if db.config.use_mongodb:
-            self.db = db
-            self.collection = db.db[collection_name]
-        else:
-            self.db = None
-            self.collection = None
-
-    def find_or_insert(self, data, new_data=None):
-        if not self.db.config.use_mongodb:
-            return None
-
-        assert self.collection is not None
-
-        set_data = dict(data)
-        if new_data is not None:
-            set_data.update(new_data)
-        return self.collection.find_one_and_update(
-            data, {"$set": set_data},
-            upsert=True,
-            return_document=ReturnDocument.AFTER)
-
-    def find(self, data):
-        if not self.db.config.use_mongodb:
-            return None
-
-        assert self.collection is not None
-
-        set_data = dict(data)
-        return self.collection.find_one(data, {"$set": set_data})
+from hatspil.barcoded_filename import BarcodedFilename
+from hatspil.config import Config
+from .collection import Collection
 
 
 class Db:
-    _collections = [
+    _COLLECTIONS = [
         "projects", "patients", "biopsies", "samples", "sequencings",
-        "annotations", "variants", "analyses"
+        "annotations", "variants", "analyses", "cutadapt"
     ]
+    projects: Collection
+    patients: Collection
+    biopsies: Collection
+    samples: Collection
+    sequencings: Collection
+    annotations: Collection
+    variants: Collection
+    analyses: Collection
+    cutadapt: Collection
 
-    def __init__(self, config):
-        assert isinstance(config, Config)
-
+    def __init__(self, config: Config) -> None:
         self.config = config
 
         if config.use_mongodb:
@@ -58,42 +33,54 @@ class Db:
         else:
             self.db = None
 
-        for collection_name in Db._collections:
+        for collection_name in Db._COLLECTIONS:
             setattr(self, collection_name, Collection(self, collection_name))
 
-    def store_barcoded(self, barcoded):
+    def store_barcoded(self, barcoded: BarcodedFilename):
         if not self.config.use_mongodb:
             return None
 
         project = self.projects.find_or_insert({"name": barcoded.project})
+        if not project:
+            return None
 
         patient = self.patients.find_or_insert({
             "project": project["_id"],
             "name": barcoded.patient
         })
+        if not patient:
+            return None
 
         biopsy = self.biopsies.find_or_insert({
             "patient": patient["_id"],
             "index": barcoded.biopsy,
-            "tissue": barcoded.tissue
+            "tissue": int(barcoded.tissue)
         })
+        if not biopsy:
+            return None
 
         sample_data = {"biopsy": biopsy["_id"]}
         if barcoded.xenograft is None:
+            assert not barcoded.tissue.is_xenograft()
             sample_data["index"] = barcoded.sample
         else:
+            assert barcoded.tissue.is_xenograft()
             sample_data["xenograft"] = barcoded.xenograft.to_dict()
         sample = self.samples.find_or_insert(sample_data)
+        if not sample:
+            return None
 
         sequencing = self.sequencings.find_or_insert(
             {
                 "sample": sample["_id"],
                 "index": barcoded.sequencing
             }, {
-                "molecule": barcoded.molecule,
-                "analyte": barcoded.analyte,
+                "molecule": int(barcoded.molecule),
+                "analyte": int(barcoded.analyte),
                 "kit": barcoded.kit
             })
+        if not sequencing:
+            return None
 
         return {
             "project": project,
@@ -103,27 +90,47 @@ class Db:
             "sequencing": sequencing
         }
 
-    def from_barcoded(self, barcoded):
+    def from_barcoded(
+            self, barcoded: BarcodedFilename) -> Dict[str, Dict[str, Any]]:
         if not self.config.use_mongodb:
             return None
 
         project = self.projects.find({"name": barcoded.project})
-        patient = self.patient.find({
+        if not project:
+            return None
+
+        patient = self.patients.find({
             "project": project["_id"],
             "name": barcoded.patient
         })
+        if not patient:
+            return None
+
         biopsy = self.biopsies.find({
             "patient": patient["_id"],
-            "index": barcoded.biopsy
+            "index": barcoded.biopsy,
+            "tissue": int(barcoded.tissue)
         })
-        sample = self.samples.find({
-            "biopsy": biopsy["_id"],
-            "index": barcoded.sample
-        })
+        if not biopsy:
+            return None
+
+        sample_data = {"biopsy": biopsy["_id"]}
+        if barcoded.xenograft is None:
+            assert not barcoded.tissue.is_xenograft()
+            sample_data["index"] = barcoded.sample
+        else:
+            assert barcoded.tissue.is_xenograft()
+            sample_data["xenograft"] = barcoded.xenograft.to_dict()
+        sample = self.samples.find(sample_data)
+        if not sample:
+            return None
+
         sequencing = self.sequencings.find({
             "sample": sample["_id"],
             "index": barcoded.sequencing
         })
+        if not sequencing:
+            return None
 
         return {
             "project": project,

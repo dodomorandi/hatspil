@@ -38,13 +38,14 @@ class Mapping:
         self.analysis.logger.info("Cutting adapters")
         self.chdir()
 
+        report_filename = f"{self.sample_base_out}.cutadapt.txt"
         executor = Executor(self.analysis)
         executor(
             f"cutadapt -a AGATCGGAAGAGCACACGTCTGAACTCCAG "
             "-A AGATCGGAAGAGCGTCGTGTAGGGAAAGAG "
             f'-m 20 -o "{{output_filename[0]}}" -p '
             f'"{{output_filename[1]}}" {{input_filename}} '
-            f'> "{self.sample_base_out}.cutadapt.txt"',
+            f'> "{report_filename}"',
             output_format=f"{self.analysis.sample}.clipped{{organism_str}}"
             ".R%d.fastq",
             input_function=lambda l: " ".join(sorted(l)),
@@ -56,6 +57,10 @@ class Mapping:
                 filename % (index + 1) for index in range(2)
             ],
         )
+
+        db = Db(self.analysis.config)
+        cutadapt = Cutadapt(db)
+        cutadapt.store_from_file(self.analysis, report_filename)
 
         self.analysis.logger.info("Finished cutting adapters")
 
