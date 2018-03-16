@@ -31,12 +31,14 @@ class Runner:
 
     def __call__(self, sample: str) -> None:
         analysis = Analysis(sample, self.root, self.config, self.parameters)
-        barcoded_filename = BarcodedFilename.from_sample(sample)
+        Starter.run(analysis, self.fastq_dir)
 
         db = Db(analysis.config)
-        db.store_barcoded(barcoded_filename)
+        for filenames in analysis.last_operation_filenames.values():
+            for filename in filenames:
+                barcoded_filename = BarcodedFilename(filename)
+                db.store_barcoded(barcoded_filename)
 
-        Starter.run(analysis, self.fastq_dir)
 
         if self.parameters["skip_mapping"]:
             analysis.run_fake = True
@@ -62,6 +64,15 @@ class Runner:
             return
 
         analysis = Analysis(sample, self.root, self.config, self.parameters)
+
+        db = Db(analysis.config)
+        for filename in (tumor, normal):
+            if filename is None:
+                continue
+
+            barcoded_filename = BarcodedFilename(filename)
+            db.store_barcoded(barcoded_filename)
+
         if normal is None:
             analysis.last_operation_filenames = {"sample": [tumor], "control": []}
 
