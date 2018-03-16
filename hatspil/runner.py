@@ -39,11 +39,12 @@ class Runner:
                 barcoded_filename = BarcodedFilename(filename)
                 db.store_barcoded(barcoded_filename)
 
-
         if self.parameters["skip_mapping"]:
             analysis.run_fake = True
+
         mapping = Mapping(analysis, self.fastq_dir)
         mapping.run()
+
         analysis.run_fake = False
 
         if (
