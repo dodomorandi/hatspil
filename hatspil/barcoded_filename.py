@@ -1,6 +1,7 @@
 import re
 import os
 from enum import IntEnum
+from typing import Union
 from .exceptions import BarcodeError
 
 
@@ -41,7 +42,7 @@ class Tissue(IntEnum):
     SAMPLE_TYPE_99 = 99
 
     @staticmethod
-    def create(value):
+    def create(value: Union[int, str]) -> "Tissue":
         if isinstance(value, int):
             return Tissue(value)
         elif isinstance(value, str):
@@ -150,8 +151,22 @@ class BarcodedFilename:
     re_sample = re.compile(R"^([^-]+)-([^-]+)-(\d[0-9A-Za-z])-(\d)(\d)(\d)-"
                            R"(\d)?(\d)?(\d)?(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
                            R"(?:\.(?:R([12])|[^.]+))*?$")
+    project: str
+    patient: str
+    tissue: Tissue
+    molecule: Molecule
+    analyte: Analyte
+    kit: int
+    biopsy: int
+    xenograft: Xenograft
+    sample: int
+    sequencing: int
+    organism: str
+    read_index: int
+    extension: str
+    gzipped: bool
 
-    def __init__(self, filename=None):
+    def __init__(self, filename: str=None) -> None:
         if filename is None:
             return
 
@@ -179,9 +194,11 @@ class BarcodedFilename:
         self.sequencing = int(match.group(9))
         self.organism = match.group(10)
 
-        self.read_index = match.group(11)
-        if self.read_index:
-            self.read_index = int(self.read_index)
+        read_index = match.group(11)
+        if read_index:
+            self.read_index = int(read_index)
+        else:
+            self.read_index = None
 
         self.extension = match.group(12)
         if match.group(13):
@@ -189,7 +206,8 @@ class BarcodedFilename:
         else:
             self.gzipped = False
 
-    def from_sample(sample):
+    @staticmethod
+    def from_sample(sample: str) -> 'BarcodedFilename':
         match = BarcodedFilename.re_sample.match(sample)
         if not match:
             raise RuntimeError(
@@ -201,13 +219,15 @@ class BarcodedFilename:
         barcoded.project = match.group(1)
         barcoded.patient = match.group(2)
         barcoded.tissue = Tissue.create(match.group(3))
-        barcoded.molecule = int(match.group(4))
-        barcoded.analyte = int(match.group(5))
+        barcoded.molecule = Molecule(int(match.group(4)))
+        barcoded.analyte = Analyte(int(match.group(5)))
         barcoded.kit = int(match.group(6))
 
-        barcoded.biopsy = match.group(7)
-        if barcoded.biopsy:
-            barcoded.biopsy = int(barcoded.biopsy)
+        biopsy = match.group(7)
+        if biopsy:
+            barcoded.biopsy = int(biopsy)
+        else:
+            barcoded.biopsy = None
 
         if match.group(8) is None:
             barcoded.xenograft = None
@@ -220,14 +240,18 @@ class BarcodedFilename:
             else:
                 barcoded.sample = None
 
-        barcoded.sequencing = match.group(9)
-        if barcoded.sequencing:
-            barcoded.sequencing = int(barcoded.sequencing)
+        sequencing = match.group(9)
+        if sequencing:
+            barcoded.sequencing = int(sequencing)
+        else:
+            barcoded.sequencing = None
         barcoded.organism = match.group(10)
 
-        barcoded.read_index = match.group(11)
-        if barcoded.read_index:
-            barcoded.read_index = int(barcoded.read_index)
+        read_index = match.group(11)
+        if read_index:
+            barcoded.read_index = int(read_index)
+        else:
+            barcoded.read_index = None
 
         barcoded.extension = None
         barcoded.gzipped = None
@@ -304,9 +328,13 @@ class BarcodedFilename:
             " molecule=" + str(self.molecule) +
             " analyte=" + str(self.analyte) +
             " kit=" + str(self.kit) +
-            " biopsy=" + str(self.biopsy) +
-            " sample=" + str(self.get_sample_index()) +
-            " sequencing=" + str(self.sequencing))
+            " biopsy=" + str(self.biopsy))
+
+        if self.xenograft:
+            repr += " xenograft=" + self.xenograft.to_human()
+
+        repr += " sample=" + str(self.get_sample_index())
+        repr += " sequencing=" + str(self.sequencing)
 
         if self.organism:
             repr += " organism=" + str(self.organism)
