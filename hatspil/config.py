@@ -164,7 +164,6 @@ class Config:
                                  "Check config.\n" % param)
                 ok = False
 
-        aligner_exec = False
         for param in Config.optional_executables:
             executable = getattr(self, param)
             if subprocess.call(executable,
@@ -172,13 +171,9 @@ class Config:
                                stdin=subprocess.DEVNULL,
                                stdout=subprocess.DEVNULL,
                                stderr=subprocess.DEVNULL) == 127:
-                sys.stderr.write("ERROR: %s cannot be executed. "
-                                 "Check config.\n" % param)
-            else:
-                aligner_exec = True
-        if aligner_exec is False:
-            sys.stderr.write("No aligner available\n")
-        return aligner_exec and ok
+                setattr(self, param, None)
+
+        return ok
 
     def check_files(self):
         ok = True

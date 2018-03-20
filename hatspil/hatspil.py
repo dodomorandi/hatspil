@@ -321,24 +321,22 @@ def main():
     if args.aligner == "auto":
         aligners = [Aligner.NOVOALIGN, Aligner.BWA]
         for aligner in aligners:
-            aligner_name = aligner.name.lower()
-            aligner_exec = getattr(config, aligner_name)
-            if (find_executable(aligner_exec)):
+            aligner_exec = getattr(config, aligner.name.lower())
+            if aligner_exec is not None and find_executable(aligner_exec):
                 parameters["aligner"] = aligner
                 break
+
         if "aligner" not in parameters:
-            print("Aligner not found", file=sys.stderr)
+            print("No valid aligner is available. "
+                  "Please check your configuration file.",
+                  file=sys.stderr)
             exit(-5)
     else:
-        aligner_name = args.aligner
-        aligner_exec = getattr(config, aligner_name)
-        if find_executable(aligner_exec):
-            parameters["aligner"] = Aligner[aligner_name.upper()]
+        aligner_exec = getattr(config, args.aligner)
+        if aligner_exec is not None and find_executable(aligner_exec):
+            parameters["aligner"] = Aligner[args.aligner.upper()]
         else:
             print("The chosen aligner is not executable", file=sys.stderr)
-            exit(-5)
-        if "aligner" not in parameters:
-            print("Aligner not found", file=sys.stderr)
             exit(-5)
 
     logging.basicConfig(format="%(asctime)-15s %(message)s")
