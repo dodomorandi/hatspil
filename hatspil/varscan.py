@@ -1,12 +1,11 @@
-from .exceptions import PipelineError
-from .executor import Executor
-
 import os
 import subprocess
 
+from .exceptions import PipelineError
+from .executor import Executor
+
 
 class VarScan:
-
     def __init__(self, analysis):
         self.analysis = analysis
 
@@ -49,7 +48,7 @@ class VarScan:
             f"-B {input_filenames['normal']} "
             f"{input_filenames['tumor']} "
             "| awk '{if($4 >= 6) print $0}' "
-            "| awk '{if($7 != 0) print $0}'" 
+            "| awk '{if($7 != 0) print $0}'"
             f">{self.first_fifo}",
             shell=True)
 
@@ -78,8 +77,7 @@ class VarScan:
                 try:
                     pileup_retval = pileup_process.wait(5)
                     pileup_finished = True
-                    self.analysis.logger.info(
-                        "samtool mpileup finished")
+                    self.analysis.logger.info("samtool mpileup finished")
                 except:
                     pass
 
@@ -93,8 +91,7 @@ class VarScan:
 
         if pileup_retval != 0 or somatic_retval != 0:
             if pileup_retval != 0:
-                self.analysis.logger.error(
-                    "samtool mpileup failed")
+                self.analysis.logger.error("samtool mpileup failed")
             if somatic_process != 0:
                 self.analysis.logger.error("VarScan somatic failed")
 
@@ -125,8 +122,7 @@ class VarScan:
             f"--min-var-freq {self.min_var_frequency} "
             f"--p-value 1 --output-vcf 1 "
             f">{self.analysis.basename}{organism_str}.varscan2.vcf",
-            shell=True
-        )
+            shell=True)
 
         indel_process = subprocess.Popen(
             f"{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
@@ -137,8 +133,7 @@ class VarScan:
             f"--min-var-freq {self.min_var_frequency} "
             f"--p-value 1 --output-vcf 1 "
             f">{self.analysis.basename}{organism_str}.varscan2.indel.vcf",
-            shell=True
-        )
+            shell=True)
 
         self.analysis.logger.info("Waiting for Variant and InDel calls for id "
                                   "%s%s..." % (self.analysis.basename,

@@ -1,16 +1,15 @@
-from . import utils
-from .executor import Executor
-from .barcoded_filename import BarcodedFilename, Tissue
-from .exceptions import PipelineError
-
+import itertools
 import os
 import re
-import itertools
 import shutil
+
+from . import utils
+from .barcoded_filename import BarcodedFilename, Tissue
+from .exceptions import PipelineError
+from .executor import Executor
 
 
 class Xenograft:
-
     def __init__(self, analysis, fastq_dir):
         self.analysis = analysis
         self.fastq_dir = fastq_dir
@@ -33,9 +32,10 @@ class Xenograft:
         os.chdir(self.fastq_dir)
 
     def _check_lambda(self, **kwargs):
-        self.input_filenames = [filename for filename
-                                in utils.flatten(kwargs["input_filenames"]
-                                                 .values())]
+        self.input_filenames = [
+            filename
+            for filename in utils.flatten(kwargs["input_filenames"].values())
+        ]
         valid_filenames = []
         for filename in self.input_filenames:
             barcoded_filename = BarcodedFilename(filename)
@@ -48,18 +48,20 @@ class Xenograft:
                     organism = "hg19"
                 if organism not in self.skip_filenames:
                     self.skip_filenames[organism] = []
-                self.skip_filenames[organism].append(os.path.join(os.getcwd(),
-                                                                  filename))
+                self.skip_filenames[organism].append(
+                    os.path.join(os.getcwd(), filename))
 
         self.input_filenames = sorted(valid_filenames)
 
-        compressed = [filename for filename
-                      in self.input_filenames
-                      if filename.endswith(".gz")]
+        compressed = [
+            filename for filename in self.input_filenames
+            if filename.endswith(".gz")
+        ]
 
-        self.input_filenames = [filename for filename
-                                in self.input_filenames
-                                if not filename.endswith(".gz")]
+        self.input_filenames = [
+            filename for filename in self.input_filenames
+            if not filename.endswith(".gz")
+        ]
 
         for fastqgz in compressed:
             can_skip = True
@@ -94,8 +96,7 @@ class Xenograft:
         retval = True
 
         executor = Executor(self.analysis)
-        executor(self._check_lambda,
-                 input_split_reads=False)
+        executor(self._check_lambda, input_split_reads=False)
 
         if len(self.input_filenames) == 0:
             retval = False
@@ -107,8 +108,7 @@ class Xenograft:
         self.analysis.logger.info("Running xenome")
         self.chdir()
 
-        temp_dir = os.path.join(os.path.sep,
-                                "tmp",
+        temp_dir = os.path.join(os.path.sep, "tmp",
                                 "%s.xenome" % self.analysis.sample)
         if not os.path.exists(temp_dir):
             os.mkdir(temp_dir)
@@ -148,13 +148,18 @@ class Xenograft:
         self.analysis.logger.info("Fixing xenome fastq")
         self.chdir()
         self.analysis.last_operation_filenames = {}
-        re_fastq_filename = re.compile(R"^%s_((?:hg|mm)\d+)_([12])\.fastq$" % self.analysis.sample, re.I)
-        fastq_files = [filename for filename in os.listdir() if re_fastq_filename.match(filename)]
+        re_fastq_filename = re.compile(
+            R"^%s_((?:hg|mm)\d+)_([12])\.fastq$" % self.analysis.sample, re.I)
+        fastq_files = [
+            filename for filename in os.listdir()
+            if re_fastq_filename.match(filename)
+        ]
         for filename in fastq_files:
             match = re_fastq_filename.match(filename)
             organism = match.group(1)
             read_index = int(match.group(2))
-            out_filename = "%s.%s.R%d.fastq" % (self.analysis.sample, organism, read_index)
+            out_filename = "%s.%s.R%d.fastq" % (self.analysis.sample, organism,
+                                                read_index)
 
             if not self.analysis.run_fake:
                 with open(filename, "r") as in_fd,\
@@ -175,15 +180,13 @@ class Xenograft:
             if not organism in self.analysis.last_operation_filenames:
                 self.analysis.last_operation_filenames[organism] = []
             self.analysis.last_operation_filenames[organism].append(
-                os.path.join(
-                    os.getcwd(),
-                    out_filename))
+                os.path.join(os.getcwd(), out_filename))
 
         other_fastq = [
-            "%s_%s_%d.fastq" % tuple([self.analysis.sample] +
-                                     list(combo))
+            "%s_%s_%d.fastq" % tuple([self.analysis.sample] + list(combo))
             for combo in itertools.product(["ambiguous", "both", "neither"],
-                                           range(1, 3))]
+                                           range(1, 3))
+        ]
         for filename in fastq_files + other_fastq:
             if os.path.exists(filename):
                 os.unlink(filename)
@@ -195,7 +198,8 @@ class Xenograft:
         self.chdir()
         fastq_files = [
             "%s.R%d.fastq" % (self.analysis.sample, index + 1)
-            for index in range(2)]
+            for index in range(2)
+        ]
         for filename in fastq_files:
             utils.gzip(filename)
 

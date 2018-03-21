@@ -1,10 +1,9 @@
-from .executor import Executor
-
 import os
+
+from .executor import Executor
 
 
 class Mutect:
-
     def __init__(self, analysis):
         self.analysis = analysis
 
@@ -33,8 +32,7 @@ class Mutect:
                 override_last_files=False,
                 error_string="Mutect exited with status {status}",
                 exception_string="mutect error",
-                use_normals=True
-            )
+                use_normals=True)
         else:
             executor(
                 f"{config.java7} {config.mutect_jvm_args} -jar {config.mutect} "
@@ -44,7 +42,6 @@ class Mutect:
                 f'{self.analysis.basename}{{organism_str}}.mutect.1.17.vcf ',
                 override_last_files=False,
                 error_string="Mutect exited with status {status}",
-                exception_string="mutect error"
-            )
+                exception_string="mutect error")
 
         self.analysis.logger.info("Finished mutect")
