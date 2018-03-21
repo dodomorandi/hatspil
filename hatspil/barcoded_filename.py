@@ -1,7 +1,8 @@
-import re
 import os
+import re
 from enum import IntEnum
 from typing import Union
+
 from .exceptions import BarcodeError
 
 
@@ -57,18 +58,14 @@ class Tissue(IntEnum):
             raise BarcodeError("Unexpected value type for tissue")
 
     def is_normal(self):
-        return self in (
-            Tissue.BLOOD_DERIVED_NORMAL,
-            Tissue.SOLID_TISSUE_NORMAL,
-            Tissue.BUCCAL_CELL_NORMAL,
-            Tissue.EBV_IMMORTALIZED_NORMAL,
-            Tissue.BONE_MARROW_NORMAL)
+        return self in (Tissue.BLOOD_DERIVED_NORMAL,
+                        Tissue.SOLID_TISSUE_NORMAL, Tissue.BUCCAL_CELL_NORMAL,
+                        Tissue.EBV_IMMORTALIZED_NORMAL,
+                        Tissue.BONE_MARROW_NORMAL)
 
     def is_xenograft(self):
-        return self in (
-            Tissue.PRIMARY_XENOGRAFT_TISSUE,
-            Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE
-        )
+        return self in (Tissue.PRIMARY_XENOGRAFT_TISSUE,
+                        Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE)
 
 
 class Xenograft:
@@ -130,14 +127,13 @@ class Xenograft:
         assert "parent" in dictionary
         assert "child" in dictionary
 
-        return Xenograft(int(dictionary["generation"]),
-                         int(dictionary["parent"]),
-                         int(dictionary["child"]))
+        return Xenograft(
+            int(dictionary["generation"]), int(dictionary["parent"]),
+            int(dictionary["child"]))
 
     def to_human(self):
         if self.generation == 0:
-            return "%d%s" % (self.generation + 1,
-                             chr(ord('A') + self.child))
+            return "%d%s" % (self.generation + 1, chr(ord('A') + self.child))
         else:
             return "%d%s%s" % (self.generation + 1,
                                chr(ord('a') + self.parent),
@@ -166,7 +162,7 @@ class BarcodedFilename:
     extension: str
     gzipped: bool
 
-    def __init__(self, filename: str=None) -> None:
+    def __init__(self, filename: str = None) -> None:
         if filename is None:
             return
 
@@ -174,8 +170,7 @@ class BarcodedFilename:
         match = BarcodedFilename.re_filename.match(filename)
         if not match:
             raise RuntimeError(
-                "Error parsing barcoded filename '%s'"
-                % filename)
+                "Error parsing barcoded filename '%s'" % filename)
 
         self.project = match.group(1)
         self.patient = match.group(2)
@@ -210,9 +205,7 @@ class BarcodedFilename:
     def from_sample(sample: str) -> 'BarcodedFilename':
         match = BarcodedFilename.re_sample.match(sample)
         if not match:
-            raise RuntimeError(
-                "Error parsing barcoded sampling '%s'"
-                % sample)
+            raise RuntimeError("Error parsing barcoded sampling '%s'" % sample)
 
         barcoded = BarcodedFilename()
 
@@ -233,8 +226,8 @@ class BarcodedFilename:
             barcoded.xenograft = None
             barcoded.sample = None
         else:
-            barcoded.xenograft = Xenograft.create(match.group(3),
-                                                  match.group(8))
+            barcoded.xenograft = Xenograft.create(
+                match.group(3), match.group(8))
             if barcoded.xenograft is None:
                 barcoded.sample = int(match.group(8))
             else:
@@ -259,7 +252,9 @@ class BarcodedFilename:
         return barcoded
 
     @staticmethod
-    def from_parameters(project, patient, tissue, biopsy, sample, xenograft_generation, xenograft_parent, xenograft_child, sequencing, molecule, analyte, kit):
+    def from_parameters(project, patient, tissue, biopsy, sample,
+                        xenograft_generation, xenograft_parent,
+                        xenograft_child, sequencing, molecule, analyte, kit):
         barcoded = BarcodedFilename()
         barcoded.project = project
         barcoded.patient = patient
@@ -269,19 +264,28 @@ class BarcodedFilename:
         if xenograft_generation is not None:
             if xenograft_parent is None or\
                     xenograft_child is None:
-                raise Exception("all three xenograft parameters (generation, parent and child) must be specified")
+                raise Exception(
+                    "all three xenograft parameters (generation, parent and child) must be specified"
+                )
 
             if not barcoded.tissue.is_xenograft():
-                raise Exception("xenograft parameters have been passed, but the tissue is not a xenograft")
+                raise Exception(
+                    "xenograft parameters have been passed, but the tissue is not a xenograft"
+                )
 
-            barcoded.xenograft = Xenograft(int(xenograft_generation), int(xenograft_parent), int(xenograft_child))
+            barcoded.xenograft = Xenograft(
+                int(xenograft_generation), int(xenograft_parent),
+                int(xenograft_child))
             barcoded.sample = None
         else:
             if sample is None:
-                raise Exception("'sample' or all xenograft parameters must be specified")
+                raise Exception(
+                    "'sample' or all xenograft parameters must be specified")
 
             if barcoded.tissue.is_xenograft():
-                raise Exception("'sample' parameter has been passed, but tissue is xenograft")
+                raise Exception(
+                    "'sample' parameter has been passed, but tissue is xenograft"
+                )
 
             barcoded.sample = sample
             barcoded.xenograft = None
@@ -299,11 +303,12 @@ class BarcodedFilename:
         return barcoded
 
     def get_barcode(self):
-        return "%s-%s-%02s-%d%d%d-%d%d%d" % (
-            self.project, self.patient, self.get_tissue_str(), self.molecule,
-            self.analyte, self.kit, self.biopsy, self.get_sample_index(),
-            self.sequencing
-        )
+        return "%s-%s-%02s-%d%d%d-%d%d%d" % (self.project, self.patient,
+                                             self.get_tissue_str(),
+                                             self.molecule, self.analyte,
+                                             self.kit, self.biopsy,
+                                             self.get_sample_index(),
+                                             self.sequencing)
 
     def get_directory(self, analysis_dir=None):
         if analysis_dir is None:
@@ -321,14 +326,10 @@ class BarcodedFilename:
         return os.path.join(analysis_dir, barcode_dir)
 
     def __repr__(self):
-        repr = (
-            "{project=" + str(self.project) +
-            " patient=" + str(self.patient) +
-            " tissue=" + self.get_tissue_str() +
-            " molecule=" + str(self.molecule) +
-            " analyte=" + str(self.analyte) +
-            " kit=" + str(self.kit) +
-            " biopsy=" + str(self.biopsy))
+        repr = ("{project=" + str(self.project) + " patient=" + str(
+            self.patient) + " tissue=" + self.get_tissue_str() + " molecule=" +
+                str(self.molecule) + " analyte=" + str(self.analyte) +
+                " kit=" + str(self.kit) + " biopsy=" + str(self.biopsy))
 
         if self.xenograft:
             repr += " xenograft=" + self.xenograft.to_human()

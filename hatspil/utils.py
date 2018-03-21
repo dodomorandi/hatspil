@@ -1,10 +1,10 @@
-import datetime
-import subprocess
-import re
-import os
-import shutil
-import gzip as gz
 import collections
+import datetime
+import gzip as gz
+import os
+import re
+import shutil
+import subprocess
 from argparse import ArgumentTypeError
 
 
@@ -15,12 +15,13 @@ def get_current():
 
 def run_and_log(command, logger):
     logger.info("Running command: %s", command)
-    with subprocess.Popen(command,
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE,
-                          shell=True,
-                          universal_newlines=True,
-                          bufsize=1) as process:
+    with subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=True,
+            universal_newlines=True,
+            bufsize=1) as process:
         (out, err) = process.communicate()
 
         for line in out.split("\n"):
@@ -41,8 +42,10 @@ def get_sample_filenames(obj, split=False):
         if split and len(obj) > 1:
             return obj
         else:
-            return [filename for filenames in obj.values()
-                    for filename in filenames]
+            return [
+                filename for filenames in obj.values()
+                for filename in filenames
+            ]
     else:
         return [obj]
 
@@ -98,9 +101,9 @@ def find_fastqs_by_organism(sample, fastq_dir):
     re_fastq_filename = re.compile(
         R"^%s(?:\.((?:hg|mm)\d+))?\.R([12])\.fastq(?:\.gz)?$" % sample, re.I)
     fastq_files = [
-        filename
-        for filename in os.listdir(fastq_dir)
-        if re_fastq_filename.match(filename)]
+        filename for filename in os.listdir(fastq_dir)
+        if re_fastq_filename.match(filename)
+    ]
 
     fastqs = {}
     for filename in fastq_files:
@@ -144,6 +147,7 @@ def check_gz(filename):
         except:
             return False
 
+
 def flatten(iterable):
     for element in iterable:
         if isinstance(element, collections.Iterable) \
@@ -151,6 +155,7 @@ def flatten(iterable):
             yield from flatten(element)
         else:
             yield element
+
 
 def parsed_date(string):
     try:

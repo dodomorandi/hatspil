@@ -1,13 +1,12 @@
-from . import utils
-from .exceptions import PipelineError
-from .barcoded_filename import BarcodedFilename
-
 import os
 import re
 
+from . import utils
+from .barcoded_filename import BarcodedFilename
+from .exceptions import PipelineError
+
 
 class Executor:
-
     def __init__(self, analysis):
         self.analysis = analysis
 
@@ -37,11 +36,10 @@ class Executor:
                                     "last_operation_filenames empty")
 
             input_filenames = utils.get_sample_filenames(
-                self.analysis.last_operation_filenames,
-                split_by_organism)
+                self.analysis.last_operation_filenames, split_by_organism)
         else:
-            input_filenames = utils.get_sample_filenames(input_filenames,
-                                                         split_by_organism)
+            input_filenames = utils.get_sample_filenames(
+                input_filenames, split_by_organism)
 
         if not isinstance(input_filenames, dict):
             input_filenames = {"": input_filenames}
@@ -79,13 +77,15 @@ class Executor:
             mod_input_filenames = {}
 
             if input_split_reads:
-                for organism, current_input_filenames in input_filenames.items():
+                for organism, current_input_filenames in input_filenames.items(
+                ):
                     mod_input_filenames[organism] = \
                         [filename for filename
                          in map(input_function, current_input_filenames)
                          if filename is not None]
             else:
-                for organism, current_input_filenames in input_filenames.items():
+                for organism, current_input_filenames in input_filenames.items(
+                ):
                     current_mod_input = input_function(current_input_filenames)
                     if isinstance(current_mod_input, list):
                         current_mod_input.remove(None)
@@ -131,19 +131,16 @@ class Executor:
             if input_function is not None:
                 current_mod_input_filenames = mod_input_filenames[
                     current_organism]
-                if len(current_mod_input_filenames) == len(current_input_filenames):
-                    iterator = zip(
-                        current_input_filenames,
-                        current_mod_input_filenames)
+                if len(current_mod_input_filenames) == len(
+                        current_input_filenames):
+                    iterator = zip(current_input_filenames,
+                                   current_mod_input_filenames)
                 else:
-                    iterator = zip(
-                        current_mod_input_filenames,
-                        current_mod_input_filenames)
+                    iterator = zip(current_mod_input_filenames,
+                                   current_mod_input_filenames)
             else:
-                iterator = zip(
-                    current_input_filenames,
-                    [None] *
-                    len(current_input_filenames))
+                iterator = zip(current_input_filenames,
+                               [None] * len(current_input_filenames))
 
             for input_filename, mod_input_filename in iterator:
                 if isinstance(input_filename, str):
@@ -159,8 +156,7 @@ class Executor:
                     read_index = []
                     for filename in input_filename:
                         if isinstance(filename, str):
-                            barcoded_filename = BarcodedFilename(
-                                filename)
+                            barcoded_filename = BarcodedFilename(filename)
                             organism = barcoded_filename.organism
                             index = barcoded_filename.read_index
                         else:
@@ -207,8 +203,10 @@ class Executor:
                             output_format = [output_format]
 
                         if output_path is not None:
-                            output_format = [os.path.join(output_path, s)
-                                            for s in output_format]
+                            output_format = [
+                                os.path.join(output_path, s)
+                                for s in output_format
+                            ]
 
                         output_filename = []
                         for s in output_format:
@@ -221,16 +219,17 @@ class Executor:
 
                                 if evaluated is None:
                                     raise PipelineError(
-                                        "evaluation of %s is None"
-                                        % match.group(1))
+                                        "evaluation of %s is None" %
+                                        match.group(1))
                                 s = re.sub(match.group(0), str(evaluated), s)
 
                             output_filename.append(s)
 
                         if output_function is not None:
-                            output_filename = [filename for filename
-                                            in map(output_function,
-                                                    output_filename)]
+                            output_filename = [
+                                filename for filename in map(
+                                    output_function, output_filename)
+                            ]
 
                         if len(output_filename) == 1:
                             output_filename = output_filename[0]
@@ -246,14 +245,16 @@ class Executor:
                                         evaluated = eval(match.group(1))
                                     except:
                                         raise PipelineError(
-                                            "cannot evaluate %s" % match.group(1))
+                                            "cannot evaluate %s" %
+                                            match.group(1))
 
                                     if evaluated is None:
                                         raise PipelineError(
-                                            "evaluation of %s is None"
-                                            % (match.group(1)))
+                                            "evaluation of %s is None" %
+                                            (match.group(1)))
 
-                                    s = s.replace(match.group(0), str(evaluated))
+                                    s = s.replace(
+                                        match.group(0), str(evaluated))
 
                             commands.append(s)
                     else:
@@ -264,12 +265,13 @@ class Executor:
                                     evaluated = eval(match.group(1))
                                 except:
                                     raise PipelineError(
-                                        "cannot evaluate %s" % (match.group(1)))
+                                        "cannot evaluate %s" %
+                                        (match.group(1)))
 
                                 if evaluated is None:
                                     raise PipelineError(
-                                        "evaluation of %s is None"
-                                        % (match.group(1)))
+                                        "evaluation of %s is None" %
+                                        (match.group(1)))
 
                                 current_command = current_command.replace(
                                     match.group(0), str(evaluated))
@@ -279,8 +281,7 @@ class Executor:
                         if isinstance(current_command, str):
                             if not self.analysis.run_fake:
                                 status = utils.run_and_log(
-                                    current_command,
-                                    self.analysis.logger)
+                                    current_command, self.analysis.logger)
                             else:
                                 self.analysis.logger.info(
                                     "Faking command '%s'", current_command)
@@ -291,8 +292,7 @@ class Executor:
                                 del local_vars["self"]
                                 current_command(**local_vars)
                             else:
-                                self.analysis.logger.info(
-                                    "Faking lambda")
+                                self.analysis.logger.info("Faking lambda")
                             status = 0
 
                         if status != 0:
@@ -300,8 +300,7 @@ class Executor:
 
                             if error_string is None:
                                 error_string = "%s exited with status %d" % (
-                                    arg_zero,
-                                    status)
+                                    arg_zero, status)
 
                             if exception_string is None:
                                 exception_string = "%s error" % arg_zero
@@ -314,19 +313,20 @@ class Executor:
                                         error_string)
                                 except:
                                     raise PipelineError(
-                                        "cannot replace parameter %s"
-                                        % (match.group(0)))
+                                        "cannot replace parameter %s" %
+                                        (match.group(0)))
 
-                            for match in re_replacer.finditer(exception_string):
+                            for match in re_replacer.finditer(
+                                    exception_string):
                                 try:
                                     exception_string = re.sub(
-                                        match.group(0), str(
-                                            eval(
-                                                match.group(1))), exception_string)
+                                        match.group(0),
+                                        str(eval(match.group(1))),
+                                        exception_string)
                                 except:
                                     raise PipelineError(
-                                        "cannot replace parameter %s"
-                                        % (match.group(0)))
+                                        "cannot replace parameter %s" %
+                                        (match.group(0)))
                             self.analysis.logger.error(error_string)
                             raise PipelineError(exception_string)
 
@@ -339,9 +339,7 @@ class Executor:
                                 dirname = os.path.dirname(filename)
                                 if dirname == "" or dirname == ".":
                                     new_filename.append(
-                                        os.path.join(
-                                            os.getcwd(),
-                                            filename))
+                                        os.path.join(os.getcwd(), filename))
                                 else:
                                     new_filename.append(filename)
                             output_filename = new_filename
@@ -368,9 +366,11 @@ class Executor:
 
                             else:
                                 if organism in output_filenames:
-                                    output_filenames[organism] += output_filename
+                                    output_filenames[
+                                        organism] += output_filename
                                 else:
-                                    output_filenames[organism] = output_filename
+                                    output_filenames[
+                                        organism] = output_filename
 
                                 for filename in output_filename:
                                     output_extension = os.path.splitext(

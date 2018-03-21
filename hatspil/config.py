@@ -1,19 +1,19 @@
+import os
+import subprocess
+import sys
 from configparser import ConfigParser
 
-import os
-import sys
-import subprocess
 
 class Config:
-    executables = ("java", "java7", "perl", "seqtk",
-                   "fastqc", "samtools", "xenome")
+    executables = ("java", "java7", "perl", "seqtk", "fastqc", "samtools",
+                   "xenome")
     optional_executables = ("novoalign", "bwa")
     jars = ("picard", "varscan", "gatk", "mutect", "bam2tdf")
-    files = ("strelka_basedir", "strelka_config", "hg19_ref",
-             "hg19_index", "hg38_ref", "hg38_index", "mm9_ref", "mm9_index",
-             "mm10_ref", "mm10_index", "cosmic_hg19", "cosmic_hg38",
-             "dbsnp138_hg19", "dbsnp138_hg38", "target_list", "bait_list",
-             "indel_1", "indel_2", "annovar_basedir", "annotations")
+    files = ("strelka_basedir", "strelka_config", "hg19_ref", "hg19_index",
+             "hg38_ref", "hg38_index", "mm9_ref", "mm9_index", "mm10_ref",
+             "mm10_index", "cosmic_hg19", "cosmic_hg38", "dbsnp138_hg19",
+             "dbsnp138_hg38", "target_list", "bait_list", "indel_1", "indel_2",
+             "annovar_basedir", "annotations")
     parameters = ("xenome_index", "xenome_threads", "strelka_threads",
                   "mean_len_library", "sd_len_library", "use_hg19", "use_hg38",
                   "use_mm9", "use_mm10", "kit", "mails", "use_mongodb")
@@ -83,9 +83,9 @@ class Config:
             for section_name in "EXECUTABLES", "JARS", "FILES", "PARAMETERS",\
                     "MONGODB":
                 if section_name not in parser:
-                    sys.stderr.write("WARNING: %s section in config not "
-                                     "found. Values are set to default\n" %
-                                     section_name)
+                    sys.stderr.write(
+                        "WARNING: %s section in config not "
+                        "found. Values are set to default\n" % section_name)
                     continue
 
                 section = parser[section_name]
@@ -155,22 +155,24 @@ class Config:
 
         for param in Config.executables:
             executable = getattr(self, param)
-            if subprocess.call(executable,
-                               shell=True,
-                               stdin=subprocess.DEVNULL,
-                               stdout=subprocess.DEVNULL,
-                               stderr=subprocess.DEVNULL) == 127:
+            if subprocess.call(
+                    executable,
+                    shell=True,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL) == 127:
                 sys.stderr.write("ERROR: %s cannot be executed. "
                                  "Check config.\n" % param)
                 ok = False
 
         for param in Config.optional_executables:
             executable = getattr(self, param)
-            if subprocess.call(executable,
-                               shell=True,
-                               stdin=subprocess.DEVNULL,
-                               stdout=subprocess.DEVNULL,
-                               stderr=subprocess.DEVNULL) == 127:
+            if subprocess.call(
+                    executable,
+                    shell=True,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL) == 127:
                 setattr(self, param, None)
 
         return ok

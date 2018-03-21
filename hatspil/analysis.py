@@ -1,9 +1,9 @@
-from . import utils
-from .exceptions import PipelineError
-from .barcoded_filename import BarcodedFilename
-
 import logging
 import os
+
+from . import utils
+from .barcoded_filename import BarcodedFilename
+from .exceptions import PipelineError
 
 
 class Analysis:
@@ -35,8 +35,7 @@ class Analysis:
         self.log_handler = logging.FileHandler(
             os.path.join(logs_dir, self.basename + ".steps.txt"))
         self.log_handler.setFormatter(
-            logging.Formatter("%(asctime)s-15 %(message)s")
-        )
+            logging.Formatter("%(asctime)s-15 %(message)s"))
         self.logger.addHandler(self.log_handler)
         self.logger.setLevel(level=logging.INFO)
 

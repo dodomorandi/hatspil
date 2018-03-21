@@ -19,8 +19,8 @@ class Range:
     def union(self, other):
         if (self.start < other.start and self.end > other.start) or\
                 (other.start < self.start and other.end > self.start):
-            return Range(min(self.start, other.start),
-                         max(self.end, other.end))
+            return Range(
+                min(self.start, other.start), max(self.end, other.end))
         else:
             return Ranges([self, other])
 
@@ -91,10 +91,8 @@ class GenomicRange(Range):
                 else:
                     strand = "*"
 
-                return GenomicRange(self.chrom,
-                                    union_result.start,
-                                    union_result.end,
-                                    strand)
+                return GenomicRange(self.chrom, union_result.start,
+                                    union_result.end, strand)
             else:
                 return [self, other]
         else:
