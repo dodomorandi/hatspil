@@ -3,7 +3,7 @@ import re
 
 from . import utils
 from .barcoded_filename import BarcodedFilename
-from .exceptions import PipelineError
+from .exceptions import DataError, PipelineError
 
 
 class Executor:
@@ -185,19 +185,19 @@ class Executor:
                         genome_ref, genome_index = \
                             utils.get_genome_ref_index_by_organism(
                                 self.analysis.config, organism)
-                    except:
+                    except DataError:
                         pass
 
                     try:
                         dbsnp = utils.get_dbsnp_by_organism(
                             self.analysis.config, organism)
-                    except:
+                    except DataError:
                         pass
 
                     try:
                         cosmic = utils.get_cosmic_by_organism(
                             self.analysis.config, organism)
-                    except:
+                    except DataError:
                         pass
 
                     if output_format is not None:
@@ -215,7 +215,7 @@ class Executor:
                             for match in re_replacer.finditer(s):
                                 try:
                                     evaluated = eval(match.group(1))
-                                except:
+                                except Exception:
                                     raise PipelineError(
                                         "cannot evaluate %s" % match.group(1))
 
@@ -245,7 +245,7 @@ class Executor:
                                 for match in re_replacer.finditer(s):
                                     try:
                                         evaluated = eval(match.group(1))
-                                    except:
+                                    except Exception:
                                         raise PipelineError(
                                             "cannot evaluate %s" %
                                             match.group(1))
@@ -265,7 +265,7 @@ class Executor:
                             for match in re_replacer.finditer(command):
                                 try:
                                     evaluated = eval(match.group(1))
-                                except:
+                                except Exception:
                                     raise PipelineError(
                                         "cannot evaluate %s" %
                                         (match.group(1)))
@@ -313,7 +313,7 @@ class Executor:
                                         match.group(0),
                                         str(eval(match.group(1))),
                                         error_string)
-                                except:
+                                except Exception:
                                     raise PipelineError(
                                         "cannot replace parameter %s" %
                                         (match.group(0)))
@@ -325,7 +325,7 @@ class Executor:
                                         match.group(0),
                                         str(eval(match.group(1))),
                                         exception_string)
-                                except:
+                                except Exception:
                                     raise PipelineError(
                                         "cannot replace parameter %s" %
                                         (match.group(0)))

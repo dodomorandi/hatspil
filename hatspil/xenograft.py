@@ -175,7 +175,7 @@ class Xenograft:
                         else:
                             out_fd.write("%s\n" % line.strip())
 
-            if not organism in self.analysis.last_operation_filenames:
+            if organism not in self.analysis.last_operation_filenames:
                 self.analysis.last_operation_filenames[organism] = []
             self.analysis.last_operation_filenames[organism].append(
                 os.path.join(os.getcwd(), out_filename))

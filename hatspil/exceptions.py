@@ -4,3 +4,7 @@ class PipelineError(RuntimeError):
 
 class BarcodeError(RuntimeError):
     pass
+
+
+class DataError(RuntimeError):
+    pass
