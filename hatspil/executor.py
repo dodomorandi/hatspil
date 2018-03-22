@@ -97,7 +97,8 @@ class Executor:
                 raise PipelineError("empty input list")
 
             first_mod_input_filenames = list(mod_input_filenames.values())[0]
-            if (isinstance(first_mod_input_filenames, str) and first_mod_input_filenames == "") or\
+            if (isinstance(first_mod_input_filenames, str) and
+                    first_mod_input_filenames == "") or\
                     (isinstance(first_mod_input_filenames, list) and
                      len(first_mod_input_filenames) == 0):
                 raise PipelineError("empty input list")
@@ -114,7 +115,8 @@ class Executor:
                 raise PipelineError("empty input list")
 
             first_input_filenames = list(input_filenames.values())[0]
-            if (isinstance(first_input_filenames, str) and first_input_filenames == "") or \
+            if (isinstance(first_input_filenames, str) and
+                    first_input_filenames == "") or \
                     (isinstance(first_input_filenames, list) and
                      len(first_input_filenames) == 0):
                 raise PipelineError("empty input list")

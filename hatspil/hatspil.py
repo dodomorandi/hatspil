@@ -474,11 +474,11 @@ def main():
                     barcoded_filename.get_sample_index(),
                     barcoded_filename.sequencing)
 
-                if barcoded_filename.tissue == Tissue.BONE_MARROW_NORMAL or \
-                        barcoded_filename.tissue == Tissue.BUCCAL_CELL_NORMAL or \
-                        barcoded_filename.tissue == Tissue.SOLID_TISSUE_NORMAL or \
-                        barcoded_filename.tissue == Tissue.BLOOD_DERIVED_NORMAL or \
-                        barcoded_filename.tissue == Tissue.EBV_IMMORTALIZED_NORMAL:
+                if barcoded_filename.tissue in (
+                        Tissue.BONE_MARROW_NORMAL, Tissue.BUCCAL_CELL_NORMAL,
+                        Tissue.SOLID_TISSUE_NORMAL,
+                        Tissue.BLOOD_DERIVED_NORMAL,
+                        Tissue.EBV_IMMORTALIZED_NORMAL):
                     sample_type = "normal"
                 else:
                     sample_type = "tumor"

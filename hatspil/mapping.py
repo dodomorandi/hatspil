@@ -54,15 +54,15 @@ class Mapping:
             f'-m 20 -o "{{output_filename[0]}}" -p '
             f'"{{output_filename[1]}}" {{input_filename}} '
             f'> "{self.sample_base_out}.cutadapt.txt"',
-            output_format=
-            f"{self.analysis.sample}{{organism_str}}.clipped.R%d.fastq",
+            output_format=f"{self.analysis.sample}{{organism_str}}"
+                          f".clipped.R%d.fastq",
             input_function=lambda l: " ".join(sorted(l)),
             input_split_reads=False,
             split_by_organism=True,
             output_path=self.fastq_dir,
             unlink_inputs=True,
-            output_function=
-            lambda filename: [filename % (index + 1) for index in range(2)])
+            output_function=lambda filename:
+            [filename % (index + 1) for index in range(2)])
 
         self.analysis.logger.info("Finished cutting adapters")
 
@@ -184,13 +184,14 @@ class Mapping:
             f'RGSM={self.analysis.basename}'
             f'{self.max_records_str}',
             output_format=f"{self.analysis.basename}{{organism_str}}.rg.bam",
-            error_string=
-            "Picard AddOrReplaceReadGroups exited with status {status}",
+            error_string="Picard AddOrReplaceReadGroups exited with "
+                         "status {status}",
             exception_string="picard AddOrReplaceReadGroups error",
             unlink_inputs=True)
 
         executor(
-            lambda **kwargs: os.rename(kwargs["input_filename"], kwargs["output_filename"]),
+            lambda **kwargs: os.rename(kwargs["input_filename"],
+                                       kwargs["output_filename"]),
             output_format=f"{self.analysis.basename}{{organism_str}}.bam")
 
         self.analysis.logger.info("Finished alignment SAM->BAM")
@@ -207,15 +208,16 @@ class Mapping:
             self.analysis.logger.addHandler(fh)
             if barcoded.analyte == Analyte.WHOLE_EXOME:
                 executor(
-                    f'{config.novoalign} -oSAM "@RG\tID:{self.analysis.basename}\t'
+                    f'{config.novoalign} '
+                    f'-oSAM "@RG\tID:{self.analysis.basename}\t'
                     f'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
                     f'-d {{genome_index}} '
                     f'-i PE {config.mean_len_library},{config.sd_len_library} '
                     f'-t 90 -f {{input_filename}}> {{output_filename}}',
                     input_function=lambda l: " ".join(sorted(l)),
                     input_split_reads=False,
-                    output_format=
-                    f"{self.analysis.basename}{{organism_str}}.sam",
+                    output_format=f"{self.analysis.basename}"
+                                  f"{{organism_str}}.sam",
                     split_by_organism=True,
                     only_human=True,
                     unlink_inputs=True)
@@ -230,8 +232,8 @@ class Mapping:
                     f'-f {{input_filename}}> {{output_filename}}',
                     input_function=lambda l: " ".join(sorted(l)),
                     input_split_reads=False,
-                    output_format=
-                    f"{self.analysis.basename}{{organism_str}}.sam",
+                    output_format=f"{self.analysis.basename}"
+                                  f"{{organism_str}}.sam",
                     split_by_organism=True,
                     only_human=True,
                     unlink_inputs=True)
@@ -322,8 +324,8 @@ class Mapping:
             f'O={{output_filename}} R={{genome_ref}} '
             f'CREATE_INDEX=true'
             f'{self.max_records_str}',
-            output_format=
-            f"{self.analysis.basename}{{organism_str}}.srt.reorder.bam",
+            output_format=f"{self.analysis.basename}"
+                          f"{{organism_str}}.srt.reorder.bam",
             error_string="Picard ReorderSam exited with status {status}",
             exception_string="picard ReorderSam error",
             unlink_inputs=True)
@@ -345,13 +347,14 @@ class Mapping:
                 f'MarkDuplicates '
                 f'I={{input_filename}} '
                 f'O={{output_filename}} '
-                f'M={self.output_basename}{{organism_str}}.marked_dup_metrics.txt '
+                f'M={self.output_basename}{{organism_str}}'
+                '.marked_dup_metrics.txt '
                 f'CREATE_INDEX=true '
                 f'{self.max_records_str}',
-                output_format=
-                f"{self.analysis.basename}{{organism_str}}.srt.marked.dup.bam",
-                error_string=
-                "Picard MarkDuplicates exited with status {status}",
+                output_format=f"{self.analysis.basename}{{organism_str}}"
+                ".srt.marked.dup.bam",
+                error_string="Picard MarkDuplicates exited with "
+                "status {status}",
                 exception_string="picard MarkDuplicates error",
                 unlink_inputs=True)
         elif barcoded.analyte == Analyte.GENE_PANEL:
@@ -363,18 +366,18 @@ class Mapping:
                 f'ADD_MATE_CIGAR=true '
                 f'IGNORE_MISSING_MATES=true '
                 f'{self.max_records_str}',
-                output_format=
-                f"{self.analysis.basename}{{organism_str}}.srt.mc.bam",
-                error_string=
-                "Picard FixMateInformation exited with status {status}",
+                output_format=f"{self.analysis.basename}{{organism_str}}"
+                ".srt.mc.bam",
+                error_string="Picard FixMateInformation exited with "
+                "status {status}",
                 exception_string="picard FixMateInformation error",
                 unlink_inputs=True)
 
             executor(
                 f'{config.samtools} view -H '
                 f'{{input_filename}} > {{output_filename}}',
-                output_format=
-                f"{self.analysis.basename}{{organism_str}}.srt.mc.filtered.sam",
+                output_format=f"{self.analysis.basename}{{organism_str}}"
+                ".srt.mc.filtered.sam",
                 error_string="samtools view exited with status {status}",
                 exception_string="samtools view error",
                 override_last_files=False)
@@ -382,8 +385,8 @@ class Mapping:
             executor(
                 f'{config.samtools} view '
                 f'{{input_filename}} | grep "MC:" >> {{output_filename}}',
-                output_format=
-                f"{self.analysis.basename}{{organism_str}}.srt.mc.filtered.sam",
+                output_format=f"{self.analysis.basename}{{organism_str}}"
+                ".srt.mc.filtered.sam",
                 error_string="samtools view exited with status {status}",
                 exception_string="samtools view error",
                 unlink_inputs=True)
@@ -393,19 +396,21 @@ class Mapping:
                 f'UmiAwareMarkDuplicatesWithMateCigar '
                 f'I={{input_filename}} '
                 f'O={{output_filename}} '
-                f'UMI_METRICS_FILE={self.output_basename}{{organism_str}}.UMI_metrics.txt '
-                f'METRICS_FILE={self.output_basename}{{organism_str}}.marked_dup_metrics.txt '
+                f'UMI_METRICS_FILE={self.output_basename}{{organism_str}}'
+                '.UMI_metrics.txt '
+                f'METRICS_FILE={self.output_basename}{{organism_str}}'
+                '.marked_dup_metrics.txt '
                 f'UMI_TAG_NAME=BX '
                 f'CREATE_INDEX=true '
                 f'TAGGING_POLICY=All '
                 f'REMOVE_DUPLICATES=true '
                 f'{self.max_records_str}',
-                output_format=
-                f"{self.analysis.basename}{{organism_str}}.srt.no_duplicates.bam",
-                error_string=
-                "Picard UmiAwareMarkDuplicatesWithMateCigar exited with status {status}",
-                exception_string=
-                "picard UmiAwareMarkDuplicatesWithMateCigar error",
+                output_format=f"{self.analysis.basename}{{organism_str}}"
+                ".srt.no_duplicates.bam",
+                error_string="Picard UmiAwareMarkDuplicatesWithMateCigar "
+                "exited with status {status}",
+                exception_string="picard UmiAwareMarkDuplicatesWithMateCigar "
+                "error",
                 unlink_inputs=True)
         else:
             raise Exception("Unhandled analyte")
@@ -475,7 +480,8 @@ class Mapping:
             f'{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
             f'-T PrintReads -R {{genome_ref}} '
             f'-I {{input_filename}} -nct {self.gatk_threads} '
-            f'-BQSR {self.output_basename}{{organism_str}}.recalibration.table '
+            f'-BQSR {self.output_basename}{{organism_str}}'
+            '.recalibration.table '
             f'-o {{output_filename}}',
             output_format=f"{self.analysis.basename}{{organism_str}}"
             ".srt.realigned.recal.bam",
@@ -502,9 +508,12 @@ class Mapping:
         executor(
             f'{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
             f'-T AnalyzeCovariates -R {{genome_ref}} '
-            f'-before {self.output_basename}{{organism_str}}.recalibration.table '
-            f'-after {self.output_basename}{{organism_str}}.post_realignment.table '
-            f'-plots {self.output_basename}{{organism_str}}.recalibration_plots.pdf',
+            f'-before {self.output_basename}{{organism_str}}'
+            '.recalibration.table '
+            f'-after {self.output_basename}{{organism_str}}'
+            '.post_realignment.table '
+            f'-plots {self.output_basename}{{organism_str}}'
+            '.recalibration_plots.pdf',
             error_string="Gatk AnalyzeCovariates exited with status {status}",
             exception_string="gatk AnalyzeCovariates error",
             override_last_files=False)
@@ -517,8 +526,8 @@ class Mapping:
             f'M={self.output_basename}{{organism_str}}.no_dup_metrics.txt '
             f'CREATE_INDEX=true'
             f'{self.max_records_str}',
-            output_format=
-            f"{self.analysis.basename}{{organism_str}}.srt.realigned.recal.no_dup.bam",
+            output_format=f"{self.analysis.basename}{{organism_str}}"
+            ".srt.realigned.recal.no_dup.bam",
             error_string="Picard MarkDuplicates exited with status {status}",
             exception_string="picard MarkDuplicates error",
             unlink_inputs=True)
@@ -541,7 +550,8 @@ class Mapping:
             f'MINIMUM_BASE_QUALITY=0 '
             f'COVERAGE_CAP=10000 '
             f'CLIP_OVERLAPPING_READS=false '
-            f'PER_BASE_COVERAGE={self.output_basename}{{organism_str}}.coverage.txt'
+            f'PER_BASE_COVERAGE={self.output_basename}{{organism_str}}'
+            '.coverage.txt'
             f'{self.max_records_str}',
             error_string="Picard CollectHsMetrics exited with status {status}",
             exception_string="picard CollectHsMetrics error",
@@ -555,8 +565,8 @@ class Mapping:
             f'CHART={self.output_basename}{{organism_str}}.gcbias_metrics.pdf '
             f'S={self.output_basename}{{organism_str}}.gcbias_summ_metrics.txt'
             f'{self.max_records_str}',
-            error_string=
-            "Picard CollectGcBiasMetrics exited with status {status}",
+            error_string="Picard CollectGcBiasMetrics exited with "
+            "status {status}",
             exception_string="picard CollectGcBiasMetrics error",
             override_last_files=False)
 

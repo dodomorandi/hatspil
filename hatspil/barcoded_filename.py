@@ -265,13 +265,13 @@ class BarcodedFilename:
             if xenograft_parent is None or\
                     xenograft_child is None:
                 raise Exception(
-                    "all three xenograft parameters (generation, parent and child) must be specified"
-                )
+                    "all three xenograft parameters (generation, parent and "
+                    "child) must be specified")
 
             if not barcoded.tissue.is_xenograft():
                 raise Exception(
-                    "xenograft parameters have been passed, but the tissue is not a xenograft"
-                )
+                    "xenograft parameters have been passed, but the tissue "
+                    "is not a xenograft")
 
             barcoded.xenograft = Xenograft(
                 int(xenograft_generation), int(xenograft_parent),
@@ -284,8 +284,8 @@ class BarcodedFilename:
 
             if barcoded.tissue.is_xenograft():
                 raise Exception(
-                    "'sample' parameter has been passed, but tissue is xenograft"
-                )
+                    "'sample' parameter has been passed, but tissue "
+                    "is xenograft")
 
             barcoded.sample = sample
             barcoded.xenograft = None
@@ -326,16 +326,19 @@ class BarcodedFilename:
         return os.path.join(analysis_dir, barcode_dir)
 
     def __repr__(self):
-        repr = ("{project=" + str(self.project) + " patient=" + str(
-            self.patient) + " tissue=" + self.get_tissue_str() + " molecule=" +
-                str(self.molecule) + " analyte=" + str(self.analyte) +
-                " kit=" + str(self.kit) + " biopsy=" + str(self.biopsy))
+        repr = "{project=" + str(self.project) +\
+               " patient=" + str(self.patient) +\
+               " tissue=" + self.get_tissue_str() +\
+               " molecule=" + str(self.molecule) +\
+               " analyte=" + str(self.analyte) +\
+               " kit=" + str(self.kit) +\
+               " biopsy=" + str(self.biopsy)
 
         if self.xenograft:
             repr += " xenograft=" + self.xenograft.to_human()
 
-        repr += " sample=" + str(self.get_sample_index())
-        repr += " sequencing=" + str(self.sequencing)
+        repr += " sample=" + str(self.get_sample_index()) +\
+                " sequencing=" + str(self.sequencing)
 
         if self.organism:
             repr += " organism=" + str(self.organism)

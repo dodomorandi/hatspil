@@ -22,10 +22,13 @@ class VarScan:
         os.makedirs(analysis.get_out_dir(), exist_ok=True)
 
         if self.analysis.using_normals:
-            self.first_fifo = "/data/scratch/matteo/%s.fifo" % self.analysis.basename
+            self.first_fifo = "/data/scratch/matteo/%s.fifo" %\
+                              self.analysis.basename
         else:
-            self.first_fifo = "/data/scratch/matteo/%s.fifo" % self.analysis.basename
-            self.second_fifo = "/data/scratch/matteo/%s.indel.fifo" % self.analysis.basename
+            self.first_fifo = "/data/scratch/matteo/%s.fifo" %\
+                              self.analysis.basename
+            self.second_fifo = "/data/scratch/matteo/%s.indel.fifo" %\
+                               self.analysis.basename
 
     def chdir(self):
         os.chdir(self.analysis.get_out_dir())
