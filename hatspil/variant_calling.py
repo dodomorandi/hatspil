@@ -46,7 +46,7 @@ class VariantCalling:
 
         try:
             os.makedirs(self.annovar_dirname, exist_ok=True)
-        except:
+        except OSError:
             pass
 
         self.annovar_file = os.path.join(

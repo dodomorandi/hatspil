@@ -7,6 +7,8 @@ import shutil
 import subprocess
 from argparse import ArgumentTypeError
 
+from .exceptions import DataError
+
 
 def get_current():
     today = datetime.date.today()
@@ -69,7 +71,7 @@ def get_genome_ref_index_by_organism(config, organism):
     elif organism == "mm10":
         return (config.mm10_ref, config.mm10_index)
     else:
-        raise RuntimeError("Invalid organism")
+        raise DataError("Invalid organism")
 
 
 def get_dbsnp_by_organism(config, organism):
@@ -78,7 +80,7 @@ def get_dbsnp_by_organism(config, organism):
     elif organism == "hg38":
         return config.dbsnp138_hg38
     else:
-        raise RuntimeError("Invalid organism")
+        raise DataError("Invalid organism")
 
 
 def get_cosmic_by_organism(config, organism):
@@ -87,7 +89,7 @@ def get_cosmic_by_organism(config, organism):
     elif organism == "hg38":
         return config.cosmic_hg38
     else:
-        raise RuntimeError("Invalid organism")
+        raise DataError("Invalid organism")
 
 
 def get_picard_max_records_string(max_records):
@@ -144,7 +146,7 @@ def check_gz(filename):
                 fd.seek(chunk_size, os.SEEK_CUR)
 
             return True
-        except:
+        except Exception:
             return False
 
 
@@ -160,6 +162,6 @@ def flatten(iterable):
 def parsed_date(string):
     try:
         date = datetime.datetime.strptime(string, "%Y_%m_%d")
-    except:
+    except ValueError:
         raise ArgumentTypeError("expected string in format YYYY_MM_DD")
     return "%04d_%02d_%02d" % (date.year, date.month, date.day)

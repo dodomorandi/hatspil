@@ -224,14 +224,14 @@ def main():
     if config.use_mongodb:
         try:
             from pymongo import MongoClient
-        except:
+        except ImportError:
             print("ERROR: use_mongodb is set to true inside config file but "
                   "pymongo is not installed. Please install it using pip3.")
             exit(-4)
 
         try:
             client = MongoClient(config.mongodb_host, config.mongodb_port)
-        except:
+        except Exception:
             print("ERROR: cannot connect to MongoDB. Please check the config "
                   "file under the section MONGODB")
             exit(-4)
@@ -239,7 +239,7 @@ def main():
         db = client[config.mongodb_database]
         try:
             db.authenticate(config.mongodb_username, config.mongodb_password)
-        except:
+        except Exception:
             print("ERROR: MongoDB authentication failed. Please check the "
                   "config file under the section MONGODB")
             exit(-4)
@@ -403,7 +403,7 @@ def main():
         try:
             import rpy2.robjects.packages as rpackages
             from rpy2.robjects.vectors import StrVector
-        except:
+        except ImportError:
             rpackages = None
             print("cannot correctly import rpy2. " "R checks are skipped.")
 
