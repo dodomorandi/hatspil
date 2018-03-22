@@ -40,7 +40,8 @@ class Xenograft:
         for filename in self.input_filenames:
             barcoded_filename = BarcodedFilename(filename)
             if barcoded_filename.tissue == Tissue.PRIMARY_XENOGRAFT_TISSUE or \
-                    barcoded_filename.tissue == Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE:
+                    barcoded_filename.tissue == \
+                    Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE:
                 valid_filenames.append(filename)
             else:
                 organism = barcoded_filename.organism
@@ -121,14 +122,14 @@ class Xenograft:
             f"--tmp-dir {temp_dir} "
             f"> \"{self.sample_base_out}.xenome_summary.txt\"",
             input_filenames=self.input_filenames,
-            input_function=lambda filenames: " ".join(["-i %s" % filename for filename in filenames]),
+            input_function=lambda filenames: " ".join(
+                ["-i %s" % filename for filename in filenames]),
             output_format=f"{self.analysis.sample}_%s_%d.fastq",
-            output_function=lambda filename: [filename % (organism, index)
-                                              for organism, index
-                                              in itertools.product(["hg19", "mm10"],
-                                                                   [1, 2])],
-            input_split_reads=False
-        )
+            output_function=lambda filename: [
+                filename % (organism, index) for organism, index in itertools.
+                product(["hg19", "mm10"], [1, 2])
+            ],
+            input_split_reads=False)
         shutil.rmtree(temp_dir)
 
         if self.analysis.run_fake:

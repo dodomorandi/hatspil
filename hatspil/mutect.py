@@ -23,7 +23,8 @@ class Mutect:
         executor = Executor(self.analysis)
         if self.analysis.using_normals:
             executor(
-                f"{config.java7} {config.mutect_jvm_args} -jar {config.mutect} "
+                f"{config.java7} {config.mutect_jvm_args} "
+                f"-jar {config.mutect} "
                 f'{config.mutect_args} --reference_sequence '
                 f'{{genome_ref}} --dbsnp {{dbsnp}} --cosmic '
                 f'{{cosmic}} --input_file:tumor {{input_filename["tumor"]}} '
@@ -35,7 +36,8 @@ class Mutect:
                 use_normals=True)
         else:
             executor(
-                f"{config.java7} {config.mutect_jvm_args} -jar {config.mutect} "
+                f"{config.java7} {config.mutect_jvm_args} "
+                f"-jar {config.mutect} "
                 f'{config.mutect_args} --reference_sequence '
                 f'{{genome_ref}} --dbsnp {{dbsnp}} --cosmic '
                 f'{{cosmic}} --input_file:tumor {{input_filename}} --out '

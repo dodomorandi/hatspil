@@ -35,9 +35,9 @@ class VariantCalling:
             "*.mutect*.vcf")
         self.varscan_filenames = {}
         for varscan_type in ("snp", "indel"):
-            self.varscan_filenames[varscan_type] =\
-                glob.glob(os.path.join(analysis.get_out_dir(), self.analysis.basename)
-                          + "*.varscan2." + varscan_type + ".vcf")
+            self.varscan_filenames[varscan_type] = glob.glob(
+                os.path.join(analysis.get_out_dir(), self.analysis.basename) +
+                "*.varscan2." + varscan_type + ".vcf")
         self.annovar_dirname = os.path.join(
             analysis.get_out_dir(), self.analysis.basename + "_annovar")
 
@@ -77,11 +77,12 @@ class VariantCalling:
                     mutect_data = mutect_data.join(
                         pd.read_table(mutect_filename, comment="#"))
 
-            mutect_data.insert(
-                0, "key",
-                mutect_data.apply(
-                    lambda row: "%s:%d-%d_%s_%s" % (row.contig, row.position, row.position, row.ref_allele, row.alt_allele),
-                    axis=1))
+            mutect_data.insert(0, "key",
+                               mutect_data.apply(
+                                   lambda row: "%s:%d-%d_%s_%s" %
+                                   (row.contig, row.position, row.position,
+                                    row.ref_allele, row.alt_allele),
+                                   axis=1))
 
             mutect_data.drop(
                 mutect_data[mutect_data.tumor_f <
@@ -92,11 +93,13 @@ class VariantCalling:
                     mutect_data.failure_reasons != "possible_contamination")]
                 .index,
                 inplace=True)
-            mutect_data.drop(mutect_data[
-                    mutect_data.strand_bias_counts.str.split(R"\W")
-                        .map(lambda values: [int(value) for value in values if value != ""])
-                        .map(lambda values: values[2] <= 0 or values[3] <= 0)].index,
-                    inplace=True)
+            mutect_data.drop(
+                mutect_data[mutect_data.strand_bias_counts.str.split(R"\W")
+                            .map(lambda values: [
+                                int(value) for value in values if value != ""
+                            ]).map(lambda values: (values[2] <= 0 or values[3]
+                                                   <= 0))].index,
+                inplace=True)
             mutect_data[
                 "tot_cov"] = mutect_data.t_ref_count + mutect_data.t_alt_count
             mutect_data.drop(
@@ -198,7 +201,8 @@ class VariantCalling:
                     continue
 
                 current_data["key"] = current_data.apply(
-                    lambda row: "%s:%d-%d_%s_%s" % (row.chr, row.start, row.end, row.ref, row.alt),
+                    lambda row: "%s:%d-%d_%s_%s" % (row.chr, row.start, row.
+                                                    end, row.ref, row.alt),
                     axis=1)
                 tumor = current_data[current_data.sampleNames ==
                                      "TUMOR"].copy()
@@ -224,12 +228,11 @@ class VariantCalling:
                               | (tumor.ADF <= 0) | (tumor.ADR <= 0)].index,
                         inplace=True)
                 else:
-                    tumor.drop(
-                        tumor[(~tumor.indelError) | (
-                            tumor.totalDepth < VariantCalling.min_cov_position
-                        ) | (tumor.FREQ < VariantCalling.min_allele_frequency)
-                              | (tumor.ADF <= 0) | (tumor.ADR <= 0)].index,
-                        inplace=True)
+                    drop_condition = (~tumor.indelError) | (
+                        tumor.totalDepth < VariantCalling.min_cov_position
+                    ) | (tumor.FREQ < VariantCalling.min_allele_frequency) | (
+                        tumor.ADF <= 0) | (tumor.ADR <= 0)
+                    tumor.drop(tumor[drop_condition].index, inplace=True)
 
                 if varscan_data is None:
                     varscan_data = tumor
@@ -252,10 +255,14 @@ class VariantCalling:
 
                     tumor_data = samples["tumor"].data
                     if strelka_type == "snvs":
-                        coverage = tumor_data.AU[VariantCalling.strelka_tier] +\
-                            tumor_data.CU[VariantCalling.strelka_tier] +\
-                            tumor_data.GU[VariantCalling.strelka_tier] +\
-                            tumor_data.TU[VariantCalling.strelka_tier]
+                        coverage = tumor_data.AU[VariantCalling.
+                                                 strelka_tier] +\
+                            tumor_data.CU[VariantCalling.
+                                          strelka_tier] +\
+                            tumor_data.GU[VariantCalling.
+                                          strelka_tier] +\
+                            tumor_data.TU[VariantCalling.
+                                          strelka_tier]
                     else:
                         if VariantCalling.strelka_tier == 0:
                             coverage = tumor_data.DP
@@ -263,9 +270,9 @@ class VariantCalling:
                             coverage = tumor_data.DP2
 
                     # This is how the Strelka manual whats the frequency to be
-                    # calculated. Disclaimer: this does not make sense from a math
-                    # point of view. If you are concerned about this method, go ask
-                    # Illumina.
+                    # calculated. Disclaimer: this does not make sense from a
+                    # math point of view. If you are concerned about this
+                    # method, go ask Illumina.
                     for alternative_base in record.ALT:
                         if strelka_type == "snvs":
                             reference_coverage = \
@@ -374,7 +381,8 @@ class VariantCalling:
             f"{config.perl} table_annovar.pl "
             f"{{input_filename}} humandb/ "
             f"-buildver {VariantCalling.build_version} "
-            f"-protocol refGene,snp138,cosmic70,clinvar_20160302,popfreq_all_20150413,dbnsfp30a,cadd13 "
+            f"-protocol refGene,snp138,cosmic70,clinvar_20160302,"
+            f"popfreq_all_20150413,dbnsfp30a,cadd13 "
             f"-operation g,f,f,f,f,f,f -nastring NA -remove -v",
             input_filenames=self.annovar_file,
             override_last_files=False,
@@ -390,11 +398,11 @@ class VariantCalling:
         annotation = pd.read_table(self.multianno_filename)
         annotation = annotation[annotation.Chr.str.match(
             R"chr(?:\d{1,2}|[xXyY])")]
-        annotation.insert(
-            0, "id",
-            annotation.apply(
-                lambda row: "%s:%d-%d_%s_%s" % (row.Chr, row.Start, row.End, row.Ref, row.Alt),
-                axis=1))
+        annotation.insert(0, "id",
+                          annotation.apply(
+                              lambda row: "%s:%d-%d_%s_%s" %
+                              (row.Chr, row.Start, row.End, row.Ref, row.Alt),
+                              axis=1))
 
         cancer_genes = pd.read_hdf(VariantCalling.dataset_filename,
                                    "cancer_genes")
@@ -412,8 +420,9 @@ class VariantCalling:
         annotation.loc[annotation.gene_type == "rst", "gene_type"] = float(
             "nan")
         annotation["cancer_gene_site"] = float("nan")
-        annotation.loc[annotation["Gene.refGene"].isin(
-            selected_cancer_genes.symbol),
+        selected_symbols = annotation["Gene.refGene"].isin(
+            selected_cancer_genes.symbol)
+        annotation.loc[selected_symbols,
                        "cancer_gene_site"] = VariantCalling.cancer_site
 
         annotation.loc[annotation["Func.refGene"] == "splicing",
@@ -462,14 +471,16 @@ class VariantCalling:
             raise Exception("hgnc ranges expected to be not resorted")
         overlaps = annotation_ranges.overlaps(hgnc_ranges)
         annotation.loc[[index[0] for index in overlaps],
-                      "hgnc_refseq_accession"] =\
-            hgnc.loc[[index[1] for index in overlaps]].refseq_accession.tolist()
+                       "hgnc_refseq_accession"] = hgnc.loc[[
+                           index[1] for index in overlaps
+                       ]].refseq_accession.tolist()
 
         annotation["hgnc_canonical_refseq"] = annotation.apply(
-            lambda row : "|".join([refgene
-                                   for refgene
-                                   in str(row["AAChange.refGene"]).split(",")
-                                   if re.search(str(row.hgnc_refseq_accession), refgene)]), axis=1)
+            lambda row: "|".join([
+                refgene for refgene in str(row["AAChange.refGene"]).split(",")
+                if re.search(str(row.hgnc_refseq_accession), refgene)
+            ]),
+            axis=1)
         empty_canonical_refseqs = annotation.hgnc_canonical_refseq == ""
         annotation.loc[
             empty_canonical_refseqs, "alternative_refseq"] = annotation.loc[
@@ -621,8 +632,10 @@ class VariantCalling:
                                   "from ANNOVAR")
 
     def run(self):
-        if len(self.mutect_filenames) + sum(
-            [len(values) for values in self.varscan_filenames.values()]) > 0:
+        if len(self.mutect_filenames) +\
+                sum([len(values)
+                     for values
+                     in self.varscan_filenames.values()]) > 0:
             self.prepare_for_annovar()
             self.annovar()
             self.collect_annotated_variants()
