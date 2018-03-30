@@ -1,18 +1,19 @@
 import os
 
+from .analysis import Analysis
 from .executor import Executor
 
 
 class Mutect:
-    def __init__(self, analysis):
+    def __init__(self, analysis: Analysis) -> None:
         self.analysis = analysis
 
         os.makedirs(analysis.get_out_dir(), exist_ok=True)
 
-    def chdir(self):
+    def chdir(self) -> None:
         os.chdir(self.analysis.get_out_dir())
 
-    def run(self):
+    def run(self) -> None:
         self.analysis.logger.info("Running mutect")
         self.chdir()
         config = self.analysis.config

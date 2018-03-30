@@ -16,7 +16,7 @@ from .mapping import Aligner
 from .runner import Runner
 
 
-def get_parser():
+def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Makes your life easier when performing some HTS "
         "analysis.")
@@ -166,7 +166,7 @@ def get_parser():
     return parser
 
 
-def main():
+def main() -> None:
     parser = get_parser()
     args = parser.parse_args()
     if args.configout is not None:

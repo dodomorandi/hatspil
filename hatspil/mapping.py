@@ -8,6 +8,7 @@ import tempfile
 from enum import Enum, auto
 
 from . import utils
+from .analysis import Analysis
 from .barcoded_filename import Analyte, BarcodedFilename
 from .executor import Executor
 
@@ -18,7 +19,7 @@ class Aligner(Enum):
 
 
 class Mapping:
-    def __init__(self, analysis, fastq_dir):
+    def __init__(self, analysis: Analysis, fastq_dir: str) -> None:
         self.analysis = analysis
         self.fastq_dir = fastq_dir
 
@@ -27,11 +28,10 @@ class Mapping:
                                             self.analysis.sample)
         self.output_basename = os.path.join("REPORTS", self.analysis.basename)
 
-        os.makedirs(os.path.join(self.analysis.get_bam_dir(),
-                                 "REPORTS"),
-                    exist_ok=True)
-        os.makedirs(os.path.join(self.fastq_dir, "REPORTS"),
-                    exist_ok=True)
+        os.makedirs(
+            os.path.join(self.analysis.get_bam_dir(), "REPORTS"),
+            exist_ok=True)
+        os.makedirs(os.path.join(self.fastq_dir, "REPORTS"), exist_ok=True)
 
         self.gatk_threads = self.analysis.parameters["gatk_threads"]
         self.max_records_str = utils.get_picard_max_records_string(
@@ -40,10 +40,10 @@ class Mapping:
         self.sort_tempdir = os.path.join(self.analysis.get_bam_dir(),
                                          "%s_sort_tmp" % self.analysis.sample)
 
-    def chdir(self):
+    def chdir(self) -> None:
         os.chdir(self.analysis.get_bam_dir())
 
-    def cutadapt(self):
+    def cutadapt(self) -> None:
         self.analysis.logger.info("Cutting adapters")
         self.chdir()
 
@@ -55,7 +55,7 @@ class Mapping:
             f'"{{output_filename[1]}}" {{input_filename}} '
             f'> "{self.sample_base_out}.cutadapt.txt"',
             output_format=f"{self.analysis.sample}{{organism_str}}"
-                          f".clipped.R%d.fastq",
+            f".clipped.R%d.fastq",
             input_function=lambda l: " ".join(sorted(l)),
             input_split_reads=False,
             split_by_organism=True,
@@ -66,7 +66,7 @@ class Mapping:
 
         self.analysis.logger.info("Finished cutting adapters")
 
-    def fastqc(self):
+    def fastqc(self) -> None:
         self.analysis.logger.info("Running fastqc")
         self.chdir()
 
@@ -78,7 +78,7 @@ class Mapping:
 
         self.analysis.logger.info("Finished fastqc")
 
-    def trim(self):
+    def trim(self) -> None:
         trim_end = False
         if self.analysis.parameters["use_xenome"]:
             trim_end = True
@@ -115,7 +115,7 @@ class Mapping:
 
         self.analysis.logger.info("Finished trimming")
 
-    def filter_alignment(*args, **kwargs):
+    def filter_alignment(*args, **kwargs) -> None:
         """
         keep only aligned reads with maximum of N mismatches and without
         Ns, hard clipping and padding
@@ -151,7 +151,7 @@ class Mapping:
                 tmp_fd.write(line)
         os.rename(tmp_filename, input_filename)
 
-    def convert_alignment(self):
+    def convert_alignment(self) -> None:
         self.chdir()
         config = self.analysis.config
         executor = Executor(self.analysis)
@@ -185,7 +185,7 @@ class Mapping:
             f'{self.max_records_str}',
             output_format=f"{self.analysis.basename}{{organism_str}}.rg.bam",
             error_string="Picard AddOrReplaceReadGroups exited with "
-                         "status {status}",
+            "status {status}",
             exception_string="picard AddOrReplaceReadGroups error",
             unlink_inputs=True)
 
@@ -196,7 +196,7 @@ class Mapping:
 
         self.analysis.logger.info("Finished alignment SAM->BAM")
 
-    def align_novoalign(self):
+    def align_novoalign(self) -> None:
         self.analysis.logger.info("Running alignment with NovoAlign")
         self.chdir()
         config = self.analysis.config
@@ -217,7 +217,7 @@ class Mapping:
                     input_function=lambda l: " ".join(sorted(l)),
                     input_split_reads=False,
                     output_format=f"{self.analysis.basename}"
-                                  f"{{organism_str}}.sam",
+                    f"{{organism_str}}.sam",
                     split_by_organism=True,
                     only_human=True,
                     unlink_inputs=True)
@@ -233,7 +233,7 @@ class Mapping:
                     input_function=lambda l: " ".join(sorted(l)),
                     input_split_reads=False,
                     output_format=f"{self.analysis.basename}"
-                                  f"{{organism_str}}.sam",
+                    f"{{organism_str}}.sam",
                     split_by_organism=True,
                     only_human=True,
                     unlink_inputs=True)
@@ -281,7 +281,7 @@ class Mapping:
         self.analysis.logger.info(
             "Alignment finished. Aligner used: NovoAlign")
 
-    def align_bwa(self):
+    def align_bwa(self) -> None:
         self.analysis.logger.info("Running alignment with BWA")
         self.chdir()
         config = self.analysis.config
@@ -297,7 +297,7 @@ class Mapping:
             unlink_inputs=True)
         self.analysis.logger.info("Alignment finished. Aligner used: BWA")
 
-    def sort_bam(self):
+    def sort_bam(self) -> None:
         self.analysis.logger.info("Sorting BAM(s)")
         self.chdir()
         config = self.analysis.config
@@ -325,7 +325,7 @@ class Mapping:
             f'CREATE_INDEX=true'
             f'{self.max_records_str}',
             output_format=f"{self.analysis.basename}"
-                          f"{{organism_str}}.srt.reorder.bam",
+            f"{{organism_str}}.srt.reorder.bam",
             error_string="Picard ReorderSam exited with status {status}",
             exception_string="picard ReorderSam error",
             unlink_inputs=True)
@@ -334,7 +334,7 @@ class Mapping:
             shutil.rmtree(self.sort_tempdir)
         self.analysis.logger.info("Finished sorting")
 
-    def mark_duplicates(self):
+    def mark_duplicates(self) -> None:
         self.analysis.logger.info("Marking duplicates")
         self.chdir()
         config = self.analysis.config
@@ -417,7 +417,7 @@ class Mapping:
 
         self.analysis.logger.info("Finished marking duplicates")
 
-    def indel_realign(self):
+    def indel_realign(self) -> None:
         self.analysis.logger.info("Running indel realignment")
         self.chdir()
         config = self.analysis.config
@@ -452,14 +452,14 @@ class Mapping:
 
         self.analysis.logger.info("Finished indel realignment")
 
-    def _filter_non_hg(self, filename):
+    def _filter_non_hg(self, filename) -> str:
         organism = BarcodedFilename(filename).organism
         if organism is None or organism.lower().startswith("hg"):
             return filename
         else:
             return None
 
-    def recalibration(self):
+    def recalibration(self) -> None:
         self.analysis.logger.info("Running base recalibration")
         self.chdir()
         config = self.analysis.config
@@ -534,7 +534,7 @@ class Mapping:
 
         self.analysis.logger.info("Finished recalibration")
 
-    def metrics_collection(self):
+    def metrics_collection(self) -> None:
         self.analysis.logger.info("Running metrics collection")
         self.chdir()
         config = self.analysis.config
@@ -572,7 +572,7 @@ class Mapping:
 
         self.analysis.logger.info("Finished metrics collection")
 
-    def bam2tdf(self):
+    def bam2tdf(self) -> None:
         self.analysis.logger.info("Converting BAM to TDF")
         self.chdir()
         config = self.analysis.config
@@ -584,7 +584,7 @@ class Mapping:
             exception_string="bam2tdf error",
             override_last_files=False)
 
-    def compress_fastq(self):
+    def compress_fastq(self) -> None:
         self.analysis.logger.info("Compressing fastq files")
         self.chdir()
         fastq_files = utils.find_fastqs_by_organism(self.analysis.sample,
@@ -594,7 +594,7 @@ class Mapping:
                 utils.gzip(filename)
         self.analysis.logger.info("Finished compressing fastq files")
 
-    def run(self):
+    def run(self) -> None:
         barcoded = BarcodedFilename.from_sample(self.analysis.sample)
         if barcoded.analyte == Analyte.WHOLE_EXOME:
             if self.analysis.parameters["use_cutadapt"]:

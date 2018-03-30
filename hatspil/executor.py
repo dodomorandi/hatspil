@@ -1,32 +1,34 @@
 import os
 import re
+from typing import Callable, Iterable, List
 
 from . import utils
+from .analysis import Analysis
 from .barcoded_filename import BarcodedFilename
 from .exceptions import DataError, PipelineError
 
 
 class Executor:
-    def __init__(self, analysis):
+    def __init__(self, analysis: Analysis) -> None:
         self.analysis = analysis
 
     def __call__(self,
-                 command,
-                 output_format=None,
-                 input_filenames=None,
-                 input_function=None,
-                 input_split_reads=True,
-                 output_path=None,
-                 output_function=None,
-                 error_string=None,
-                 exception_string=None,
-                 override_last_files=True,
-                 write_bam_files=True,
-                 unlink_inputs=False,
-                 save_only_last=True,
-                 use_normals=False,
-                 split_by_organism=False,
-                 only_human=False):
+                 command: str,
+                 output_format: str = None,
+                 input_filenames: List[str] = None,
+                 input_function: Callable[Iterable[str], str] = None,
+                 input_split_reads: bool = True,
+                 output_path: str = None,
+                 output_function: Callable[Iterable[str], str] = None,
+                 error_string: str = None,
+                 exception_string: str = None,
+                 override_last_files: bool = True,
+                 write_bam_files: bool = True,
+                 unlink_inputs: bool = False,
+                 save_only_last: bool = True,
+                 use_normals: bool = False,
+                 split_by_organism: bool = False,
+                 only_human: bool = False) -> None:
 
         re_replacer = re.compile(r"\{([^}]+)\}")
 

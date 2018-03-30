@@ -4,13 +4,14 @@ import re
 import shutil
 
 from . import utils
+from .analysis import Analysis
 from .barcoded_filename import BarcodedFilename, Tissue
 from .exceptions import PipelineError
 from .executor import Executor
 
 
 class Xenograft:
-    def __init__(self, analysis, fastq_dir):
+    def __init__(self, analysis: Analysis, fastq_dir: str) -> None:
         self.analysis = analysis
         self.fastq_dir = fastq_dir
         self.xenome_command = \
@@ -25,10 +26,10 @@ class Xenograft:
         self.already_done = {}
         self.input_filenames = None
 
-    def chdir(self):
+    def chdir(self) -> None:
         os.chdir(self.fastq_dir)
 
-    def _check_lambda(self, **kwargs):
+    def _check_lambda(self, **kwargs) -> None:
         self.input_filenames = [
             filename
             for filename in utils.flatten(kwargs["input_filenames"].values())
@@ -88,7 +89,7 @@ class Xenograft:
                 utils.gunzip(fastqgz)
                 self.input_filenames.append(fastqgz[:-3])
 
-    def check(self):
+    def check(self) -> None:
         self.analysis.logger.info("Checking if xenome must be performed")
         self.chdir()
         retval = True
@@ -102,7 +103,7 @@ class Xenograft:
         self.analysis.logger.info("Checking complete")
         return retval
 
-    def xenome(self):
+    def xenome(self) -> None:
         self.analysis.logger.info("Running xenome")
         self.chdir()
 
@@ -137,7 +138,7 @@ class Xenograft:
 
         self.analysis.logger.info("Finished xenome")
 
-    def fix_fastq(self):
+    def fix_fastq(self) -> None:
         match = re.match(R"^[^-]+-[^-]+-(\d)", self.analysis.sample)
         if not match or match.group(1) != "6":
             self.analysis.last_operation_filenames = self.skip_filenames
@@ -191,7 +192,7 @@ class Xenograft:
 
         self.analysis.logger.info("Finished fixing xenome fastq")
 
-    def compress(self):
+    def compress(self) -> None:
         self.analysis.logger.info("Compressing fastq files")
         self.chdir()
         fastq_files = [
@@ -203,16 +204,16 @@ class Xenograft:
 
         self.analysis.logger.info("Finished compressing fastq files")
 
-    def update_last_filenames(self):
+    def update_last_filenames(self) -> None:
         if self.analysis.last_operation_filenames is None:
             self.analysis.last_operation_filenames = {}
         self.analysis.last_operation_filenames.update(self.skip_filenames)
         self.analysis.last_operation_filenames.update(self.already_done)
 
-    def cannot_unlink_results(self):
+    def cannot_unlink_results(self) -> None:
         self.analysis.can_unlink = False
 
-    def run(self):
+    def run(self) -> None:
         if self.check():
             self.xenome()
             self.fix_fastq()

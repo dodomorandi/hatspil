@@ -1,11 +1,12 @@
 import os
 
 from . import utils
+from .analysis import Analysis
 from .executor import Executor
 
 
 class Starter:
-    def run(analysis, directory="."):
+    def run(analysis: Analysis, directory: str = ".") -> None:
         input_filenames = [
             os.path.join(directory,
                          filename) for pair in utils.find_fastqs_by_organism(

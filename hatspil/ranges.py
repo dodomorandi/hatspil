@@ -1,12 +1,18 @@
+from typing import List, Sequence, Tuple, TypeVar, Union
+
+RangeType = TypeVar("RangeType", bound="Range")
+RangesType = TypeVar("RangesType", bound="Ranges")
+
+
 class Range:
-    def __init__(self, start, end):
+    def __init__(self, start: int, end: int) -> None:
         self.start = start
         self.end = end
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.end - self.start
 
-    def intersect(self, other):
+    def intersect(self, other: "Range") -> "Range":
         new_start = max(self.start, other.start)
         new_end = min(self.end, other.end)
 
@@ -16,7 +22,7 @@ class Range:
 
         return Range(new_start, new_end)
 
-    def union(self, other):
+    def union(self, other: "Range") -> Union["Range", "Ranges"]:
         if (self.start < other.start and self.end > other.start) or\
                 (other.start < self.start and other.end > self.start):
             return Range(
@@ -24,30 +30,30 @@ class Range:
         else:
             return Ranges([self, other])
 
-    def valid(self):
+    def valid(self) -> bool:
         return self.start != self.end
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "%d-%d" % (self.start, self.end)
 
-    def __lt__(self, other):
+    def __lt__(self: RangeType, other: RangeType) -> bool:
         return self.start < other.start or \
             (self.start == other.start and self.end < other.end)
 
-    def __le__(self, other):
+    def __le__(self: RangeType, other: RangeType) -> bool:
         return self.start < other.start or \
             (self.start == other.start and self.end <= other.end)
 
 
-class Ranges(list):
-    def __init__(self, ranges=[]):
+class Ranges(List[RangeType]):
+    def __init__(self, ranges: Sequence[RangeType] = []) -> None:
         super().__init__(ranges)
         self.resorted = not all(self[index] <= self[index + 1]
                                 for index in range(len(self) - 1))
         if self.resorted:
             super().sort()
 
-    def overlaps(self, other):
+    def overlaps(self, other: "Ranges") -> List[Tuple[int, int]]:
         overlaps_indices = []
         for self_index, self_range in enumerate(self):
             for other_index, other_range in enumerate(other):
@@ -65,14 +71,15 @@ class Ranges(list):
 
 
 class GenomicRange(Range):
-    def __init__(self, chrom, start, end, strand="*"):
+    def __init__(self, chrom: str, start: int, end: int,
+                 strand: str = "*") -> None:
         super().__init__(start, end)
         self.chrom = chrom
         self.strand = strand
 
-    def intersect(self, other):
+    def intersect(self, other: "GenomicRange") -> "GenomicRange":
         if self.chrom != other.chrom:
-            return GenomicRange()
+            return GenomicRange(None, None, None)
 
         new_range = super().intersect(other)
         if self.strand == other.strand:
@@ -82,7 +89,8 @@ class GenomicRange(Range):
 
         return GenomicRange(self.chrom, new_range.start, new_range.end, strand)
 
-    def union(self, other):
+    def union(self, other: "GenomicRange") \
+            -> Union["GenomicRange", "GenomicRanges"]:
         if self.chrom == other.chrom:
             union_result = super().union(other)
             if isinstance(union_result, Range):
@@ -94,30 +102,30 @@ class GenomicRange(Range):
                 return GenomicRange(self.chrom, union_result.start,
                                     union_result.end, strand)
             else:
-                return [self, other]
+                return GenomicRanges([self, other])
         else:
-            return [self, other]
+            return GenomicRanges([self, other])
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         out = "%s:%d-%d" % (self.chrom, self.start, self.end)
         if self.strand != "*":
             out += "(%s)" % self.strand
         return out
 
-    def __lt__(self, other):
+    def __lt__(self, other: "GenomicRange") -> bool:
         return self.chrom < other.chrom or\
             (self.chrom == other.chrom and super().__lt__(other))
 
-    def __le__(self, other):
+    def __le__(self, other: "GenomicRange") -> bool:
         return self.chrom < other.chrom or\
             (self.chrom == other.chrom and super().__le__(other))
 
 
-class GenomicRanges(Ranges):
-    def __init__(self, ranges=[]):
+class GenomicRanges(Ranges[GenomicRange]):
+    def __init__(self, ranges: List[GenomicRange] = []) -> None:
         super().__init__(ranges)
 
-    def overlaps(self, other):
+    def overlaps(self, other: "GenomicRanges") -> List[Tuple[int, int]]:
         overlaps_indices = []
         for self_index, self_range in enumerate(self):
             for other_index, other_range in enumerate(other):

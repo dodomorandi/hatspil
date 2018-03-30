@@ -1,13 +1,16 @@
 import logging
 import os
+from typing import Any, Dict
 
 from . import utils
 from .barcoded_filename import BarcodedFilename
+from .config import Config
 from .exceptions import PipelineError
 
 
 class Analysis:
-    def __init__(self, sample, root, config, parameters):
+    def __init__(self, sample: str, root: str, config: Config,
+                 parameters: Dict[str, Any]) -> None:
         self.sample = sample
         self.root = root
         if parameters["use_date"] is None:
@@ -39,7 +42,7 @@ class Analysis:
         self.logger.addHandler(self.log_handler)
         self.logger.setLevel(level=logging.INFO)
 
-    def _get_first_filename(self):
+    def _get_first_filename(self) -> str:
         filename = self.last_operation_filenames
         if filename is None:
             return None
@@ -64,7 +67,7 @@ class Analysis:
         else:
             return None
 
-    def _get_custom_dir(self, param):
+    def _get_custom_dir(self, param: str) -> str:
         filename = self._get_first_filename()
         directory = getattr(self, param)
         if filename is None:
@@ -72,14 +75,14 @@ class Analysis:
 
         return BarcodedFilename(filename).get_directory(directory)
 
-    def get_bam_dir(self):
+    def get_bam_dir(self) -> str:
         return self._get_custom_dir("bam_dir")
 
-    def get_out_dir(self):
+    def get_out_dir(self) -> str:
         return self._get_custom_dir("out_dir")
 
     @property
-    def using_normals(self):
+    def using_normals(self) -> bool:
         return self.parameters["use_normals"] \
             and self.last_operation_filenames is not None \
             and isinstance(self.last_operation_filenames, dict) \

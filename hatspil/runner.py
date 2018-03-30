@@ -1,5 +1,9 @@
+from multiprocessing.managers import SyncManager
+from typing import Any, Dict
+
 from .analysis import Analysis
 from .barcoded_filename import BarcodedFilename, Tissue
+from .config import Config
 from .mapping import Mapping
 from .mutect import Mutect
 from .starter import Starter
@@ -10,14 +14,15 @@ from .xenograft import Xenograft
 
 
 class Runner:
-    def __init__(self, manager, root, config, parameters, fastq_dir):
+    def __init__(self, manager: SyncManager, root: str, config: Config,
+                 parameters: Dict[str, Any], fastq_dir: str) -> None:
         self.last_operations = manager.dict()
         self.root = root
         self.config = config
         self.parameters = parameters
         self.fastq_dir = fastq_dir
 
-    def __call__(self, sample):
+    def __call__(self, sample: str) -> None:
         analysis = Analysis(sample, self.root, self.config, self.parameters)
         barcoded_filename = BarcodedFilename.from_sample(sample)
 
@@ -42,7 +47,7 @@ class Runner:
 
         self.last_operations[sample] = analysis.last_operation_filenames
 
-    def with_normals(self, sample, tumor, normal):
+    def with_normals(self, sample: str, tumor: str, normal: str) -> None:
         if not self.parameters["use_normals"] \
                 or self.parameters["only_mapping"]:
             return
@@ -59,7 +64,7 @@ class Runner:
             analysis.last_operation_filenames = tumor
             self._run(analysis, True)
 
-    def _run(self, analysis, use_strelka):
+    def _run(self, analysis: Analysis, use_strelka: bool) -> None:
         mutect = Mutect(analysis)
         varscan = VarScan(analysis)
 

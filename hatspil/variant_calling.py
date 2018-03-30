@@ -2,10 +2,12 @@ import glob
 import math
 import os
 import re
+from typing import Any, Dict, List
 
 import pandas as pd
 import vcf
 
+from .analysis import Analysis
 from .barcoded_filename import BarcodedFilename
 from .exceptions import PipelineError
 from .executor import Executor
@@ -22,14 +24,14 @@ class VariantCalling:
     high_damage = 20
     strelka_tier = 0
 
-    def __init__(self, analysis):
+    def __init__(self, analysis: Analysis) -> None:
         self.analysis = analysis
 
         os.makedirs(analysis.get_out_dir(), exist_ok=True)
-        self.mutect_filenames = glob.glob(os.path.join(analysis.get_out_dir(),
-                                                       self.analysis.basename)
-                                          + "*.mutect*.vcf")
-        self.varscan_filenames = {}
+        self.mutect_filenames = glob.glob(
+            os.path.join(analysis.get_out_dir(), self.analysis.basename) +
+            "*.mutect*.vcf")
+        self.varscan_filenames: Dict[str, List[str]] = {}
         for varscan_type in ("snp", "indel"):
             self.varscan_filenames[varscan_type] = glob.glob(
                 os.path.join(analysis.get_out_dir(), self.analysis.basename) +
@@ -50,10 +52,10 @@ class VariantCalling:
                                                (self.annovar_file,
                                                 VariantCalling.build_version))
 
-    def chdir(self):
+    def chdir(self) -> None:
         os.chdir(self.analysis.get_out_dir())
 
-    def prepare_for_annovar(self):
+    def prepare_for_annovar(self) -> None:
         self.analysis.logger.info("Starting data preparation for ANNOVAR")
 
         self.variants = None
@@ -104,7 +106,7 @@ class VariantCalling:
             filenames = self.varscan_filenames[varscan_type]
             if len(filenames) > 0:
                 withNormals = True
-                varscan_data_list = []
+                varscan_data_list: List[Dict[str, Any]] = []
                 for varscan_filename in filenames:
                     for record in vcf.Reader(filename=varscan_filename):
                         for sample in record.samples:
@@ -338,7 +340,7 @@ class VariantCalling:
             "strelka": set(strelka_data.key)
         }
 
-        def set_methods(row):
+        def set_methods(row: pd.Series) -> None:
             current_methods = []
             if row.key in keysets["mutect"]:
                 current_methods.append("Mutect1.17")
@@ -363,7 +365,7 @@ class VariantCalling:
 
         self.analysis.logger.info("Finished data preparation for ANNOVAR")
 
-    def annovar(self):
+    def annovar(self) -> None:
         self.analysis.logger.info("Running ANNOVAR")
         config = self.analysis.config
 
@@ -385,7 +387,7 @@ class VariantCalling:
 
         self.analysis.logger.info("Finished running ANNOVAR")
 
-    def collect_annotated_variants(self):
+    def collect_annotated_variants(self) -> None:
         self.analysis.logger.info("Collecting annotated variants from ANNOVAR")
 
         annotation = pd.read_table(self.multianno_filename)
@@ -529,6 +531,7 @@ class VariantCalling:
         if config.use_mongodb:
             from pymongo import MongoClient, ReturnDocument
             from pymongo.errors import DocumentTooLarge
+            from pymongo.collection import Collection
 
             mongo = MongoClient(config.mongodb_host, config.mongodb_port)
             db = mongo[config.mongodb_database]
@@ -551,7 +554,11 @@ class VariantCalling:
             } for record in annotation.to_dict("records")]
             del annotation
 
-            def find_or_insert(collection, data, new_data=None):
+            def find_or_insert(
+                    collection: Collection,
+                    data: Dict[str, Any],
+                    new_data: Dict[str, Any] = None) -> Dict[str, Any]:
+
                 set_data = dict(data)
                 if new_data is not None:
                     set_data.update(new_data)
@@ -624,7 +631,7 @@ class VariantCalling:
         self.analysis.logger.info("Finished collecting annotated variants "
                                   "from ANNOVAR")
 
-    def run(self):
+    def run(self) -> None:
         if len(self.mutect_filenames) +\
                 sum([len(values)
                      for values

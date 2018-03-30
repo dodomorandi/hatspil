@@ -1,11 +1,12 @@
 import os
 import shutil
 
+from .analysis import Analysis
 from .executor import Executor
 
 
 class Strelka:
-    def __init__(self, analysis):
+    def __init__(self, analysis: Analysis) -> None:
         self.analysis = analysis
         self.strelka_perl = os.path.join(self.analysis.config.strelka_basedir,
                                          "bin", "configureStrelkaWorkflow.pl")
@@ -17,10 +18,10 @@ class Strelka:
         if os.path.exists(self.strelka_dir):
             shutil.rmtree(self.strelka_dir)
 
-    def chdir(self):
+    def chdir(self) -> Analysis:
         os.chdir(self.analysis.root)
 
-    def configure_strelka(self):
+    def configure_strelka(self) -> Analysis:
         self.analysis.logger.info("Configuring strelka")
         self.chdir()
 
@@ -37,7 +38,7 @@ class Strelka:
 
         self.analysis.logger.info("Finished configuring strelka")
 
-    def make(self):
+    def make(self) -> Analysis:
         self.analysis.logger.info("Running make for strelka")
         self.chdir()
         os.chdir(self.strelka_dir)
@@ -50,6 +51,6 @@ class Strelka:
 
         self.analysis.logger.info("Finished make for strelka")
 
-    def run(self):
+    def run(self) -> Analysis:
         self.configure_strelka()
         self.make()
