@@ -1,5 +1,6 @@
 import os
 import subprocess
+from typing import Dict, Union, cast
 
 from .analysis import Analysis
 from .exceptions import PipelineError
@@ -34,12 +35,14 @@ class VarScan:
     def chdir(self) -> None:
         os.chdir(self.analysis.get_out_dir())
 
-    def _run_varscan_normals(self, **kwargs) -> None:
+    def _run_varscan_normals(self,
+                             **kwargs: Union[str, Dict[str, str]]) -> None:
         self.analysis.logger.info("Running VarScan Somatic")
 
-        genome_ref = kwargs["genome_ref"]
-        input_filenames = kwargs["input_filename"]
-        organism_str = kwargs["organism_str"]
+        genome_ref: str = cast(str, kwargs["genome_ref"])
+        input_filenames: Dict[str, str] = cast(
+            Dict[str, str], kwargs["input_filename"])
+        organism_str: str = cast(str, kwargs["organism_str"])
 
         config = self.analysis.config
 
@@ -100,12 +103,12 @@ class VarScan:
 
         self.analysis.logger.info("Finished VarScan Somatic")
 
-    def _run_varscan_no_normals(self, **kwargs) -> None:
+    def _run_varscan_no_normals(self, **kwargs: str) -> None:
         self.analysis.logger.info("Running VarScan mpileup2snp/indel")
 
-        genome_ref = kwargs["genome_ref"]
-        input_filename = kwargs["input_filename"]
-        organism_str = kwargs["organism_str"]
+        genome_ref: str = kwargs["genome_ref"]
+        input_filename: str = kwargs["input_filename"]
+        organism_str: str = kwargs["organism_str"]
 
         config = self.analysis.config
 
@@ -194,9 +197,8 @@ class VarScan:
             f"{{input_filename}} "
             f"--min-tumor-freq {self.min_tumor_frequency} "
             f"--p-value {self.p_value_somatic}",
-            shell=True,
             override_last_files=False,
-            input_filename=[f"{self.analysis.basename}.varscan2.snp.vcf"],
+            input_filenames=[f"{self.analysis.basename}.varscan2.snp.vcf"],
             error_string="VarScan processSomatic exited with status {status}",
             exception_string="varscan processSomatic error")
 
@@ -206,9 +208,8 @@ class VarScan:
             f"{{input_filename}} "
             f"--min-tumor-freq {self.min_tumor_frequency} "
             f"--p-value {self.p_value_somatic}",
-            shell=True,
             override_last_files=False,
-            input_filename=[f"{self.analysis.basename}.varscan2.snp.vcf"],
+            input_filenames=[f"{self.analysis.basename}.varscan2.snp.vcf"],
             error_string="VarScan processSomatic exited with status {status}",
             exception_string="varscan processSomatic error")
 
@@ -230,9 +231,8 @@ class VarScan:
             f"{{input_filename}} "
             f"--min-tumor-freq {self.min_tumor_frequency} "
             f"--p-value {self.p_value_somatic}",
-            shell=True,
             override_last_files=False,
-            input_filename=[f"{self.analysis.basename}.varscan2.cnv.vcf"],
+            input_filenames=[f"{self.analysis.basename}.varscan2.cnv.vcf"],
             error_string="VarScan copynumber exited with status {status}",
             exception_string="varscan copynumber error")
 

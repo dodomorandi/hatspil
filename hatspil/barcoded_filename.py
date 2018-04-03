@@ -1,7 +1,7 @@
 import os
 import re
 from enum import IntEnum
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 from .exceptions import BarcodeError
 
@@ -84,7 +84,8 @@ class Xenograft:
                                    "the sample field can only be 0, 1 or 2)")
 
     @staticmethod
-    def create(raw_tissue: str, raw_sample: Union[str, int]) -> "Xenograft":
+    def create(raw_tissue: str, raw_sample: Union[str, int])\
+            -> Optional["Xenograft"]:
         if raw_tissue[0] != "6":
             return None
 
@@ -116,7 +117,7 @@ class Xenograft:
         }
 
     @staticmethod
-    def from_dict(dictionary) -> "Xenograft":
+    def from_dict(dictionary: Dict[str, Union[int, str]]) -> "Xenograft":
         assert "generation" in dictionary
         assert "parent" in dictionary
         assert "child" in dictionary
@@ -147,16 +148,16 @@ class BarcodedFilename:
     molecule: Molecule
     analyte: Analyte
     kit: int
-    biopsy: int
-    xenograft: Xenograft
-    sample: int
-    sequencing: int
-    organism: str
-    read_index: int
-    extension: str
-    gzipped: bool
+    biopsy: Optional[int]
+    xenograft: Optional[Xenograft]
+    sample: Optional[int]
+    sequencing: Optional[int]
+    organism: Optional[str]
+    read_index: Optional[int]
+    extension: Optional[str]
+    gzipped: Optional[bool]
 
-    def __init__(self, filename: str = None) -> None:
+    def __init__(self, filename: Optional[str] = None) -> None:
         if filename is None:
             return
 
@@ -252,7 +253,8 @@ class BarcodedFilename:
                         xenograft_parent: Union[int, str],
                         xenograft_child: Union[int, str],
                         sequencing: Union[int, str], molecule: Union[int, str],
-                        analyte: Union[int, str], kit: Union[int, str]):
+                        analyte: Union[int, str],
+                        kit: Union[int, str]) -> "BarcodedFilename":
         barcoded = BarcodedFilename()
         barcoded.project = project
         barcoded.patient = patient
@@ -301,14 +303,24 @@ class BarcodedFilename:
         return barcoded
 
     def get_barcode(self) -> str:
-        return "%s-%s-%02s-%d%d%d-%d%d%d" % (self.project, self.patient,
+        if self.biopsy is None:
+            biopsy = "□"
+        else:
+            biopsy = str(self.biopsy)
+
+        if self.sequencing is None:
+            sequencing = "□"
+        else:
+            sequencing = str(self.sequencing)
+
+        return "%s-%s-%02s-%d%d%d-%s%d%s" % (self.project, self.patient,
                                              self.get_tissue_str(),
                                              self.molecule, self.analyte,
-                                             self.kit, self.biopsy,
+                                             self.kit, biopsy,
                                              self.get_sample_index(),
-                                             self.sequencing)
+                                             sequencing)
 
-    def get_directory(self, analysis_dir: str = None) -> str:
+    def get_directory(self, analysis_dir: Optional[str] = None) -> str:
         if analysis_dir is None:
             analysis_dir = ""
 
@@ -353,14 +365,17 @@ class BarcodedFilename:
 
     def get_tissue_str(self) -> str:
         if self.tissue == Tissue.PRIMARY_XENOGRAFT_TISSUE:
+            assert self.xenograft is not None
             return "6" + chr(ord("A") + self.xenograft.generation)
         elif self.tissue == Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE:
+            assert self.xenograft is not None
             return "6" + chr(ord("a") + self.xenograft.generation)
         else:
             return "%02d" % self.tissue
 
     def get_sample_index(self) -> int:
         if self.xenograft is None:
+            assert self.sample is not None
             return self.sample
         else:
             return self.xenograft.get_sample_index()

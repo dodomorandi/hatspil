@@ -8,6 +8,7 @@ import traceback
 from distutils.spawn import find_executable
 from email.mime.text import MIMEText
 from multiprocessing import Manager, Pool
+from typing import Dict, List, Optional, Tuple, Union, cast
 
 from . import utils
 from .barcoded_filename import BarcodedFilename, Tissue
@@ -253,7 +254,7 @@ def main() -> None:
                                 R"(?:-(\d|\*)(\d|\*)(\d|\*)?)?)?)?)?$")
 
         all_filenames = os.listdir(args.fastq_dir)
-        filenames = set()
+        filenames_set = set()
         with open(args.list_file) as fd:
             for line_index, line in enumerate(fd):
                 match = re_pattern.match(line.strip())
@@ -335,13 +336,14 @@ def main() -> None:
                             barcoded_filename.tissue !=
                                 Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE) or \
                                 barcoded_filename.organism is None:
-                            filenames.add(match.group(1))
+                            filenames_set.add(match.group(1))
                             added_files += 1
 
                 if added_files == 0:
                     print("ERROR: cannot find any file for sample %s" %
                           line.strip())
                     exit(-1)
+        filenames = list(filenames_set)
 
     elif args.scan_samples:
         fastq_files = [
@@ -460,13 +462,16 @@ def main() -> None:
             msg["Subject"] = "Pipeline error"
 
     if args.use_normals and not args.only_mapping:
-        samples = {}
-        normals = {}
+        samples: Dict[str, Dict[str, Union[str, List[Tuple[str, str]]]]] = {}
+        normals: Dict[str, BarcodedFilename] = {}
         last_operations = {}
         for sample, last_operation in runner.last_operations.items():
             last_operations[sample] = last_operation
             for filename in utils.get_sample_filenames(last_operation):
                 barcoded_filename = BarcodedFilename(filename)
+                assert barcoded_filename.biopsy is not None
+                assert barcoded_filename.sequencing is not None
+
                 fake_sample = "%s-%s-%d%d%d-%d%d%d" % (
                     barcoded_filename.project, barcoded_filename.patient,
                     barcoded_filename.molecule, barcoded_filename.analyte,
@@ -492,7 +497,9 @@ def main() -> None:
                 else:
                     if "tumor" not in samples[fake_sample]:
                         samples[fake_sample]["tumor"] = []
-                    samples[fake_sample]["tumor"].append((filename, sample))
+
+                    cast(List[Tuple[str, str]], samples[fake_sample]
+                         ["tumor"]).append((filename, sample))
 
         samples_with_no_normal = {
             sample: filenames["tumor"][0][0]
@@ -558,15 +565,18 @@ def main() -> None:
             if len(candidates) == 1:
                 samples[sample]["normal"] = list(candidates.items())[0][0]
             elif len(candidates) > 1:
-                candidates = list(candidates.items())
-                candidates.sort(key=lambda x: os.stat(x[0]).st_size)
-                samples[sample]["normal"] = candidates[-1][0]
+                candidates_list = list(candidates.items())
+                del candidates
+                candidates_list.sort(key=lambda x: os.stat(x[0]).st_size)
+                samples[sample]["normal"] = candidates_list[-1][0]
 
-        triplets = []
+        triplets: List[Tuple[str, str, Optional[str]]] = []
         for sample, values in samples.items():
             for tumor in values["tumor"]:
                 if "normal" in values:
-                    triplets.append((tumor[1], tumor[0], values["normal"]))
+                    triplets.append(
+                        cast(Tuple[str, str, str],
+                             (tumor[1], tumor[0], values["normal"])))
                 else:
                     triplets.append((tumor[1], tumor[0], None))
 

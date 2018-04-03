@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional, Union
 
 from . import utils
 from .barcoded_filename import BarcodedFilename
@@ -21,9 +21,12 @@ class Analysis:
         self.basename = "%s.%s" % (self.sample, self.current)
         self.bam_dir = os.path.join(self.root, "BAM")
         self.out_dir = os.path.join(self.root, "Variants")
-        self.bamfiles = None
+        self.bamfiles: Dict[str, List[str]] = {}
         self.config = config
-        self.last_operation_filenames = None
+        self.last_operation_filenames: Union[str,
+                                             List[str],
+                                             Dict[str, List[str]],
+                                             None] = None
         self.run_fake = False
         self.can_unlink = True
 
@@ -40,9 +43,9 @@ class Analysis:
         self.log_handler.setFormatter(
             logging.Formatter("%(asctime)s-15 %(message)s"))
         self.logger.addHandler(self.log_handler)
-        self.logger.setLevel(level=logging.INFO)
+        self.logger.setLevel(logging.INFO)
 
-    def _get_first_filename(self) -> str:
+    def _get_first_filename(self) -> Optional[str]:
         filename = self.last_operation_filenames
         if filename is None:
             return None
@@ -69,7 +72,7 @@ class Analysis:
 
     def _get_custom_dir(self, param: str) -> str:
         filename = self._get_first_filename()
-        directory = getattr(self, param)
+        directory: str = getattr(self, param)
         if filename is None:
             return directory
 

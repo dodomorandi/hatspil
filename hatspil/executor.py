@@ -1,6 +1,6 @@
 import os
 import re
-from typing import Callable, Iterable, List
+from typing import Callable, Iterable, List, Optional, Sequence, Union
 
 from . import utils
 from .analysis import Analysis
@@ -13,15 +13,17 @@ class Executor:
         self.analysis = analysis
 
     def __call__(self,
-                 command: str,
-                 output_format: str = None,
-                 input_filenames: List[str] = None,
-                 input_function: Callable[Iterable[str], str] = None,
+                 command: Union[str, List[str], Callable[..., None]],
+                 output_format: Optional[str] = None,
+                 input_filenames: Optional[Sequence[str]] = None,
+                 input_function: Optional[Callable[[str],
+                                                   Optional[str]]] = None,
                  input_split_reads: bool = True,
-                 output_path: str = None,
-                 output_function: Callable[Iterable[str], str] = None,
-                 error_string: str = None,
-                 exception_string: str = None,
+                 output_path: Optional[str] = None,
+                 output_function: Optional[Callable[[str],
+                                                    Iterable[str]]] = None,
+                 error_string: Optional[str] = None,
+                 exception_string: Optional[str] = None,
                  override_last_files: bool = True,
                  write_bam_files: bool = True,
                  unlink_inputs: bool = False,

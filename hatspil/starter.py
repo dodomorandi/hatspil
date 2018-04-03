@@ -6,6 +6,7 @@ from .executor import Executor
 
 
 class Starter:
+    @staticmethod
     def run(analysis: Analysis, directory: str = ".") -> None:
         input_filenames = [
             os.path.join(directory,

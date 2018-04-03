@@ -18,10 +18,10 @@ class Strelka:
         if os.path.exists(self.strelka_dir):
             shutil.rmtree(self.strelka_dir)
 
-    def chdir(self) -> Analysis:
+    def chdir(self) -> None:
         os.chdir(self.analysis.root)
 
-    def configure_strelka(self) -> Analysis:
+    def configure_strelka(self) -> None:
         self.analysis.logger.info("Configuring strelka")
         self.chdir()
 
@@ -38,7 +38,7 @@ class Strelka:
 
         self.analysis.logger.info("Finished configuring strelka")
 
-    def make(self) -> Analysis:
+    def make(self) -> None:
         self.analysis.logger.info("Running make for strelka")
         self.chdir()
         os.chdir(self.strelka_dir)
@@ -51,6 +51,6 @@ class Strelka:
 
         self.analysis.logger.info("Finished make for strelka")
 
-    def run(self) -> Analysis:
+    def run(self) -> None:
         self.configure_strelka()
         self.make()

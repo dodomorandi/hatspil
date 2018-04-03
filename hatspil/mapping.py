@@ -6,10 +6,12 @@ import re
 import shutil
 import tempfile
 from enum import Enum, auto
+from typing import Optional, Sequence
 
 from . import utils
 from .analysis import Analysis
 from .barcoded_filename import Analyte, BarcodedFilename
+from .exceptions import PipelineError
 from .executor import Executor
 
 
@@ -115,14 +117,14 @@ class Mapping:
 
         self.analysis.logger.info("Finished trimming")
 
-    def filter_alignment(*args, **kwargs) -> None:
+    def filter_alignment(*args, **kwargs: Sequence[str]) -> None:
         """
         keep only aligned reads with maximum of N mismatches and without
         Ns, hard clipping and padding
         """
         if len(kwargs['input_filename']) != 1:
-            raise "Expected a list with only one file"
-        input_filename = kwargs["input_filename"][0]
+            raise PipelineError("Expected a list with only one file")
+        input_filename: str = kwargs["input_filename"][0]
         tmp_filename = input_filename + ".tmp"
         reSpaces = re.compile(R"\s+")
         reCigar = re.compile(R"N|H|P")
@@ -452,7 +454,7 @@ class Mapping:
 
         self.analysis.logger.info("Finished indel realignment")
 
-    def _filter_non_hg(self, filename) -> str:
+    def _filter_non_hg(self, filename: str) -> Optional[str]:
         organism = BarcodedFilename(filename).organism
         if organism is None or organism.lower().startswith("hg"):
             return filename

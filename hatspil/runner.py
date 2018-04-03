@@ -16,7 +16,7 @@ from .xenograft import Xenograft
 class Runner:
     def __init__(self, manager: SyncManager, root: str, config: Config,
                  parameters: Dict[str, Any], fastq_dir: str) -> None:
-        self.last_operations = manager.dict()
+        self.last_operations: Dict[str, Any] = manager.dict()
         self.root = root
         self.config = config
         self.parameters = parameters

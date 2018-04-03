@@ -6,7 +6,9 @@ import re
 import shutil
 import subprocess
 from argparse import ArgumentTypeError
-from typing import Any, Dict, Generator, Iterable, List, Tuple, Union
+from logging import Logger
+from typing import (Any, Dict, Generator, Iterable, List, Tuple, Union,
+                    ValuesView, cast)
 
 from .config import Config
 from .exceptions import DataError
@@ -17,7 +19,7 @@ def get_current() -> str:
     return "%04d_%02d_%02d" % (today.year, today.month, today.day)
 
 
-def run_and_log(command, logger) -> int:
+def run_and_log(command: str, logger: Logger) -> int:
     logger.info("Running command: %s", command)
     with subprocess.Popen(
             command,
@@ -39,19 +41,30 @@ def run_and_log(command, logger) -> int:
         return process.wait()
 
 
-def get_sample_filenames(obj: Union[List[str], Dict[str, str], str],
+def get_sample_filenames(obj: Union[List[str],
+                                    Dict[str, str],
+                                    Dict[str, List[str]],
+                                    str],
                          split: bool = False
-                         ) -> Union[List[str], Dict[str, str]]:
+                         ) -> Union[List[str],
+                                    Dict[str, str],
+                                    Dict[str, List[str]]]:
     if isinstance(obj, list):
         return obj
     elif isinstance(obj, dict):
         if split and len(obj) > 1:
             return obj
         else:
-            return [
-                filename for filenames in obj.values()
-                for filename in filenames
-            ]
+            values = obj.values()
+            if isinstance(next(iter(values)), list):
+                return [
+                    filename for filenames in values
+                    for filename in filenames
+                ]
+            elif isinstance(next(iter(values)), str):
+                return list(cast(ValuesView[str], values))
+            else:
+                raise DataError("unexpected filenames type")
     else:
         return [obj]
 
@@ -73,7 +86,7 @@ def get_genome_ref_index_by_organism(config: Config,
     if organism == "hg19":
         return (config.hg19_ref, config.hg19_index)
     elif organism == "hg38":
-        return (config.hg38_ref, config.h38_index)
+        return (config.hg38_ref, config.hg38_index)
     elif organism == "mm9":
         return (config.mm9_ref, config.mm9_index)
     elif organism == "mm10":
@@ -119,6 +132,8 @@ def find_fastqs_by_organism(
     fastqs: Dict[str, List[Tuple[str, int]]] = {}
     for filename in fastq_files:
         match = re_fastq_filename.match(filename)
+        assert match is not None
+
         organism = match.group(1)
         read_index = int(match.group(2))
         if organism is None or organism == "":

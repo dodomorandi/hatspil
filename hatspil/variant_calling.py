@@ -2,7 +2,7 @@ import glob
 import math
 import os
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, cast
 
 import pandas as pd
 import vcf
@@ -60,9 +60,9 @@ class VariantCalling:
 
         self.variants = None
 
-        mutect_data = None
-        varscan_data = None
-        strelka_data = None
+        mutect_data: Optional[pd.Table] = None
+        varscan_data: Optional[pd.Table] = None
+        strelka_data: Optional[pd.Table] = None
 
         if len(self.mutect_filenames) > 0:
             for mutect_filename in self.mutect_filenames:
@@ -72,6 +72,7 @@ class VariantCalling:
                     mutect_data = mutect_data.join(
                         pd.read_table(mutect_filename, comment="#"))
 
+            assert mutect_data is not None
             mutect_data.insert(0, "key",
                                mutect_data.apply(
                                    lambda row: "%s:%d-%d_%s_%s" %
@@ -379,7 +380,7 @@ class VariantCalling:
             f"-protocol refGene,snp138,cosmic70,clinvar_20160302,"
             f"popfreq_all_20150413,dbnsfp30a,cadd13 "
             f"-operation g,f,f,f,f,f,f -nastring NA -remove -v",
-            input_filenames=self.annovar_file,
+            input_filenames=[self.annovar_file],
             override_last_files=False,
             error_string="ANNOVAR exited with status {status}",
             exception_string="annovar error",
@@ -557,15 +558,18 @@ class VariantCalling:
             def find_or_insert(
                     collection: Collection,
                     data: Dict[str, Any],
-                    new_data: Dict[str, Any] = None) -> Dict[str, Any]:
+                    new_data: Optional[Dict[str, Any]] = None)\
+                    -> Dict[str, Any]:
 
                 set_data = dict(data)
                 if new_data is not None:
                     set_data.update(new_data)
-                return collection.find_one_and_update(
-                    data, {"$set": set_data},
-                    upsert=True,
-                    return_document=ReturnDocument.AFTER)
+
+                return cast(Dict[str, Any],
+                            collection.find_one_and_update(
+                                data, {"$set": set_data},
+                                upsert=True,
+                                return_document=ReturnDocument.AFTER))
 
             annotation_ids = [
                 find_or_insert(db.annotations, {"id": annotation["id"]},

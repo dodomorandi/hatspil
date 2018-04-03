@@ -2,6 +2,7 @@ import itertools
 import os
 import re
 import shutil
+from typing import Dict, List, Optional, Set
 
 from . import utils
 from .analysis import Analysis
@@ -22,14 +23,14 @@ class Xenograft:
         os.makedirs(reports_dir, exist_ok=True)
 
         self.sample_base_out = os.path.join(reports_dir, self.analysis.sample)
-        self.skip_filenames = {}
-        self.already_done = {}
-        self.input_filenames = None
+        self.skip_filenames: Dict[str, List[str]] = {}
+        self.already_done: Dict[str, List[str]] = {}
+        self.input_filenames: List[str] = []
 
     def chdir(self) -> None:
         os.chdir(self.fastq_dir)
 
-    def _check_lambda(self, **kwargs) -> None:
+    def _check_lambda(self, **kwargs: Dict[str, str]) -> None:
         self.input_filenames = [
             filename
             for filename in utils.flatten(kwargs["input_filenames"].values())
@@ -64,7 +65,7 @@ class Xenograft:
 
         for fastqgz in compressed:
             can_skip = True
-            removed = {}
+            removed: Dict[str, List[str]] = {}
             barcoded_filename = BarcodedFilename(fastqgz)
             for organism in ("hg19", "mm10"):
                 obtained_name = "%s.%s" % (barcoded_filename.get_barcode(),
@@ -89,7 +90,7 @@ class Xenograft:
                 utils.gunzip(fastqgz)
                 self.input_filenames.append(fastqgz[:-3])
 
-    def check(self) -> None:
+    def check(self) -> bool:
         self.analysis.logger.info("Checking if xenome must be performed")
         self.chdir()
         retval = True
@@ -131,10 +132,21 @@ class Xenograft:
         shutil.rmtree(temp_dir)
 
         if self.analysis.run_fake:
-            for filenames in self.analysis.last_operation_filenames.values():
-                for filename in filenames:
+            if self.analysis.last_operation_filenames is None:
+                pass
+            elif isinstance(self.analysis.last_operation_filenames, str):
+                with open(self.analysis.last_operation_filenames, "a"):
+                    pass
+            elif isinstance(self.analysis.last_operation_filenames, list):
+                for filename in self.analysis.last_operation_filenames:
                     with open(filename, "a"):
                         pass
+            else:
+                for filenames in self.analysis\
+                        .last_operation_filenames.values():
+                    for filename in filenames:
+                        with open(filename, "a"):
+                            pass
 
         self.analysis.logger.info("Finished xenome")
 
@@ -155,6 +167,8 @@ class Xenograft:
         ]
         for filename in fastq_files:
             match = re_fastq_filename.match(filename)
+            assert match is not None
+
             organism = match.group(1)
             read_index = int(match.group(2))
             out_filename = "%s.%s.R%d.fastq" % (self.analysis.sample, organism,
@@ -182,7 +196,7 @@ class Xenograft:
                 os.path.join(os.getcwd(), out_filename))
 
         other_fastq = [
-            "%s_%s_%d.fastq" % tuple([self.analysis.sample] + list(combo))
+            "%s_%s_%d.fastq" % ((self.analysis.sample, ) + combo)
             for combo in itertools.product(["ambiguous", "both", "neither"],
                                            range(1, 3))
         ]
@@ -207,6 +221,8 @@ class Xenograft:
     def update_last_filenames(self) -> None:
         if self.analysis.last_operation_filenames is None:
             self.analysis.last_operation_filenames = {}
+
+        assert isinstance(self.analysis.last_operation_filenames, dict)
         self.analysis.last_operation_filenames.update(self.skip_filenames)
         self.analysis.last_operation_filenames.update(self.already_done)
 

@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 from configparser import ConfigParser
+from typing import Optional
 
 
 class Config:
@@ -19,7 +20,7 @@ class Config:
                   "use_mm9", "use_mm10", "kit", "mails", "use_mongodb")
     mongodb = ("database", "host", "port", "username", "password")
 
-    def __init__(self, filename: str = None) -> None:
+    def __init__(self, filename: Optional[str] = None) -> None:
         self.java = "java"
         self.java7 = "java"
         self.perl = "perl"
