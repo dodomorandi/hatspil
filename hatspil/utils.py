@@ -39,10 +39,10 @@ def run_and_log(command, logger):
 
 def get_sample_filenames(obj, split=False):
     if isinstance(obj, list):
-        return obj
+        return list(obj)
     elif isinstance(obj, dict):
         if split and len(obj) > 1:
-            return obj
+            return dict(obj)
         else:
             return [
                 filename for filenames in obj.values()
@@ -56,7 +56,7 @@ def get_samples_by_organism(obj, default_organism="hg19"):
     if isinstance(obj, list):
         return {default_organism: obj}
     elif isinstance(obj, dict):
-        return obj
+        return dict(obj)
     else:
         return {default_organism: [obj]}
 
