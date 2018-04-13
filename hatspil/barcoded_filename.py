@@ -63,6 +63,20 @@ class Tissue(IntEnum):
                         Tissue.EBV_IMMORTALIZED_NORMAL,
                         Tissue.BONE_MARROW_NORMAL)
 
+    def is_tumor(self) -> bool:
+        return self in (Tissue.PRIMARY_SOLID_TUMOR,
+                        Tissue.RECURRENT_SOLID_TUMOR,
+                        Tissue.PRIMARY_BLOOD_DERIVED_CANCER_PERIPHERAL_BLOOD,
+                        Tissue.RECURRENT_BLOOD_DERIVED_CANCER_BONE_MARROW,
+                        Tissue.ADDITIONAL_NEW_PRIMARY,
+                        Tissue.METASTATIC,
+                        Tissue.ADDITIONAL_METASTATIC,
+                        Tissue.HUMAN_TUMOR_ORGANIC_CELLS,
+                        Tissue.PRIMARY_BLOOD_DERIVED_CANCER_BONE_MARROW,
+                        Tissue.RECURRENT_BLOOD_DERIVED_CANCER_PERIPHERAL_BLOOD,
+                        Tissue.PRIMARY_XENOGRAFT_TISSUE,
+                        Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE)
+
     def is_xenograft(self) -> bool:
         return self in (Tissue.PRIMARY_XENOGRAFT_TISSUE,
                         Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE)
@@ -382,3 +396,11 @@ class BarcodedFilename:
 
     def is_xenograft(self) -> bool:
         return self.xenograft is not None
+
+    def equals_without_tissue(self, other: "BarcodedFilename") -> bool:
+        return self.project == other.project and \
+            self.patient == other.patient and \
+            self.molecule == other.molecule and \
+            self.analyte == other.analyte and \
+            self.kit == other.kit and \
+            self.biopsy == other.biopsy

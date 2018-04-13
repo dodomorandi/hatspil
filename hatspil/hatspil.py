@@ -484,27 +484,27 @@ def main() -> None:
                         Tissue.SOLID_TISSUE_NORMAL,
                         Tissue.BLOOD_DERIVED_NORMAL,
                         Tissue.EBV_IMMORTALIZED_NORMAL):
-                    sample_type = "normal"
+                    sample_type = "control"
                 else:
-                    sample_type = "tumor"
+                    sample_type = "sample"
 
                 if fake_sample not in samples:
                     samples[fake_sample] = {}
 
-                if sample_type == "normal":
-                    samples[fake_sample]["normal"] = filename
+                if sample_type == "control":
+                    samples[fake_sample]["control"] = filename
                     normals[filename] = barcoded_filename
                 else:
-                    if "tumor" not in samples[fake_sample]:
-                        samples[fake_sample]["tumor"] = []
+                    if "sample" not in samples[fake_sample]:
+                        samples[fake_sample]["sample"] = []
 
                     cast(List[Tuple[str, str]], samples[fake_sample]
-                         ["tumor"]).append((filename, sample))
+                         ["sample"]).append((filename, sample))
 
         samples_with_no_normal = {
-            sample: filenames["tumor"][0][0]
+            sample: filenames["sample"][0][0]
             for sample, filenames in samples.items()
-            if "normal" not in filenames and len(filenames["tumor"]) > 0
+            if "control" not in filenames and len(filenames["sample"]) > 0
         }
 
         for sample, filename in samples_with_no_normal.items():
@@ -563,20 +563,20 @@ def main() -> None:
                 }
 
             if len(candidates) == 1:
-                samples[sample]["normal"] = list(candidates.items())[0][0]
+                samples[sample]["control"] = list(candidates.items())[0][0]
             elif len(candidates) > 1:
                 candidates_list = list(candidates.items())
                 del candidates
                 candidates_list.sort(key=lambda x: os.stat(x[0]).st_size)
-                samples[sample]["normal"] = candidates_list[-1][0]
+                samples[sample]["control"] = candidates_list[-1][0]
 
         triplets: List[Tuple[str, str, Optional[str]]] = []
         for sample, values in samples.items():
-            for tumor in values["tumor"]:
-                if "normal" in values:
+            for tumor in values["sample"]:
+                if "control" in values:
                     triplets.append(
                         cast(Tuple[str, str, str],
-                             (tumor[1], tumor[0], values["normal"])))
+                             (tumor[1], tumor[0], values["control"])))
                 else:
                     triplets.append((tumor[1], tumor[0], None))
 

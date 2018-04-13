@@ -6,13 +6,13 @@ import re
 import shutil
 import tempfile
 from enum import Enum, auto
-from typing import Optional, Sequence
+from typing import List, Optional, Sequence, Union
 
 from . import utils
 from .analysis import Analysis
 from .barcoded_filename import Analyte, BarcodedFilename
 from .exceptions import PipelineError
-from .executor import Executor
+from .executor import AnalysisFileData, Executor
 
 
 class Aligner(Enum):
@@ -107,7 +107,9 @@ class Mapping:
             f'"{{input_filename}}" '
             f'> "{{output_filename}}"',
             output_format=os.path.join(
-                self.fastq_dir, "%s{organism_str}.trimmed.R{read_index}.fastq"
+                self.fastq_dir,
+                "%s{organism_str}.trimmed"
+                ".R{input_filename.barcode.read_index}.fastq"
                 % self.analysis.sample),
             output_path=self.fastq_dir,
             unlink_inputs=True,
@@ -117,14 +119,14 @@ class Mapping:
 
         self.analysis.logger.info("Finished trimming")
 
-    def filter_alignment(*args, **kwargs: Sequence[str]) -> None:
+    def filter_alignment(*args, **kwargs: Sequence[AnalysisFileData]) -> None:
         """
         keep only aligned reads with maximum of N mismatches and without
         Ns, hard clipping and padding
         """
-        if len(kwargs['input_filename']) != 1:
+        if len(kwargs['input_filenames']) != 1:
             raise PipelineError("Expected a list with only one file")
-        input_filename: str = kwargs["input_filename"][0]
+        input_filename: str = kwargs["input_filenames"][0].filename
         tmp_filename = input_filename + ".tmp"
         reSpaces = re.compile(R"\s+")
         reCigar = re.compile(R"N|H|P")
@@ -192,7 +194,7 @@ class Mapping:
             unlink_inputs=True)
 
         executor(
-            lambda **kwargs: os.rename(kwargs["input_filename"],
+            lambda **kwargs: os.rename(kwargs["input_filename"].filename,
                                        kwargs["output_filename"]),
             output_format=f"{self.analysis.basename}{{organism_str}}.bam")
 
@@ -454,7 +456,8 @@ class Mapping:
 
         self.analysis.logger.info("Finished indel realignment")
 
-    def _filter_non_hg(self, filename: str) -> Optional[str]:
+    def _filter_non_hg(self, filename: Union[str, List[str]]) -> Optional[str]:
+        assert isinstance(filename, str)
         organism = BarcodedFilename(filename).organism
         if organism is None or organism.lower().startswith("hg"):
             return filename

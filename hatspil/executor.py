@@ -1,6 +1,8 @@
 import os
 import re
-from typing import Callable, Iterable, List, Optional, Sequence, Union
+from enum import Enum
+from typing import (Any, Callable, Dict, Iterable, List, Mapping, Optional,
+                    Sequence, Tuple, Union, cast)
 
 from . import utils
 from .analysis import Analysis
@@ -8,12 +10,56 @@ from .barcoded_filename import BarcodedFilename
 from .exceptions import DataError, PipelineError
 
 
+class AnalysisType(Enum):
+    Unspecified = 0
+    Sample = 1
+    Control = 2
+
+
+class AnalysisFileData:
+    def __init__(self,
+                 filename: str) -> None:
+        self.filename = filename
+        try:
+            self.barcode = BarcodedFilename(filename)
+            if self.barcode.tissue.is_normal():
+                self.type = AnalysisType.Control
+            elif self.barcode.tissue.is_tumor():
+                self.type = AnalysisType.Sample
+            else:
+                self.type = AnalysisType.Unspecified
+        except Exception:
+            self.type = AnalysisType.Unspecified
+
+    def __repr__(self) -> str:
+        return self.filename
+
+
+class SingleAnalysis(List[AnalysisFileData]):
+    @property
+    def sample(self) -> Optional[AnalysisFileData]:
+        return next((file_data
+                     for file_data in self
+                     if file_data.type == AnalysisType.Sample),
+                    None)
+
+    @property
+    def control(self) -> Optional[AnalysisFileData]:
+        return next((file_data
+                     for file_data in self
+                     if file_data.type == AnalysisType.Control),
+                    None)
+
+
+AnalysesPerOrganism = Dict[str, List[SingleAnalysis]]
+
+
 class ExecutorData:
     def __init__(self,
                  command: Union[str, List[str], Callable[..., None]],
                  output_format: Optional[str],
                  input_filenames: Optional[Sequence[str]],
-                 input_function: Optional[Callable[[str],
+                 input_function: Optional[Callable[[Union[str, List[str]]],
                                                    Optional[str]]],
                  input_split_reads: bool,
                  output_path: Optional[str],
@@ -55,17 +101,18 @@ class Executor:
         self.data: Optional[ExecutorData] = None
 
     def _handle_output_filename(self,
-                                command_index,
-                                commands,
-                                organism,
-                                output_filename,
-                                output_filenames,
-                                output_bamfiles):
+                                command_index: int,
+                                commands_len: int,
+                                organism: str,
+                                output_filename: Union[List[str], str],
+                                output_filenames: Dict[str, List[str]],
+                                output_bamfiles: Dict[str, List[str]]) -> None:
+        assert self.data
 
-        if not isinstance(output_filename, list):
+        if isinstance(output_filename, str):
             output_filename = [output_filename]
 
-        new_filename = []
+        new_filename: List[str] = []
         for filename in output_filename:
             dirname = os.path.dirname(filename)
             if dirname == "" or dirname == ".":
@@ -76,13 +123,11 @@ class Executor:
         output_filename = new_filename
 
         if self.data.save_only_last:
-            if command_index == len(commands) - 1:
+            if command_index == commands_len - 1:
                 if organism in output_filenames:
-                    output_filenames[
-                        organism] += output_filename
+                    output_filenames[organism] += output_filename
                 else:
-                    output_filenames[
-                        organism] = output_filename
+                    output_filenames[organism] = output_filename
 
                 for filename in output_filename:
                     output_extension = \
@@ -97,11 +142,9 @@ class Executor:
 
         else:
             if organism in output_filenames:
-                output_filenames[
-                    organism] += output_filename
+                output_filenames[organism] += output_filename
             else:
-                output_filenames[
-                    organism] = output_filename
+                output_filenames[organism] = output_filename
 
             for filename in output_filename:
                 output_extension = os.path.splitext(
@@ -114,7 +157,11 @@ class Executor:
                         output_bamfiles[organism] = \
                             output_filename
 
-    def _get_output_filename(self, all_params):
+    def _get_output_filename(self,
+                             all_params: Mapping[str, Any]) \
+            -> Union[List[str], str, None]:
+        assert self.data
+
         locals().update(all_params)
         if self.data.output_format is not None:
             if not isinstance(self.data.output_format, list):
@@ -147,37 +194,33 @@ class Executor:
 
             if self.data.output_function is not None:
                 output_filename = [
-                    filename for filename in map(
-                        self.data.output_function, output_filename)
+                    filename
+                    for filenames in map(self.data.output_function,
+                                         output_filename)
+                    for filename in filenames
                 ]
 
             if len(output_filename) == 1:
-                output_filename = output_filename[0]
-
-            return output_filename
+                return output_filename[0]
+            else:
+                return output_filename
         else:
             return None
 
-    def _unlink_filename(self, input_filename, real_input_filename):
+    def _unlink_filename(self,
+                         input_filename: SingleAnalysis,
+                         real_input_filename: Optional[SingleAnalysis]) \
+            -> None:
+        assert self.data
+
         if self.data.unlink_inputs and self.analysis.can_unlink and\
                 not self.analysis.run_fake:
             if self.data.input_function is not None:
+                assert real_input_filename
                 input_filename = real_input_filename
 
-            if not isinstance(input_filename, list):
-                input_filename = [input_filename]
-
-            new_input_filename = []
-            for filename in input_filename:
-                if isinstance(filename, str):
-                    new_input_filename.append(filename)
-                elif isinstance(filename, dict):
-                    new_input_filename += filename.values()
-                else:
-                    new_input_filename += filename
-            input_filename = new_input_filename
-
-            for filename in input_filename:
+            for file_data in input_filename:
+                filename = file_data.filename
                 extension = os.path.splitext(filename)[1].lower()
                 os.unlink(filename)
                 if extension == ".bam":
@@ -185,7 +228,11 @@ class Executor:
                     if os.path.exists(bai_file):
                         os.unlink(bai_file)
 
-    def _handle_command(self, current_command, all_params):
+    def _handle_command(self,
+                        current_command: Union[str, Callable],
+                        all_params: Mapping[str, Any]) -> None:
+        assert self.data
+
         locals().update(all_params)
         if isinstance(current_command, str):
             if not self.analysis.run_fake:
@@ -203,6 +250,7 @@ class Executor:
             status = 0
 
         if status != 0:
+            assert isinstance(self.data.command, str)
             arg_zero = os.path.basename(self.data.command.split(" ")[0])
 
             if self.data.error_string is None:
@@ -241,105 +289,138 @@ class Executor:
             self.analysis.logger.error(error_string)
             raise PipelineError(exception_string)
 
-    def _create_mod_input_filenames(self, input_filenames):
-        mod_input_filenames = {}
-        if self.data.input_split_reads:
-            for organism, current_input_filenames in input_filenames.items(
-            ):
-                mod_input_filenames[organism] = \
-                    [filename for filename
-                     in map(self.data.input_function,
-                            current_input_filenames)
-                     if filename is not None]
-        else:
-            for organism, current_input_filenames in input_filenames.items(
-            ):
-                current_mod_input = self.data.input_function(
-                    current_input_filenames)
-                if isinstance(current_mod_input, list):
-                    current_mod_input.remove(None)
-                    current_mod_input.remove("")
-                mod_input_filenames[organism] = current_mod_input
+    def _create_mod_input_filenames(self,
+                                    input_filenames: AnalysesPerOrganism) \
+            -> AnalysesPerOrganism:
+        assert self.data
+        assert self.data.input_function
+
+        self._fix_input_filenames(input_filenames)
+
+        mod_input_filenames: AnalysesPerOrganism = {}
+        for organism, analyses in input_filenames.items():
+            mod_analyses = mod_input_filenames.setdefault(organism, [])
+
+            for analysis in analyses:
+                filenames = [
+                    analysis_file.filename for analysis_file in analysis]
+
+                if self.data.input_split_reads:
+                    mod_analyses.append(
+                        SingleAnalysis([AnalysisFileData(filename)
+                                        for filename
+                                        in map(cast(Callable[[str], str],
+                                                    self.data.input_function),
+                                               filenames)
+                                        if filename]))
+                else:
+                    result = cast(Callable[[List[str]], str],
+                                  self.data.input_function)(filenames)
+                    mod_analyses.append(SingleAnalysis(
+                        [AnalysisFileData(result)]))
 
         if mod_input_filenames is None or \
                 len(mod_input_filenames) == 0:
             raise PipelineError("empty input list")
 
-        first_mod_input_filenames = list(mod_input_filenames.values())[0]
-        if (isinstance(first_mod_input_filenames, str) and
-                first_mod_input_filenames == "") or\
-                (isinstance(first_mod_input_filenames, list) and
-                 len(first_mod_input_filenames) == 0):
+        first_mod_input_filenames = next(iter(mod_input_filenames.values()))
+        if not first_mod_input_filenames:
             raise PipelineError("empty input list")
 
-        if not self.data.input_split_reads:
-            for organism, current_list in input_filenames.items():
-                input_filenames[organism] = [current_list]
-            for organism, current_list in mod_input_filenames.items():
-                mod_input_filenames[organism] = [current_list]
+        self._fix_input_filenames(mod_input_filenames)
 
         return mod_input_filenames
 
-    def _fix_input_filenames(self, input_filenames):
-        if input_filenames is None or \
-                len(input_filenames) == 0:
+    def _fix_input_filenames(self,
+                             input_filenames: AnalysesPerOrganism) -> None:
+        assert self.data
+
+        if not input_filenames:
             raise PipelineError("empty input list")
 
-        first_input_filenames = list(input_filenames.values())[0]
-        if (isinstance(first_input_filenames, str) and
-                first_input_filenames == "") or \
-                (isinstance(first_input_filenames, list) and
-                 len(first_input_filenames) == 0):
+        first_input_filenames = next(iter(input_filenames.values()))
+        if not first_input_filenames:
             raise PipelineError("empty input list")
 
         if not self.data.input_split_reads:
-            for organism, current_list in input_filenames.items():
-                input_filenames[organism] = [current_list]
+            for organism, analyses in input_filenames.items():
+                input_filenames[organism] = [
+                    SingleAnalysis([file_data
+                                    for analysis in analyses
+                                    for file_data
+                                    in analysis])]
 
-    def _get_input_filenames(self):
+    @staticmethod
+    def _get_fixed_normals_analyses(analyses: List[SingleAnalysis]) \
+            -> List[SingleAnalysis]:
+
+        for analysis in analyses:
+            assert len(analysis) == 1
+
+            file_data = next(iter(analysis))
+            if file_data.type != AnalysisType.Sample:
+                continue
+
+            controls = [(other_analysis, other_file_data)
+                        for other_analysis in analyses
+                        for other_file_data in other_analysis
+                        if file_data.barcode.equals_without_tissue(
+                            other_file_data.barcode)]
+
+            if len(controls) == 1:
+                control = controls[0]
+                analysis.append(control[1])
+                control[0].remove(control[1])
+            else:
+                sequencing_specific = [
+                    control
+                    for control in controls
+                    if control[1].barcode.sequencing ==
+                    file_data.barcode.sequencing]
+
+                if sequencing_specific:
+                    controls = sequencing_specific
+
+                analysis = SingleAnalysis(
+                    analysis + [control[1] for control in controls])
+
+                for control in controls:
+                    control[0].remove(control[1])
+
+        return [analysis for analysis in analyses if analysis]
+
+    def _get_input_filenames(self) -> Tuple[AnalysesPerOrganism,
+                                            AnalysesPerOrganism]:
+        assert self.data
+
         if self.data.input_filenames is None:
             if self.analysis.last_operation_filenames is None:
                 raise PipelineError("input files missing and "
                                     "last_operation_filenames empty")
 
-            input_filenames = utils.get_sample_filenames(
+            raw_input_filenames = utils.get_sample_filenames(
                 self.analysis.last_operation_filenames,
                 self.data.split_by_organism)
         else:
-            input_filenames = utils.get_sample_filenames(
+            raw_input_filenames = utils.get_sample_filenames(
                 self.data.input_filenames, self.data.split_by_organism)
 
-        if not isinstance(input_filenames, dict):
-            input_filenames = {"": input_filenames}
+        input_filenames: AnalysesPerOrganism = {}
+        if isinstance(raw_input_filenames, dict):
+            for organism, filenames in raw_input_filenames.items():
+                analyses = input_filenames.setdefault(organism, [])
+                for filename in filenames:
+                    analyses.append(SingleAnalysis(
+                        [AnalysisFileData(filename)]))
+        else:
+            analyses = input_filenames.setdefault("", [])
+            for filename in raw_input_filenames:
+                analyses.append(SingleAnalysis([AnalysisFileData(filename)]))
 
         if self.analysis.parameters["use_normals"] and self.data.use_normals:
-            splitted_filenames = {}
-            for organism, input_list in input_filenames.items():
-                current_splitted = {}
-                for filename in input_list:
-                    barcoded_filename = BarcodedFilename(filename)
-
-                    sample_type = barcoded_filename.tissue
-                    if sample_type.is_normal():
-                        current_splitted["normal"] = filename
-                    else:
-                        current_splitted["tumor"] = filename
-
-                splitted_filenames[organism] = current_splitted
-
-            input_filenames = {}
-            for splitted_key, splitted_list in splitted_filenames.items():
-                if len(splitted_list) == 1:
-                    if list(splitted_list.keys())[0] == "tumor":
-                        if splitted_key not in input_filenames:
-                            input_filenames[splitted_key] = []
-                        input_filenames[splitted_key].append(
-                            list(splitted_list.values())[0])
-                else:
-                    if splitted_key not in input_filenames:
-                        input_filenames[splitted_key] = []
-
-                    input_filenames[splitted_key].append(splitted_list)
+            for organism, analyses in input_filenames.items():
+                input_filenames[organism] = \
+                    Executor._get_fixed_normals_analyses(analyses)
 
         if self.data.input_function is not None:
             return (input_filenames,
@@ -348,7 +429,9 @@ class Executor:
             self._fix_input_filenames(input_filenames)
             return (input_filenames, {})
 
-    def _get_additional_params(self, organism):
+    def _get_additional_params(self,
+                               organism: Optional[str]) \
+            -> Dict[str, str]:
         additional_params = {}
 
         if organism is None or organism == "":
@@ -358,9 +441,8 @@ class Executor:
             additional_params["organism_str"] = "." + organism
 
         try:
-            genome_ref, genome_index = \
-                utils.get_genome_ref_index_by_organism(
-                    self.analysis.config, organism)
+            genome_ref, genome_index = utils.get_genome_ref_index_by_organism(
+                self.analysis.config, organism)
             additional_params["genome_ref"] = genome_ref
             additional_params["genome_index"] = genome_index
         except DataError:
@@ -380,7 +462,12 @@ class Executor:
 
         return additional_params
 
-    def _get_commands(self, all_params):
+    def _get_commands(self,
+                      all_params: Mapping[str, Any]) \
+            -> List[Union[str, Callable]]:
+        assert self.data
+        assert self.data.command
+
         locals().update(all_params)
 
         commands = []
@@ -405,8 +492,8 @@ class Executor:
 
                 commands.append(s)
         else:
-            current_command = self.data.command
-            if isinstance(current_command, str):
+            if isinstance(self.data.command, str):
+                current_command = str(self.data.command)
                 for match in Executor.RE_REPLACER.finditer(self.data.command):
                     try:
                         evaluated = eval(match.group(1))
@@ -422,49 +509,57 @@ class Executor:
 
                     current_command = current_command.replace(
                         match.group(0), str(evaluated))
-            commands.append(current_command)
+
+                commands.append(current_command)
+            else:
+                commands.append(self.data.command)
 
         return commands
 
-    def _handle_input_filename(self,
-                               input_filename,
-                               mod_input_filename,
-                               output_filenames,
-                               output_bamfiles,
-                               input_filenames):
+    def _handle_analysis(self,
+                         analysis_input: SingleAnalysis,
+                         mod_analysis_input: Optional[SingleAnalysis],
+                         output_filenames: Dict[str, List[str]],
+                         output_bamfiles: Dict[str, List[str]],
+                         analyses: AnalysesPerOrganism) \
+            -> None:
+        assert self.data
 
-        if isinstance(input_filename, str):
-            barcoded_filename = BarcodedFilename(input_filename)
-            organism = barcoded_filename.organism
-            read_index = barcoded_filename.read_index
-        elif isinstance(input_filename, dict):
-            barcoded_filename = BarcodedFilename(
-                input_filename["tumor"])
-            organism = barcoded_filename.organism
-            read_index = barcoded_filename.read_index
-        else:
-            read_index = []
-            for filename in input_filename:
-                if isinstance(filename, str):
-                    barcoded_filename = BarcodedFilename(filename)
-                    organism = barcoded_filename.organism
-                    index = barcoded_filename.read_index
-                else:
-                    barcoded_filename = BarcodedFilename(
-                        filename["tumor"])
-                    organism = barcoded_filename.organism
-                    index = barcoded_filename.read_index
-                read_index.append(index)
-
+        real_analysis_input: Optional[SingleAnalysis]
         if self.data.input_function is not None:
-            real_input_filename = input_filename
-            input_filename = mod_input_filename
-        else:
-            real_input_filename = None
+            assert mod_analysis_input
 
+            real_analysis_input = analysis_input
+            analysis_input = mod_analysis_input
+
+            # The input_function returns one string for all the files
+            # if not splitted
+            if not self.data.input_split_reads:
+                assert len(analysis_input) == 1
+                input_filename = analysis_input[0]
+            else:
+                input_filenames = analysis_input
+                if len(analysis_input) == 1:
+                    input_filename = analysis_input[0]
+        else:
+            real_analysis_input = None
+
+            if self.data.input_split_reads:
+                assert len(analysis_input) == 1
+                input_filename = analysis_input[0]
+            else:
+                input_filenames = analysis_input
+                if len(analysis_input) == 1:
+                    input_filename = analysis_input[0]
+
+        file_data = analysis_input.sample
+        if not file_data:
+            file_data = analysis_input.control
+        assert file_data
+
+        organism = file_data.barcode.organism
         if not self.data.only_human \
-                or organism is None \
-                or organism == ""\
+                or not organism \
                 or organism.startswith("hg"):
 
             locals().update(self._get_additional_params(organism))
@@ -488,33 +583,33 @@ class Executor:
                 if output_filename:
                     self._handle_output_filename(
                         command_index,
-                        commands,
+                        len(commands),
                         organism,
                         output_filename,
                         output_filenames,
                         output_bamfiles)
 
-        self._unlink_filename(input_filename, real_input_filename)
+        self._unlink_filename(analysis_input, real_analysis_input)
 
     def __call__(self,
                  command: Union[str, List[str], Callable[..., None]],
-                 output_format: Optional[str] = None,
-                 input_filenames: Optional[Sequence[str]] = None,
-                 input_function: Optional[Callable[[str],
-                                                   Optional[str]]] = None,
-                 input_split_reads: bool = True,
-                 output_path: Optional[str] = None,
+                 output_format: Optional[str]=None,
+                 input_filenames: Optional[Sequence[str]]=None,
+                 input_function: Optional[Callable[[Union[str, List[str]]],
+                                                   Optional[str]]]=None,
+                 input_split_reads: bool=True,
+                 output_path: Optional[str]=None,
                  output_function: Optional[Callable[[str],
-                                                    Iterable[str]]] = None,
-                 error_string: Optional[str] = None,
-                 exception_string: Optional[str] = None,
-                 override_last_files: bool = True,
-                 write_bam_files: bool = True,
-                 unlink_inputs: bool = False,
-                 save_only_last: bool = True,
-                 use_normals: bool = False,
-                 split_by_organism: bool = False,
-                 only_human: bool = False) -> None:
+                                                    Iterable[str]]]=None,
+                 error_string: Optional[str]=None,
+                 exception_string: Optional[str]=None,
+                 override_last_files: bool=True,
+                 write_bam_files: bool=True,
+                 unlink_inputs: bool=False,
+                 save_only_last: bool=True,
+                 use_normals: bool=False,
+                 split_by_organism: bool=False,
+                 only_human: bool=False) -> None:
 
         self.data = ExecutorData(command,
                                  output_format,
@@ -533,13 +628,15 @@ class Executor:
                                  split_by_organism,
                                  only_human)
 
-        input_filenames, mod_input_filenames = self._get_input_filenames()
+        _input_filenames, mod_input_filenames = self._get_input_filenames()
 
-        output_filenames = {}
-        output_bamfiles = {}
-        for current_organism in input_filenames.keys():
-            current_input_filenames = input_filenames[current_organism]
+        output_filenames: Dict[str, List[str]] = {}
+        output_bamfiles: Dict[str, List[str]] = {}
+        for current_organism in _input_filenames.keys():
+            current_input_filenames = _input_filenames[current_organism]
 
+            iterator: Union[Iterable[Tuple[SingleAnalysis, SingleAnalysis]],
+                            Iterable[Tuple[SingleAnalysis, None]]]
             if input_function is not None:
                 current_mod_input_filenames = mod_input_filenames[
                     current_organism]
@@ -555,12 +652,12 @@ class Executor:
                                [None] * len(current_input_filenames))
 
             for input_filename, mod_input_filename in iterator:
-                self._handle_input_filename(
+                self._handle_analysis(
                     input_filename,
                     mod_input_filename,
                     output_filenames,
                     output_bamfiles,
-                    input_filenames)
+                    _input_filenames)
 
         if override_last_files:
             self.analysis.last_operation_filenames = output_filenames

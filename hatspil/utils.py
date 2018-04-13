@@ -6,9 +6,10 @@ import re
 import shutil
 import subprocess
 from argparse import ArgumentTypeError
+from copy import deepcopy
 from logging import Logger
-from typing import (Any, Dict, Generator, Iterable, List, Tuple, Union,
-                    ValuesView, cast)
+from typing import (Any, Dict, Generator, Iterable, List, Mapping, Sequence,
+                    Tuple, Union, ValuesView, cast)
 
 from .config import Config
 from .exceptions import DataError
@@ -41,19 +42,17 @@ def run_and_log(command: str, logger: Logger) -> int:
         return process.wait()
 
 
-def get_sample_filenames(obj: Union[List[str],
-                                    Dict[str, str],
-                                    Dict[str, List[str]],
+def get_sample_filenames(obj: Union[Sequence[str],
+                                    Mapping[str, List[str]],
                                     str],
-                         split: bool = False
+                         split_by_organism: bool = False
                          ) -> Union[List[str],
-                                    Dict[str, str],
-                                    Dict[str, List[str]]]:
+                                    Mapping[str, List[str]]]:
     if isinstance(obj, list):
-        return obj
+        return list(obj)
     elif isinstance(obj, dict):
-        if split and len(obj) > 1:
-            return obj
+        if split_by_organism and len(obj) > 1:
+            return deepcopy(obj)
         else:
             values = obj.values()
             if isinstance(next(iter(values)), list):
@@ -66,6 +65,7 @@ def get_sample_filenames(obj: Union[List[str],
             else:
                 raise DataError("unexpected filenames type")
     else:
+        assert isinstance(obj, str)
         return [obj]
 
 

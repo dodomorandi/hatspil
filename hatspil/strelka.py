@@ -28,8 +28,8 @@ class Strelka:
         executor = Executor(self.analysis)
         executor(
             f"{self.strelka_perl} "
-            f"--tumor={{input_filename[\"tumor\"]}} "
-            f"--normal={{input_filename[\"normal\"]}} "
+            f"--tumor={{input_filenames.sample]}} "
+            f"--normal={{input_filenames.control]}} "
             f"--ref={{genome_ref}} "
             f"--config={self.analysis.config.strelka_config} "
             f"--output-dir={self.strelka_dir}",

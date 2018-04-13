@@ -2,13 +2,13 @@ import itertools
 import os
 import re
 import shutil
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Tuple, cast
 
 from . import utils
 from .analysis import Analysis
 from .barcoded_filename import BarcodedFilename, Tissue
 from .exceptions import PipelineError
-from .executor import Executor
+from .executor import Executor, SingleAnalysis, AnalysisFileData
 
 
 class Xenograft:
@@ -25,48 +25,46 @@ class Xenograft:
         self.sample_base_out = os.path.join(reports_dir, self.analysis.sample)
         self.skip_filenames: Dict[str, List[str]] = {}
         self.already_done: Dict[str, List[str]] = {}
-        self.input_filenames: List[str] = []
+        self.input_filenames = SingleAnalysis()
 
     def chdir(self) -> None:
         os.chdir(self.fastq_dir)
 
-    def _check_lambda(self, **kwargs: Dict[str, str]) -> None:
-        self.input_filenames = [
-            filename
-            for filename in utils.flatten(kwargs["input_filenames"].values())
-        ]
-        valid_filenames = []
-        for filename in self.input_filenames:
-            barcoded_filename = BarcodedFilename(filename)
-            if barcoded_filename.tissue == Tissue.PRIMARY_XENOGRAFT_TISSUE or \
-                    barcoded_filename.tissue == \
-                    Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE:
-                valid_filenames.append(filename)
+    def _check_lambda(self, **kwargs: SingleAnalysis) -> None:
+        self.input_filenames = SingleAnalysis([
+            cast(AnalysisFileData, filename)
+            for filename in utils.flatten(kwargs["input_filenames"])
+        ])
+        valid_filenames = SingleAnalysis()
+        for file_data in self.input_filenames:
+            if file_data.barcode.is_xenograft():
+                valid_filenames.append(file_data)
             else:
-                organism = barcoded_filename.organism
+                organism = file_data.barcode.organism
                 if not organism:
                     organism = "hg19"
                 if organism not in self.skip_filenames:
                     self.skip_filenames[organism] = []
                 self.skip_filenames[organism].append(
-                    os.path.join(os.getcwd(), filename))
+                    os.path.join(os.getcwd(), file_data.filename))
 
-        self.input_filenames = sorted(valid_filenames)
+        self.input_filenames = valid_filenames
+        self.input_filenames.sort(key=lambda file_data: file_data.filename)
 
         compressed = [
-            filename for filename in self.input_filenames
-            if filename.endswith(".gz")
+            file_data for file_data in self.input_filenames
+            if file_data.filename.endswith(".gz")
         ]
 
-        self.input_filenames = [
-            filename for filename in self.input_filenames
-            if not filename.endswith(".gz")
-        ]
+        self.input_filenames = SingleAnalysis([
+            file_data for file_data in self.input_filenames
+            if not file_data.filename.endswith(".gz")
+        ])
 
-        for fastqgz in compressed:
+        for fastqgz_data in compressed:
             can_skip = True
             removed: Dict[str, List[str]] = {}
-            barcoded_filename = BarcodedFilename(fastqgz)
+            barcoded_filename = BarcodedFilename(fastqgz_data.filename)
             for organism in ("hg19", "mm10"):
                 obtained_name = "%s.%s" % (barcoded_filename.get_barcode(),
                                            organism)
@@ -76,19 +74,23 @@ class Xenograft:
                 obtained_name += ".fastq"
 
                 removed[organism] = [os.path.join(os.getcwd(), obtained_name)]
-                if obtained_name not in self.input_filenames:
+                obtained_file_data = next((file_data
+                                           for file_data in self.input_filenames
+                                           if file_data.filename == obtained_name),
+                                          None)
+                if not obtained_file_data:
                     can_skip = False
                 else:
-                    self.input_filenames.remove(obtained_name)
+                    self.input_filenames.remove(obtained_file_data)
 
             if can_skip:
                 self.already_done.update(removed)
             else:
-                if not utils.check_gz(fastqgz):
+                if not utils.check_gz(fastqgz_data.filename):
                     raise PipelineError(
-                        "%s is corrupted. Fix the problem and retry" % fastqgz)
-                utils.gunzip(fastqgz)
-                self.input_filenames.append(fastqgz[:-3])
+                        "%s is corrupted. Fix the problem and retry" % fastqgz_data.filename)
+                utils.gunzip(fastqgz_data.filename)
+                self.input_filenames.append(AnalysisFileData(fastqgz_data.filename[:-3]))
 
     def check(self) -> bool:
         self.analysis.logger.info("Checking if xenome must be performed")
@@ -120,7 +122,7 @@ class Xenograft:
             f"{{input_filename}} "
             f"--tmp-dir {temp_dir} "
             f"> \"{self.sample_base_out}.xenome_summary.txt\"",
-            input_filenames=self.input_filenames,
+            input_filenames=[file_data.filename for file_data in self.input_filenames],
             input_function=lambda filenames: " ".join(
                 ["-i %s" % filename for filename in filenames]),
             output_format=f"{self.analysis.sample}_%s_%d.fastq",
@@ -196,7 +198,8 @@ class Xenograft:
                 os.path.join(os.getcwd(), out_filename))
 
         other_fastq = [
-            "%s_%s_%d.fastq" % ((self.analysis.sample, ) + combo)
+            "%s_%s_%d.fastq" % cast(Tuple[str, str, int],
+                                    ((self.analysis.sample, ) + combo))
             for combo in itertools.product(["ambiguous", "both", "neither"],
                                            range(1, 3))
         ]

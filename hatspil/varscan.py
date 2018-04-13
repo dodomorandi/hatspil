@@ -1,10 +1,10 @@
 import os
 import subprocess
-from typing import Dict, Union, cast
+from typing import Union, cast
 
 from .analysis import Analysis
 from .exceptions import PipelineError
-from .executor import Executor
+from .executor import Executor, SingleAnalysis, AnalysisFileData
 
 
 class VarScan:
@@ -36,12 +36,11 @@ class VarScan:
         os.chdir(self.analysis.get_out_dir())
 
     def _run_varscan_normals(self,
-                             **kwargs: Union[str, Dict[str, str]]) -> None:
+                             **kwargs: Union[str, SingleAnalysis]) -> None:
         self.analysis.logger.info("Running VarScan Somatic")
 
         genome_ref: str = cast(str, kwargs["genome_ref"])
-        input_filenames: Dict[str, str] = cast(
-            Dict[str, str], kwargs["input_filename"])
+        input_filenames = cast(SingleAnalysis, kwargs["input_filenames"])
         organism_str: str = cast(str, kwargs["organism_str"])
 
         config = self.analysis.config
@@ -49,8 +48,8 @@ class VarScan:
         pileup_process = subprocess.Popen(
             f"{config.samtools} mpileup "
             f"-q 1 -d 6000 -f {genome_ref} "
-            f"-B {input_filenames['normal']} "
-            f"{input_filenames['tumor']} "
+            f"-B {input_filenames.control} "
+            f"{input_filenames.sample} "
             "| awk '{if($4 >= 6) print $0}' "
             "| awk '{if($7 != 0) print $0}'"
             f">{self.first_fifo}",
@@ -103,12 +102,12 @@ class VarScan:
 
         self.analysis.logger.info("Finished VarScan Somatic")
 
-    def _run_varscan_no_normals(self, **kwargs: str) -> None:
+    def _run_varscan_no_normals(self, **kwargs: Union[str, AnalysisFileData]) -> None:
         self.analysis.logger.info("Running VarScan mpileup2snp/indel")
 
-        genome_ref: str = kwargs["genome_ref"]
-        input_filename: str = kwargs["input_filename"]
-        organism_str: str = kwargs["organism_str"]
+        genome_ref = cast(str, kwargs["genome_ref"])
+        input_filename = cast(AnalysisFileData, kwargs["input_filename"])
+        organism_str = cast(str, kwargs["organism_str"])
 
         config = self.analysis.config
 

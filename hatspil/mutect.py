@@ -25,8 +25,8 @@ class Mutect:
                 f"-jar {config.mutect} "
                 f'{config.mutect_args} --reference_sequence '
                 f'{{genome_ref}} --dbsnp {{dbsnp}} --cosmic '
-                f'{{cosmic}} --input_file:tumor {{input_filename["tumor"]}} '
-                f'--input_file:normal {{input_filename["normal"]}} --out '
+                f'{{cosmic}} --input_file:tumor {{input_filenames.sample]}} '
+                f'--input_file:normal {{input_filenames.control}} --out '
                 f'{self.analysis.basename}{{organism_str}}.mutect.1.17.vcf ',
                 override_last_files=False,
                 error_string="Mutect exited with status {status}",

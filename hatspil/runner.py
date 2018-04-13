@@ -55,8 +55,8 @@ class Runner:
         analysis = Analysis(sample, self.root, self.config, self.parameters)
         if normal is None:
             analysis.last_operation_filenames = {
-                "tumor": [tumor],
-                "normal": []
+                "sample": [tumor],
+                "control": []
             }
 
             self._run(analysis, False)
