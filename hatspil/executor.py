@@ -417,3 +417,38 @@ class Executor:
 
         if write_bam_files and len(output_bamfiles) != 0:
             self.analysis.bamfiles = output_bamfiles
+
+    def override_last_operation_filename(self, new_filename: str) -> None:
+        if not self.analysis.last_operation_filenames:
+            raise PipelineError("last operation did not leave an output file")
+
+        if isinstance(self.analysis.last_operation_filenames, str):
+            self.analysis.last_filenames = new_filename
+        elif isinstance(self.analysis.last_operation_filenames, list):
+            if len(self.analysis.last_operation_filenames) != 1:
+                raise PipelineError(
+                    "last operation created a list with a number of output "
+                    "files different than one")
+
+            self.analysis.last_operation_filenames[0] = new_filename
+        elif isinstance(self.analysis.last_operation_filenames, dict):
+            if len(self.analysis.last_operation_filenames) != 1:
+                raise PipelineError("last operation created a dict using "
+                                    "more than one organism")
+
+            organism, last_filenames = next(
+                iter(self.analysis.last_operation_filenames.items()))
+            if isinstance(last_filenames, str):
+                self.analysis.last_operation_filenames[organism] = new_filename
+            elif isinstance(last_filenames, list):
+                if len(last_filenames) != 1:
+                    raise PipelineError(
+                        "last operation created a dict of lists with one "
+                        "list, but the list contains a number of filenames "
+                        "different than one")
+                self.analysis.last_operation_filenames[organism][0] = \
+                    new_filename
+            else:
+                raise PipelineError("last operation created an invalid dict")
+        else:
+            raise PipelineError("last operation created an invalid object")
