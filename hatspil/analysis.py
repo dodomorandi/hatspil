@@ -1,13 +1,16 @@
 import logging
 import os
+from typing import Any, Dict, List, Optional, Union
 
 from . import utils
 from .barcoded_filename import BarcodedFilename
+from .config import Config
 from .exceptions import PipelineError
 
 
 class Analysis:
-    def __init__(self, sample, root, config, parameters):
+    def __init__(self, sample: str, root: str, config: Config,
+                 parameters: Dict[str, Any]) -> None:
         self.sample = sample
         self.root = root
         if parameters["use_date"] is None:
@@ -18,28 +21,21 @@ class Analysis:
         self.basename = "%s.%s" % (self.sample, self.current)
         self.bam_dir = os.path.join(self.root, "BAM")
         self.out_dir = os.path.join(self.root, "Variants")
-        self.bamfiles = None
+        self.bamfiles: Dict[str, List[str]] = {}
         self.config = config
-        self.last_operation_filenames = None
+        self.last_operation_filenames: Union[str,
+                                             List[str],
+                                             Dict[str, List[str]],
+                                             None] = None
         self.run_fake = False
         self.can_unlink = True
 
-        try:
-            os.makedirs(self.root, exist_ok=True)
-        except OSError:
-            pass
-
-        try:
-            os.makedirs(self.out_dir, exist_ok=True)
-        except OSError:
-            pass
+        os.makedirs(self.root, exist_ok=True)
+        os.makedirs(self.out_dir, exist_ok=True)
 
         logs_dir = os.path.join(self.root, "logs")
 
-        try:
-            os.makedirs(logs_dir, exist_ok=True)
-        except OSError:
-            pass
+        os.makedirs(logs_dir, exist_ok=True)
 
         self.logger = logging.getLogger(self.basename)
         self.log_handler = logging.FileHandler(
@@ -47,9 +43,9 @@ class Analysis:
         self.log_handler.setFormatter(
             logging.Formatter("%(asctime)s-15 %(message)s"))
         self.logger.addHandler(self.log_handler)
-        self.logger.setLevel(level=logging.INFO)
+        self.logger.setLevel(logging.INFO)
 
-    def _get_first_filename(self):
+    def _get_first_filename(self) -> Optional[str]:
         filename = self.last_operation_filenames
         if filename is None:
             return None
@@ -74,22 +70,22 @@ class Analysis:
         else:
             return None
 
-    def _get_custom_dir(self, param):
+    def _get_custom_dir(self, param: str) -> str:
         filename = self._get_first_filename()
-        directory = getattr(self, param)
+        directory: str = getattr(self, param)
         if filename is None:
             return directory
 
         return BarcodedFilename(filename).get_directory(directory)
 
-    def get_bam_dir(self):
+    def get_bam_dir(self) -> str:
         return self._get_custom_dir("bam_dir")
 
-    def get_out_dir(self):
+    def get_out_dir(self) -> str:
         return self._get_custom_dir("out_dir")
 
     @property
-    def using_normals(self):
+    def using_normals(self) -> bool:
         return self.parameters["use_normals"] \
             and self.last_operation_filenames is not None \
             and isinstance(self.last_operation_filenames, dict) \

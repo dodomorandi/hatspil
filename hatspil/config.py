@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 from configparser import ConfigParser
+from typing import Optional
 
 
 class Config:
@@ -20,7 +21,7 @@ class Config:
                   "use_mm9", "use_mm10", "kit", "mails", "use_mongodb")
     mongodb = ("database", "host", "port", "username", "password")
 
-    def __init__(self, filename=None):
+    def __init__(self, filename: Optional[str] = None) -> None:
         self.java = "java"
         self.java7 = "java"
         self.perl = "perl"
@@ -117,7 +118,7 @@ class Config:
                 if "port" in parser["MONGODB"]:
                     self.mongodb_port = parser["MONGODB"].getint("port")
 
-    def save(self, filename):
+    def save(self, filename: str) -> None:
         config = ConfigParser()
 
         executables = {}
@@ -149,7 +150,7 @@ class Config:
         with open(filename, "w") as fd:
             config.write(fd)
 
-    def check_programs(self):
+    def check_programs(self) -> bool:
         ok = True
 
         for param in Config.jars:
@@ -183,7 +184,7 @@ class Config:
 
         return ok
 
-    def check_files(self):
+    def check_files(self) -> bool:
         ok = True
 
         for param in Config.files:

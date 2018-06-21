@@ -6,10 +6,13 @@ import re
 import shutil
 import tempfile
 from enum import Enum, auto
+from typing import List, Optional, Sequence, Union
 
 from . import utils
+from .analysis import Analysis
 from .barcoded_filename import Analyte, BarcodedFilename
-from .executor import Executor
+from .exceptions import PipelineError
+from .executor import AnalysisFileData, Executor
 
 
 class Aligner(Enum):
@@ -22,7 +25,7 @@ class RnaSeqAligner(Enum):
 
 
 class Mapping:
-    def __init__(self, analysis, fastq_dir):
+    def __init__(self, analysis: Analysis, fastq_dir: str) -> None:
         self.analysis = analysis
         self.fastq_dir = fastq_dir
 
@@ -31,17 +34,10 @@ class Mapping:
                                             self.analysis.sample)
         self.output_basename = os.path.join("REPORTS", self.analysis.basename)
 
-        try:
-            os.makedirs(
-                os.path.join(self.analysis.get_bam_dir(), "REPORTS"),
-                exist_ok=True)
-        except OSError:
-            pass
-
-        try:
-            os.makedirs(os.path.join(self.fastq_dir, "REPORTS"), exist_ok=True)
-        except OSError:
-            pass
+        os.makedirs(
+            os.path.join(self.analysis.get_bam_dir(), "REPORTS"),
+            exist_ok=True)
+        os.makedirs(os.path.join(self.fastq_dir, "REPORTS"), exist_ok=True)
 
         self.gatk_threads = self.analysis.parameters["gatk_threads"]
         self.max_records_str = utils.get_picard_max_records_string(
@@ -50,10 +46,10 @@ class Mapping:
         self.sort_tempdir = os.path.join(self.analysis.get_bam_dir(),
                                          "%s_sort_tmp" % self.analysis.sample)
 
-    def chdir(self):
+    def chdir(self) -> None:
         os.chdir(self.analysis.get_bam_dir())
 
-    def cutadapt(self):
+    def cutadapt(self) -> None:
         self.analysis.logger.info("Cutting adapters")
         self.chdir()
 
@@ -76,7 +72,7 @@ class Mapping:
 
         self.analysis.logger.info("Finished cutting adapters")
 
-    def fastqc(self):
+    def fastqc(self) -> None:
         self.analysis.logger.info("Running fastqc")
         self.chdir()
 
@@ -88,7 +84,7 @@ class Mapping:
 
         self.analysis.logger.info("Finished fastqc")
 
-    def trim(self):
+    def trim(self) -> None:
         trim_end = False
         if self.analysis.parameters["use_xenome"]:
             trim_end = True
@@ -115,24 +111,26 @@ class Mapping:
             f'"{{input_filename}}" '
             f'> "{{output_filename}}"',
             output_format=os.path.join(
-                self.fastq_dir, "%s{organism_str}.trimmed.R{read_index}.fastq"
+                self.fastq_dir,
+                "%s{organism_str}.trimmed"
+                ".R{input_filename.barcode.read_index}.fastq"
                 % self.analysis.sample),
             output_path=self.fastq_dir,
             unlink_inputs=True,
             error_string="Trimming with seqtk exited with status "
-            "{status}",
+                         "{status}",
             exception_string="trimming error")
 
         self.analysis.logger.info("Finished trimming")
 
-    def filter_alignment(*args, **kwargs):
+    def filter_alignment(*args, **kwargs: Sequence[AnalysisFileData]) -> None:
         """
         keep only aligned reads with maximum of N mismatches and without
         Ns, hard clipping and padding
         """
-        if len(kwargs['input_filename']) != 1:
-            raise "Expected a list with only one file"
-        input_filename = kwargs["input_filename"][0]
+        if len(kwargs['input_filenames']) != 1:
+            raise PipelineError("Expected a list with only one file")
+        input_filename: str = kwargs["input_filenames"][0].filename
         tmp_filename = input_filename + ".tmp"
         reSpaces = re.compile(R"\s+")
         reCigar = re.compile(R"N|H|P")
@@ -161,7 +159,7 @@ class Mapping:
                 tmp_fd.write(line)
         os.rename(tmp_filename, input_filename)
 
-    def convert_alignment(self):
+    def convert_alignment(self) -> None:
         self.chdir()
         config = self.analysis.config
         executor = Executor(self.analysis)
@@ -181,7 +179,7 @@ class Mapping:
             f'{self.max_records_str}',
             output_format=f"{self.analysis.basename}{{organism_str}}.bam",
             error_string="Picard SamFormatConverter exited with status "
-            "{status}",
+                         "{status}",
             exception_string="picard SamFormatConverter error",
             unlink_inputs=True)
 
@@ -200,13 +198,13 @@ class Mapping:
             unlink_inputs=True)
 
         executor(
-            lambda **kwargs: os.rename(kwargs["input_filename"],
+            lambda **kwargs: os.rename(kwargs["input_filename"].filename,
                                        kwargs["output_filename"]),
             output_format=f"{self.analysis.basename}{{organism_str}}.bam")
 
         self.analysis.logger.info("Finished alignment SAM->BAM")
 
-    def align_novoalign(self):
+    def align_novoalign(self) -> None:
         self.analysis.logger.info("Running alignment with NovoAlign")
         self.chdir()
         config = self.analysis.config
@@ -291,7 +289,7 @@ class Mapping:
         self.analysis.logger.info(
             "Alignment finished. Aligner used: NovoAlign")
 
-    def align_bwa(self):
+    def align_bwa(self) -> None:
         self.analysis.logger.info("Running alignment with BWA")
         self.chdir()
         config = self.analysis.config
@@ -307,7 +305,7 @@ class Mapping:
             unlink_inputs=True)
         self.analysis.logger.info("Alignment finished. Aligner used: BWA")
 
-    def align_star(self):
+    def align_star(self) -> None:
         self.analysis.logger.info("Running alignment with STAR")
         self.chdir()
         config = self.analysis.config
@@ -419,15 +417,12 @@ class Mapping:
         self.analysis.logger.info("Finished HTseq count")
         self.analysis.logger.info("Alignment finished. Aligner used: STAR")
 
-    def sort_bam(self):
+    def sort_bam(self) -> None:
         self.analysis.logger.info("Sorting BAM(s)")
         self.chdir()
         config = self.analysis.config
 
-        try:
-            os.makedirs(self.sort_tempdir, exist_ok=True)
-        except OSError:
-            pass
+        os.makedirs(self.sort_tempdir, exist_ok=True)
 
         executor = Executor(self.analysis)
         executor(
@@ -459,7 +454,7 @@ class Mapping:
             shutil.rmtree(self.sort_tempdir)
         self.analysis.logger.info("Finished sorting")
 
-    def mark_duplicates(self):
+    def mark_duplicates(self) -> None:
         self.analysis.logger.info("Marking duplicates")
         self.chdir()
         config = self.analysis.config
@@ -477,9 +472,9 @@ class Mapping:
                 f'CREATE_INDEX=true '
                 f'{self.max_records_str}',
                 output_format=f"{self.analysis.basename}{{organism_str}}"
-                ".srt.marked.dup.bam",
+                              ".srt.marked.dup.bam",
                 error_string="Picard MarkDuplicates exited with "
-                "status {status}",
+                             "status {status}",
                 exception_string="picard MarkDuplicates error",
                 unlink_inputs=True)
         elif barcoded.analyte == Analyte.GENE_PANEL:
@@ -492,9 +487,9 @@ class Mapping:
                 f'IGNORE_MISSING_MATES=true '
                 f'{self.max_records_str}',
                 output_format=f"{self.analysis.basename}{{organism_str}}"
-                ".srt.mc.bam",
+                              ".srt.mc.bam",
                 error_string="Picard FixMateInformation exited with "
-                "status {status}",
+                             "status {status}",
                 exception_string="picard FixMateInformation error",
                 unlink_inputs=True)
 
@@ -502,7 +497,7 @@ class Mapping:
                 f'{config.samtools} view -H '
                 f'{{input_filename}} > {{output_filename}}',
                 output_format=f"{self.analysis.basename}{{organism_str}}"
-                ".srt.mc.filtered.sam",
+                              ".srt.mc.filtered.sam",
                 error_string="samtools view exited with status {status}",
                 exception_string="samtools view error",
                 override_last_files=False)
@@ -511,7 +506,7 @@ class Mapping:
                 f'{config.samtools} view '
                 f'{{input_filename}} | grep "MC:" >> {{output_filename}}',
                 output_format=f"{self.analysis.basename}{{organism_str}}"
-                ".srt.mc.filtered.sam",
+                              ".srt.mc.filtered.sam",
                 error_string="samtools view exited with status {status}",
                 exception_string="samtools view error",
                 unlink_inputs=True)
@@ -531,18 +526,18 @@ class Mapping:
                 f'REMOVE_DUPLICATES=true '
                 f'{self.max_records_str}',
                 output_format=f"{self.analysis.basename}{{organism_str}}"
-                ".srt.no_duplicates.bam",
+                              ".srt.no_duplicates.bam",
                 error_string="Picard UmiAwareMarkDuplicatesWithMateCigar "
-                "exited with status {status}",
+                             "exited with status {status}",
                 exception_string="picard UmiAwareMarkDuplicatesWithMateCigar "
-                "error",
+                                 "error",
                 unlink_inputs=True)
         else:
             raise Exception("Unhandled analyte")
 
         self.analysis.logger.info("Finished marking duplicates")
 
-    def indel_realign(self):
+    def indel_realign(self) -> None:
         barcoded = BarcodedFilename.from_sample(self.analysis.sample)
         self.analysis.logger.info("Running indel realignment")
         self.chdir()
@@ -560,9 +555,9 @@ class Mapping:
             f'-L {config.target_list} '
             f'-ip 50 -o {{output_filename}}',
             output_format=f"{self.output_basename}{{organism_str}}"
-            ".realignment.intervals",
+                          ".realignment.intervals",
             error_string="Gatk RalignerTargetCreator exited with status "
-            "{status}",
+                         "{status}",
             exception_string="gatk RealignerTargetCreator error",
             override_last_files=False)
 
@@ -575,21 +570,22 @@ class Mapping:
             f'-targetIntervals {self.output_basename}{{organism_str}}'
             f'.realignment.intervals -o {{output_filename}}',
             output_format=f"{self.analysis.basename}{{organism_str}}"
-            ".srt.realigned.bam",
+                          ".srt.realigned.bam",
             error_string="Gatk IndelRealigner exited with status {status}",
             exception_string="gatk IndelRealigner error",
             unlink_inputs=True)
 
         self.analysis.logger.info("Finished indel realignment")
 
-    def _filter_non_hg(self, filename):
+    def _filter_non_hg(self, filename: Union[str, List[str]]) -> Optional[str]:
+        assert isinstance(filename, str)
         organism = BarcodedFilename(filename).organism
         if organism is None or organism.lower().startswith("hg"):
             return filename
         else:
             return None
 
-    def recalibration(self):
+    def recalibration(self) -> None:
         self.analysis.logger.info("Running base recalibration")
         self.chdir()
         config = self.analysis.config
@@ -618,7 +614,7 @@ class Mapping:
             '.recalibration.table '
             f'-o {{output_filename}}',
             output_format=f"{self.analysis.basename}{{organism_str}}"
-            ".srt.realigned.recal.bam",
+                          ".srt.realigned.recal.bam",
             error_string="Gatk PrintReads exited with status {status}",
             exception_string="gatk PrintReads error",
             unlink_inputs=True)
@@ -664,14 +660,14 @@ class Mapping:
             f'CREATE_INDEX=true'
             f'{self.max_records_str}',
             output_format=f"{self.analysis.basename}{{organism_str}}"
-            ".srt.realigned.recal.no_dup.bam",
+                          ".srt.realigned.recal.no_dup.bam",
             error_string="Picard MarkDuplicates exited with status {status}",
             exception_string="picard MarkDuplicates error",
             unlink_inputs=True)
 
         self.analysis.logger.info("Finished recalibration")
 
-    def metrics_collection(self):
+    def metrics_collection(self) -> None:
         self.analysis.logger.info("Running metrics collection")
         self.chdir()
         config = self.analysis.config
@@ -703,13 +699,13 @@ class Mapping:
             f'S={self.output_basename}{{organism_str}}.gcbias_summ_metrics.txt'
             f'{self.max_records_str}',
             error_string="Picard CollectGcBiasMetrics exited with "
-            "status {status}",
+                         "status {status}",
             exception_string="picard CollectGcBiasMetrics error",
             override_last_files=False)
 
         self.analysis.logger.info("Finished metrics collection")
 
-    def bam2tdf(self):
+    def bam2tdf(self) -> None:
         self.analysis.logger.info("Converting BAM to TDF")
         self.chdir()
         config = self.analysis.config
@@ -721,7 +717,7 @@ class Mapping:
             exception_string="bam2tdf error",
             override_last_files=False)
 
-    def compress_fastq(self):
+    def compress_fastq(self) -> None:
         self.analysis.logger.info("Compressing fastq files")
         self.chdir()
         fastq_files = utils.find_fastqs_by_organism(self.analysis.sample,
@@ -731,7 +727,7 @@ class Mapping:
                 utils.gzip(filename)
         self.analysis.logger.info("Finished compressing fastq files")
 
-    def run(self):
+    def run(self) -> None:
         barcoded = BarcodedFilename.from_sample(self.analysis.sample)
         if barcoded.analyte == Analyte.WHOLE_EXOME:
             if self.analysis.parameters["use_cutadapt"]:

@@ -2,10 +2,12 @@ import glob
 import math
 import os
 import re
+from typing import Any, Dict, List, Optional, cast
 
 import pandas as pd
 import vcf
 
+from .analysis import Analysis
 from .barcoded_filename import BarcodedFilename
 from .exceptions import PipelineError
 from .executor import Executor
@@ -22,18 +24,14 @@ class VariantCalling:
     high_damage = 20
     strelka_tier = 0
 
-    def __init__(self, analysis):
+    def __init__(self, analysis: Analysis) -> None:
         self.analysis = analysis
 
-        try:
-            os.makedirs(analysis.get_out_dir(), exist_ok=True)
-        except OSError:
-            pass
-
+        os.makedirs(analysis.get_out_dir(), exist_ok=True)
         self.mutect_filenames = glob.glob(
             os.path.join(analysis.get_out_dir(), self.analysis.basename) +
             "*.mutect*.vcf")
-        self.varscan_filenames = {}
+        self.varscan_filenames: Dict[str, List[str]] = {}
         for varscan_type in ("snp", "indel"):
             self.varscan_filenames[varscan_type] = glob.glob(
                 os.path.join(analysis.get_out_dir(), self.analysis.basename) +
@@ -44,10 +42,7 @@ class VariantCalling:
         self.strelka_results_dir = os.path.join(analysis.root, "Strelka",
                                                 analysis.basename, "results")
 
-        try:
-            os.makedirs(self.annovar_dirname, exist_ok=True)
-        except OSError:
-            pass
+        os.makedirs(self.annovar_dirname, exist_ok=True)
 
         self.annovar_file = os.path.join(
             self.annovar_dirname, self.analysis.basename + "_annovar_input")
@@ -57,17 +52,17 @@ class VariantCalling:
                                                (self.annovar_file,
                                                 VariantCalling.build_version))
 
-    def chdir(self):
+    def chdir(self) -> None:
         os.chdir(self.analysis.get_out_dir())
 
-    def prepare_for_annovar(self):
+    def prepare_for_annovar(self) -> None:
         self.analysis.logger.info("Starting data preparation for ANNOVAR")
 
         self.variants = None
 
-        mutect_data = None
-        varscan_data = None
-        strelka_data = None
+        mutect_data: Optional[pd.Table] = None
+        varscan_data: Optional[pd.Table] = None
+        strelka_data: Optional[pd.Table] = None
 
         if len(self.mutect_filenames) > 0:
             for mutect_filename in self.mutect_filenames:
@@ -77,6 +72,7 @@ class VariantCalling:
                     mutect_data = mutect_data.join(
                         pd.read_table(mutect_filename, comment="#"))
 
+            assert mutect_data is not None
             mutect_data.insert(0, "key",
                                mutect_data.apply(
                                    lambda row: "%s:%d-%d_%s_%s" %
@@ -111,7 +107,7 @@ class VariantCalling:
             filenames = self.varscan_filenames[varscan_type]
             if len(filenames) > 0:
                 withNormals = True
-                varscan_data_list = []
+                varscan_data_list: List[Dict[str, Any]] = []
                 for varscan_filename in filenames:
                     for record in vcf.Reader(filename=varscan_filename):
                         for sample in record.samples:
@@ -345,7 +341,7 @@ class VariantCalling:
             "strelka": set(strelka_data.key)
         }
 
-        def set_methods(row):
+        def set_methods(row: pd.Series) -> None:
             current_methods = []
             if row.key in keysets["mutect"]:
                 current_methods.append("Mutect1.17")
@@ -370,7 +366,7 @@ class VariantCalling:
 
         self.analysis.logger.info("Finished data preparation for ANNOVAR")
 
-    def annovar(self):
+    def annovar(self) -> None:
         self.analysis.logger.info("Running ANNOVAR")
         config = self.analysis.config
 
@@ -384,7 +380,7 @@ class VariantCalling:
             f"-protocol refGene,snp138,cosmic70,clinvar_20160302,"
             f"popfreq_all_20150413,dbnsfp30a,cadd13 "
             f"-operation g,f,f,f,f,f,f -nastring NA -remove -v",
-            input_filenames=self.annovar_file,
+            input_filenames=[self.annovar_file],
             override_last_files=False,
             error_string="ANNOVAR exited with status {status}",
             exception_string="annovar error",
@@ -392,7 +388,7 @@ class VariantCalling:
 
         self.analysis.logger.info("Finished running ANNOVAR")
 
-    def collect_annotated_variants(self):
+    def collect_annotated_variants(self) -> None:
         self.analysis.logger.info("Collecting annotated variants from ANNOVAR")
 
         annotation = pd.read_table(self.multianno_filename)
@@ -536,6 +532,7 @@ class VariantCalling:
         if config.use_mongodb:
             from pymongo import MongoClient, ReturnDocument
             from pymongo.errors import DocumentTooLarge
+            from pymongo.collection import Collection
 
             mongo = MongoClient(config.mongodb_host, config.mongodb_port)
             db = mongo[config.mongodb_database]
@@ -558,14 +555,21 @@ class VariantCalling:
             } for record in annotation.to_dict("records")]
             del annotation
 
-            def find_or_insert(collection, data, new_data=None):
+            def find_or_insert(
+                    collection: Collection,
+                    data: Dict[str, Any],
+                    new_data: Optional[Dict[str, Any]] = None)\
+                    -> Dict[str, Any]:
+
                 set_data = dict(data)
                 if new_data is not None:
                     set_data.update(new_data)
-                return collection.find_one_and_update(
-                    data, {"$set": set_data},
-                    upsert=True,
-                    return_document=ReturnDocument.AFTER)
+
+                return cast(Dict[str, Any],
+                            collection.find_one_and_update(
+                                data, {"$set": set_data},
+                                upsert=True,
+                                return_document=ReturnDocument.AFTER))
 
             annotation_ids = [
                 find_or_insert(db.annotations, {"id": annotation["id"]},
@@ -631,7 +635,7 @@ class VariantCalling:
         self.analysis.logger.info("Finished collecting annotated variants "
                                   "from ANNOVAR")
 
-    def run(self):
+    def run(self) -> None:
         if len(self.mutect_filenames) +\
                 sum([len(values)
                      for values

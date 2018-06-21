@@ -1,21 +1,19 @@
 import os
 
+from .analysis import Analysis
 from .executor import Executor
 
 
 class Mutect:
-    def __init__(self, analysis):
+    def __init__(self, analysis: Analysis) -> None:
         self.analysis = analysis
 
-        try:
-            os.makedirs(analysis.get_out_dir(), exist_ok=True)
-        except OSError:
-            pass
+        os.makedirs(analysis.get_out_dir(), exist_ok=True)
 
-    def chdir(self):
+    def chdir(self) -> None:
         os.chdir(self.analysis.get_out_dir())
 
-    def run(self):
+    def run(self) -> None:
         self.analysis.logger.info("Running mutect")
         self.chdir()
         config = self.analysis.config
@@ -27,8 +25,8 @@ class Mutect:
                 f"-jar {config.mutect} "
                 f'{config.mutect_args} --reference_sequence '
                 f'{{genome_ref}} --dbsnp {{dbsnp}} --cosmic '
-                f'{{cosmic}} --input_file:tumor {{input_filename["tumor"]}} '
-                f'--input_file:normal {{input_filename["normal"]}} --out '
+                f'{{cosmic}} --input_file:tumor {{input_filenames.sample]}} '
+                f'--input_file:normal {{input_filenames.control}} --out '
                 f'{self.analysis.basename}{{organism_str}}.mutect.1.17.vcf ',
                 override_last_files=False,
                 error_string="Mutect exited with status {status}",

@@ -7,7 +7,10 @@ import sys
 import traceback
 from distutils.spawn import find_executable
 from email.mime.text import MIMEText
+from enum import Enum
 from multiprocessing import Manager, Pool
+from typing import (Any, Dict, Iterable, List, MutableMapping, Optional, Tuple,
+                    Union, cast)
 
 from . import utils
 from .barcoded_filename import BarcodedFilename, Tissue
@@ -16,7 +19,7 @@ from .mapping import Aligner, RnaSeqAligner
 from .runner import Runner
 
 
-def get_parser():
+def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Makes your life easier when performing some HTS "
         "analysis.")
@@ -172,17 +175,21 @@ def get_parser():
     return parser
 
 
-def type_of_aligner(args, parameters, string_parameter, aligners_priority,
-                    config):
-    type_aligner = getattr(args, string_parameter)
+def set_aligner_param(args: argparse.Namespace,
+                      parameters: MutableMapping[str, Any],
+                      param_name: str,
+                      available_aligners: Iterable[Enum],
+                      config: Config) -> None:
+
+    type_aligner = getattr(args, param_name)
     if type_aligner == "auto" or type_aligner is None:
-        for aligner in aligners_priority:
+        for aligner in available_aligners:
             aligner_exec = getattr(config, aligner.name.lower())
             if aligner_exec is not None and find_executable(aligner_exec):
-                parameters[string_parameter] = aligner
+                parameters[param_name] = aligner
                 break
 
-        if string_parameter not in parameters:
+        if param_name not in parameters:
             print(
                 "No valid aligner is available. "
                 "Please check your configuration file.",
@@ -191,16 +198,15 @@ def type_of_aligner(args, parameters, string_parameter, aligners_priority,
     else:
         aligner_exec = getattr(config, type_aligner.lower())
         if aligner_exec is not None and find_executable(aligner_exec):
-            if string_parameter == "aligner":
-                parameters[string_parameter] = Aligner[type_aligner.upper()]
+            if param_name == "aligner":
+                parameters[param_name] = Aligner[type_aligner.upper()]
             else:
-                parameters[string_parameter] = \
-                    RnaSeqAligner[type_aligner.upper()]
+                parameters[param_name] = RnaSeqAligner[type_aligner.upper()]
         else:
             print("The chosen aligner is not executable", file=sys.stderr)
 
 
-def main():
+def main() -> None:
     parser = get_parser()
     args = parser.parse_args()
     if args.configout is not None:
@@ -287,7 +293,7 @@ def main():
                                 R"(?:-(\d|\*)(\d|\*)(\d|\*)?)?)?)?)?$")
 
         all_filenames = os.listdir(args.fastq_dir)
-        filenames = set()
+        filenames_set = set()
         with open(args.list_file) as fd:
             for line_index, line in enumerate(fd):
                 match = re_pattern.match(line.strip())
@@ -369,13 +375,14 @@ def main():
                             barcoded_filename.tissue !=
                                 Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE) or \
                                 barcoded_filename.organism is None:
-                            filenames.add(match.group(1))
+                            filenames_set.add(match.group(1))
                             added_files += 1
 
                 if added_files == 0:
                     print("ERROR: cannot find any file for sample %s" %
                           line.strip())
                     exit(-1)
+        filenames = list(filenames_set)
 
     elif args.scan_samples:
         fastq_files = [
@@ -407,12 +414,36 @@ def main():
         "only_mapping": args.only_mapping,
         "use_tdf": args.use_tdf
     }
+
+    #  Parse parameter --align
+    if args.aligner == "auto":
+        aligners = [Aligner.NOVOALIGN, Aligner.BWA]
+        for aligner in aligners:
+            aligner_exec = getattr(config, aligner.name.lower())
+            if aligner_exec is not None and find_executable(aligner_exec):
+                parameters["aligner"] = aligner
+                break
+
+        if "aligner" not in parameters:
+            print(
+                "No valid aligner is available. "
+                "Please check your configuration file.",
+                file=sys.stderr)
+            exit(-5)
+    else:
+        aligner_exec = getattr(config, args.aligner)
+        if aligner_exec is not None and find_executable(aligner_exec):
+            parameters["aligner"] = Aligner[args.aligner.upper()]
+        else:
+            print("The chosen aligner is not executable", file=sys.stderr)
+            exit(-5)
+
     logging.basicConfig(format="%(asctime)-15s %(message)s")
 
-    type_of_aligner(args, parameters, "rnaseq_aligner",
-                    [RnaSeqAligner.STAR], config)
-    type_of_aligner(args, parameters, "aligner", [
-                    Aligner.NOVOALIGN, Aligner.BWA], config)
+    set_aligner_param(args, parameters, "rnaseq_aligner",
+                      [RnaSeqAligner.STAR], config)
+    set_aligner_param(args, parameters, "aligner", [
+                      Aligner.NOVOALIGN, Aligner.BWA], config)
 
     if args.r_checks and args.post_recalibration:
         try:
@@ -474,13 +505,16 @@ def main():
             msg["Subject"] = "Pipeline error"
 
     if args.use_normals and not args.only_mapping:
-        samples = {}
-        normals = {}
+        samples: Dict[str, Dict[str, Union[str, List[Tuple[str, str]]]]] = {}
+        normals: Dict[str, BarcodedFilename] = {}
         last_operations = {}
         for sample, last_operation in runner.last_operations.items():
             last_operations[sample] = last_operation
             for filename in utils.get_sample_filenames(last_operation):
                 barcoded_filename = BarcodedFilename(filename)
+                assert barcoded_filename.biopsy is not None
+                assert barcoded_filename.sequencing is not None
+
                 fake_sample = "%s-%s-%d%d%d-%d%d%d" % (
                     barcoded_filename.project, barcoded_filename.patient,
                     barcoded_filename.molecule, barcoded_filename.analyte,
@@ -493,25 +527,27 @@ def main():
                         Tissue.SOLID_TISSUE_NORMAL,
                         Tissue.BLOOD_DERIVED_NORMAL,
                         Tissue.EBV_IMMORTALIZED_NORMAL):
-                    sample_type = "normal"
+                    sample_type = "control"
                 else:
-                    sample_type = "tumor"
+                    sample_type = "sample"
 
                 if fake_sample not in samples:
                     samples[fake_sample] = {}
 
-                if sample_type == "normal":
-                    samples[fake_sample]["normal"] = filename
+                if sample_type == "control":
+                    samples[fake_sample]["control"] = filename
                     normals[filename] = barcoded_filename
                 else:
-                    if "tumor" not in samples[fake_sample]:
-                        samples[fake_sample]["tumor"] = []
-                    samples[fake_sample]["tumor"].append((filename, sample))
+                    if "sample" not in samples[fake_sample]:
+                        samples[fake_sample]["sample"] = []
+
+                    cast(List[Tuple[str, str]], samples[fake_sample]
+                         ["sample"]).append((filename, sample))
 
         samples_with_no_normal = {
-            sample: filenames["tumor"][0][0]
+            sample: filenames["sample"][0][0]
             for sample, filenames in samples.items()
-            if "normal" not in filenames and len(filenames["tumor"]) > 0
+            if "control" not in filenames and len(filenames["sample"]) > 0
         }
 
         for sample, filename in samples_with_no_normal.items():
@@ -570,17 +606,20 @@ def main():
                 }
 
             if len(candidates) == 1:
-                samples[sample]["normal"] = list(candidates.items())[0][0]
+                samples[sample]["control"] = list(candidates.items())[0][0]
             elif len(candidates) > 1:
-                candidates = list(candidates.items())
-                candidates.sort(key=lambda x: os.stat(x[0]).st_size)
-                samples[sample]["normal"] = candidates[-1][0]
+                candidates_list = list(candidates.items())
+                del candidates
+                candidates_list.sort(key=lambda x: os.stat(x[0]).st_size)
+                samples[sample]["control"] = candidates_list[-1][0]
 
-        triplets = []
+        triplets: List[Tuple[str, str, Optional[str]]] = []
         for sample, values in samples.items():
-            for tumor in values["tumor"]:
-                if "normal" in values:
-                    triplets.append((tumor[1], tumor[0], values["normal"]))
+            for tumor in values["sample"]:
+                if "control" in values:
+                    triplets.append(
+                        cast(Tuple[str, str, str],
+                             (tumor[1], tumor[0], values["control"])))
                 else:
                     triplets.append((tumor[1], tumor[0], None))
 
