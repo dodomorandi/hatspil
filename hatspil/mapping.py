@@ -17,6 +17,10 @@ class Aligner(Enum):
     BWA = auto()
 
 
+class RnaSeqAligner(Enum):
+    STAR = auto()
+
+
 class Mapping:
     def __init__(self, analysis, fastq_dir):
         self.analysis = analysis
@@ -303,6 +307,118 @@ class Mapping:
             unlink_inputs=True)
         self.analysis.logger.info("Alignment finished. Aligner used: BWA")
 
+    def align_star(self):
+        self.analysis.logger.info("Running alignment with STAR")
+        self.chdir()
+        config = self.analysis.config
+        executor = Executor(self.analysis)
+        cwd = os.getcwd()
+        path = os.path.join(cwd, self.output_basename)
+        if not os.path.isdir(path):
+            os.mkdir(path)
+        os.chdir(path)
+        self.analysis.logger.info("Step 1: Alignment 1st Pass:")
+
+        executor(
+            f'{config.star} --genomeDir {config.star_index} '
+            f'--readFilesIn {{input_filename}} '
+            f'--runThreadN 5 '
+            f'--outFilterMultimapScoreRange 1 --outFilterMultimapNmax 20 '
+            f'--outFilterMismatchNmax 10 --alignIntronMax 500000 '
+            f'--alignMatesGapMax 1000000 --sjdbScore 2 '
+            f'--alignSJDBoverhangMin 1 --genomeLoad NoSharedMemory '
+            f'--outFilterMatchNminOverLread 0.33 '
+            f'--outFilterScoreMinOverLread 0.33 '
+            f'--sjdbOverhang 100 --outSAMstrandField intronMotif '
+            f'--outSAMtype None --outSAMmode None ',
+            input_function=lambda l: " ".join(sorted(l)),
+            input_split_reads=False,
+            override_last_files=False,
+            split_by_organism=True,
+            only_human=True
+        )
+        self.analysis.logger.info("Finished step 1")
+
+        self.analysis.logger.info("Step 2: Intermediate Index Generation:")
+        path_index_sample = os.path.join(os.getcwd(), "dir_index")
+        if not os.path.isdir(path_index_sample):
+            os.mkdir(path_index_sample)
+
+        executor(
+            f'{config.star} '
+            f'--runMode genomeGenerate '
+            f'--genomeDir {path_index_sample} '
+            f'--genomeFastaFiles {{genome_index}}.fasta '
+            f'--sjdbOverhang 100 '
+            f'--runThreadN 5 '
+            f'--sjdbFileChrStartEnd SJ.out.tab',
+            input_function=lambda l: " ".join(sorted(l)),
+            input_split_reads=False,
+            override_last_files=False,
+            split_by_organism=True,
+            only_human=True
+        )
+        self.analysis.logger.info("Finished step 2")
+
+        self.analysis.logger.info("Step 3: Alignment 2nd Pass")
+
+        executor(
+            f'{config.star} '
+            f'--genomeDir {path_index_sample} '
+            f'--readFilesIn {{input_filename}} '
+            f'--runThreadN 5 '
+            f'--outFilterMultimapScoreRange 1 '
+            f'--outFilterMultimapNmax 20 '
+            f'--outFilterMismatchNmax 10 '
+            f'--alignIntronMax 500000 '
+            f'--alignMatesGapMax 1000000 '
+            f'--sjdbScore 2 '
+            f'--alignSJDBoverhangMin 1 '
+            f'--genomeLoad NoSharedMemory '
+            f'--limitBAMsortRAM 0 '
+            f'--outSAMattrRGline ID:{self.analysis.basename}\t'
+            f'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA '
+            f'--outFilterMatchNminOverLread 0.33 '
+            f'--outFilterScoreMinOverLread 0.33 '
+            f'--sjdbOverhang 100 '
+            f'--outSAMstrandField intronMotif '
+            f'--outSAMattributes NH HI NM MD AS XS '
+            f'--outSAMunmapped Within '
+            f'--outSAMtype BAM SortedByCoordinate',
+            input_function=lambda l: " ".join(sorted(l)),
+            input_split_reads=False,
+            output_format=os.path.join(
+                os.getcwd(), "Aligned.sortedByCoord.out.bam"),
+            split_by_organism=True,
+            only_human=True
+        )
+
+        self.analysis.logger.info("Finished step 3")
+
+        bam_file = os.path.join(
+            cwd, self.analysis.basename + "_star_sorted.bam")
+
+        name_file = os.path.join(os.getcwd(), "Aligned.sortedByCoord.out.bam")
+
+        os.rename(name_file, bam_file)
+        executor.override_last_operation_filename(bam_file)
+        name = self.output_basename.split(os.sep)[1] + "_counts.txt"
+        self.analysis.logger.info("Step 4: get HTseq count")
+        os.chdir(config.star_count_dir)
+
+        executor(
+            f'{config.samtools} view -F 4 {bam_file} |'
+            f'htseq-count '
+            f'-m intersection-nonempty '
+            f'-i gene_id '
+            f'-r pos '
+            f'-s no '
+            f'- {config.star_annotation} > {name} ',
+            override_last_files=False
+        )
+        self.analysis.logger.info("Finished HTseq count")
+        self.analysis.logger.info("Alignment finished. Aligner used: STAR")
+
     def sort_bam(self):
         self.analysis.logger.info("Sorting BAM(s)")
         self.chdir()
@@ -427,16 +543,20 @@ class Mapping:
         self.analysis.logger.info("Finished marking duplicates")
 
     def indel_realign(self):
+        barcoded = BarcodedFilename.from_sample(self.analysis.sample)
         self.analysis.logger.info("Running indel realignment")
         self.chdir()
         config = self.analysis.config
-
+        rnaseq_parameter = ""
+        if barcoded.analyte == Analyte.RNASEQ:
+            rnaseq_parameter = "-U ALLOW_N_CIGAR_READS "
         executor = Executor(self.analysis)
         executor(
             f'{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
             f'-T RealignerTargetCreator -R {{genome_ref}} '
             f'-I {{input_filename}} -nt {self.gatk_threads} '
             f'-known {config.indel_1} -known {config.indel_2} '
+            f'{rnaseq_parameter}'
             f'-L {config.target_list} '
             f'-ip 50 -o {{output_filename}}',
             output_format=f"{self.output_basename}{{organism_str}}"
@@ -451,6 +571,7 @@ class Mapping:
             f'-T IndelRealigner -R {{genome_ref}} '
             f'-I {{input_filename}} '
             f'-known {config.indel_1} -known {config.indel_2} '
+            f'{rnaseq_parameter}'
             f'-targetIntervals {self.output_basename}{{organism_str}}'
             f'.realignment.intervals -o {{output_filename}}',
             output_format=f"{self.analysis.basename}{{organism_str}}"
@@ -472,13 +593,16 @@ class Mapping:
         self.analysis.logger.info("Running base recalibration")
         self.chdir()
         config = self.analysis.config
-
+        rnaseq_parameter = ""
+        if self.analysis.parameters["aligner"] in RnaSeqAligner:
+            rnaseq_parameter = "-U ALLOW_N_CIGAR_READS "
         executor = Executor(self.analysis)
         executor(
             f'{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
             f'-T BaseRecalibrator -R {{genome_ref}} '
             f'-I {{input_filename}} -nct {self.gatk_threads} '
             f'-knownSites {{dbsnp}} '
+            f'{rnaseq_parameter}'
             f'-o {self.output_basename}{{organism_str}}.recalibration.table',
             input_function=lambda filename: self._filter_non_hg(filename),
             error_string="Gatk BaseRecalibrator exited with status {status}",
@@ -488,6 +612,7 @@ class Mapping:
         executor(
             f'{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
             f'-T PrintReads -R {{genome_ref}} '
+            f'{rnaseq_parameter}'
             f'-I {{input_filename}} -nct {self.gatk_threads} '
             f'-BQSR {self.output_basename}{{organism_str}}'
             '.recalibration.table '
@@ -505,6 +630,7 @@ class Mapping:
         executor(
             f'{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
             f'-T BaseRecalibrator -R {{genome_ref}} '
+            f'{rnaseq_parameter}'
             f'-I {{input_filename}} -knownSites {{dbsnp}} '
             f'-L {config.target_list} -ip 50 '
             f'-nct {self.gatk_threads} '
@@ -517,6 +643,7 @@ class Mapping:
         executor(
             f'{config.java} {config.gatk_jvm_args} -jar {config.gatk} '
             f'-T AnalyzeCovariates -R {{genome_ref}} '
+            f'{rnaseq_parameter}'
             f'-before {self.output_basename}{{organism_str}}'
             '.recalibration.table '
             f'-after {self.output_basename}{{organism_str}}'
@@ -530,6 +657,7 @@ class Mapping:
         executor(
             f'{config.java} {config.picard_jvm_args} -jar {config.picard} '
             f'MarkDuplicates '
+            f'{rnaseq_parameter}'
             f'I={{input_filename}} O={{output_filename}} '
             f'REMOVE_DUPLICATES=true '
             f'M={self.output_basename}{{organism_str}}.no_dup_metrics.txt '
@@ -611,18 +739,24 @@ class Mapping:
 
         self.fastqc()
         self.trim()
-
-        if self.analysis.parameters["aligner"] == Aligner.NOVOALIGN:
-            self.align_novoalign()
-        elif self.analysis.parameters["aligner"] == Aligner.BWA:
-            self.align_bwa()
+        if barcoded.analyte == Analyte.RNASEQ:
+            if self.analysis.parameters["rnaseq_aligner"] == \
+                    RnaSeqAligner.STAR:
+                self.align_star()
+            else:
+                raise Exception("unexpected aligner for this type of sample")
         else:
-            raise Exception("unexpected aligner")
-        self.convert_alignment()
-        self.sort_bam()
+            if self.analysis.parameters["aligner"] == Aligner.NOVOALIGN:
+                self.align_novoalign()
+            elif self.analysis.parameters["aligner"] == Aligner.BWA:
+                self.align_bwa()
+            else:
+                raise Exception("unexpected aligner for this type of sample")
+            self.convert_alignment()
+            self.sort_bam()
 
-        if self.analysis.parameters["mark_duplicates"]:
-            self.mark_duplicates()
+            if self.analysis.parameters["mark_duplicates"]:
+                self.mark_duplicates()
 
         if barcoded.analyte == Analyte.WHOLE_EXOME:
             self.indel_realign()

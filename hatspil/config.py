@@ -5,15 +5,16 @@ from configparser import ConfigParser
 
 
 class Config:
-    executables = ("java", "java7", "perl", "seqtk", "fastqc", "samtools",
-                   "xenome")
-    optional_executables = ("novoalign", "bwa")
+    executables = ("java", "java7", "perl", "seqtk",
+                   "fastqc", "samtools", "xenome")
+    optional_executables = ("novoalign", "bwa", "star")
     jars = ("picard", "varscan", "gatk", "mutect", "bam2tdf")
-    files = ("strelka_basedir", "strelka_config", "hg19_ref", "hg19_index",
-             "hg38_ref", "hg38_index", "mm9_ref", "mm9_index", "mm10_ref",
-             "mm10_index", "cosmic_hg19", "cosmic_hg38", "dbsnp138_hg19",
-             "dbsnp138_hg38", "target_list", "bait_list", "indel_1", "indel_2",
-             "annovar_basedir", "annotations")
+    files = ("strelka_basedir", "strelka_config", "star_index",
+             "star_count_dir", "star_annotation", "hg19_ref",
+             "hg19_index", "hg38_ref", "hg38_index", "mm9_ref", "mm9_index",
+             "mm10_ref", "mm10_index", "cosmic_hg19", "cosmic_hg38",
+             "dbsnp138_hg19", "dbsnp138_hg38", "target_list", "bait_list",
+             "indel_1", "indel_2", "annovar_basedir", "annotations")
     parameters = ("xenome_index", "xenome_threads", "strelka_threads",
                   "mean_len_library", "sd_len_library", "use_hg19", "use_hg38",
                   "use_mm9", "use_mm10", "kit", "mails", "use_mongodb")
@@ -23,6 +24,11 @@ class Config:
         self.java = "java"
         self.java7 = "java"
         self.perl = "perl"
+        self.star = "star"
+        self.star_index = "star_index"
+        self.star_ref = "star_ref"
+        self.star_annotation = "star_annotation"
+        self.star_count_dir = "star_count_dir"
         self.bwa = "bwa"
         self.novoalign = "novoalign"
         self.picard = 'picard.jar'

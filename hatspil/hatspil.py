@@ -12,7 +12,7 @@ from multiprocessing import Manager, Pool
 from . import utils
 from .barcoded_filename import BarcodedFilename, Tissue
 from .config import Config
-from .mapping import Aligner
+from .mapping import Aligner, RnaSeqAligner
 from .runner import Runner
 
 
@@ -25,8 +25,14 @@ def get_parser():
         action="store",
         dest="aligner",
         choices=[aligner.name.lower() for aligner in Aligner] + ["auto"],
-        default="auto",
         help="Select the aligner. When this option is set to "
+        "'auto' will be used the first aligner available")
+    parser.add_argument(
+        "--rnaseq-aligner",
+        action="store",
+        dest="rnaseq_aligner",
+        choices=[aligner.name.lower() for aligner in RnaSeqAligner] + ["auto"],
+        help="Select the aligner for RNA-Seq data. When this option is set to "
         "'auto' will be used the first aligner available")
     parser.add_argument(
         "--configout",
@@ -164,6 +170,34 @@ def get_parser():
         "samples are located.")
 
     return parser
+
+
+def type_of_aligner(args, parameters, string_parameter, aligners_priority,
+                    config):
+    type_aligner = getattr(args, string_parameter)
+    if type_aligner == "auto" or type_aligner is None:
+        for aligner in aligners_priority:
+            aligner_exec = getattr(config, aligner.name.lower())
+            if aligner_exec is not None and find_executable(aligner_exec):
+                parameters[string_parameter] = aligner
+                break
+
+        if string_parameter not in parameters:
+            print(
+                "No valid aligner is available. "
+                "Please check your configuration file.",
+                file=sys.stderr)
+            exit(-5)
+    else:
+        aligner_exec = getattr(config, type_aligner.lower())
+        if aligner_exec is not None and find_executable(aligner_exec):
+            if string_parameter == "aligner":
+                parameters[string_parameter] = Aligner[type_aligner.upper()]
+            else:
+                parameters[string_parameter] = \
+                    RnaSeqAligner[type_aligner.upper()]
+        else:
+            print("The chosen aligner is not executable", file=sys.stderr)
 
 
 def main():
@@ -373,31 +407,12 @@ def main():
         "only_mapping": args.only_mapping,
         "use_tdf": args.use_tdf
     }
-
-    #  Parse parameter --align
-    if args.aligner == "auto":
-        aligners = [Aligner.NOVOALIGN, Aligner.BWA]
-        for aligner in aligners:
-            aligner_exec = getattr(config, aligner.name.lower())
-            if aligner_exec is not None and find_executable(aligner_exec):
-                parameters["aligner"] = aligner
-                break
-
-        if "aligner" not in parameters:
-            print(
-                "No valid aligner is available. "
-                "Please check your configuration file.",
-                file=sys.stderr)
-            exit(-5)
-    else:
-        aligner_exec = getattr(config, args.aligner)
-        if aligner_exec is not None and find_executable(aligner_exec):
-            parameters["aligner"] = Aligner[args.aligner.upper()]
-        else:
-            print("The chosen aligner is not executable", file=sys.stderr)
-            exit(-5)
-
     logging.basicConfig(format="%(asctime)-15s %(message)s")
+
+    type_of_aligner(args, parameters, "rnaseq_aligner",
+                    [RnaSeqAligner.STAR], config)
+    type_of_aligner(args, parameters, "aligner", [
+                    Aligner.NOVOALIGN, Aligner.BWA], config)
 
     if args.r_checks and args.post_recalibration:
         try:
@@ -444,7 +459,6 @@ def main():
     try:
         with Pool(5) as pool:
             pool.map(runner, filenames)
-
         if args.mail:
             msg = MIMEText("Pipeline for file list %s successfully completed."
                            % args.list_file)
