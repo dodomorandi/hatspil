@@ -307,14 +307,13 @@ class Mapping:
 
     def align_star(self) -> None:
         self.analysis.logger.info("Running alignment with STAR")
-        self.chdir()
         config = self.analysis.config
         executor = Executor(self.analysis)
-        cwd = os.getcwd()
-        path = os.path.join(cwd, self.output_basename)
-        if not os.path.isdir(path):
-            os.mkdir(path)
-        os.chdir(path)
+        output_basename = self.output_basename + "_star"
+        bam_directory = self.analysis.get_bam_dir()
+        output_path = os.path.join(bam_directory, output_basename)
+        os.makedirs(output_path, exist_ok=True)
+        os.chdir(output_path)
         self.analysis.logger.info("Step 1: Alignment 1st Pass:")
 
         executor(
@@ -338,9 +337,8 @@ class Mapping:
         self.analysis.logger.info("Finished step 1")
 
         self.analysis.logger.info("Step 2: Intermediate Index Generation:")
-        path_index_sample = os.path.join(os.getcwd(), "dir_index")
-        if not os.path.isdir(path_index_sample):
-            os.mkdir(path_index_sample)
+        path_index_sample = os.path.join(output_path, "dir_index")
+        os.makedirs(path_index_sample, exist_ok=True)
 
         executor(
             f'{config.star} '
@@ -357,8 +355,9 @@ class Mapping:
             only_human=True
         )
         self.analysis.logger.info("Finished step 2")
-
         self.analysis.logger.info("Step 3: Alignment 2nd Pass")
+        second_pass_output_filename = os.path.join(
+            output_path, "Aligned.sortedByCoord.out.bam")
 
         executor(
             f'{config.star} '
@@ -385,33 +384,30 @@ class Mapping:
             f'--outSAMtype BAM SortedByCoordinate',
             input_function=lambda l: " ".join(sorted(l)),
             input_split_reads=False,
-            output_format=os.path.join(
-                os.getcwd(), "Aligned.sortedByCoord.out.bam"),
+            output_format=second_pass_output_filename,
             split_by_organism=True,
             only_human=True
         )
 
         self.analysis.logger.info("Finished step 3")
 
-        bam_file = os.path.join(
-            cwd, self.analysis.basename + "_star_sorted.bam")
+        bam_basename = self.analysis.basename + "_star_sorted.bam"
+        bam_filename = os.path.join(bam_directory, bam_basename)
+        os.rename(second_pass_output_filename, bam_filename)
+        executor.override_last_operation_filename(bam_filename)
 
-        name_file = os.path.join(os.getcwd(), "Aligned.sortedByCoord.out.bam")
-
-        os.rename(name_file, bam_file)
-        executor.override_last_operation_filename(bam_file)
-        name = self.output_basename.split(os.sep)[1] + "_counts.txt"
+        counts_basename = self.analysis.basename + "_counts.txt"
+        counts_filename = os.path.join(bam_directory, counts_basename)
         self.analysis.logger.info("Step 4: get HTseq count")
-        os.chdir(config.star_count_dir)
 
         executor(
-            f'{config.samtools} view -F 4 {bam_file} |'
+            f'{config.samtools} view -F 4 {bam_filename} |'
             f'htseq-count '
             f'-m intersection-nonempty '
             f'-i gene_id '
             f'-r pos '
             f'-s no '
-            f'- {config.star_annotation} > {name} ',
+            f'- {config.star_annotation} > {counts_filename} ',
             override_last_files=False
         )
         self.analysis.logger.info("Finished HTseq count")

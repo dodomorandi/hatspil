@@ -1,5 +1,5 @@
 from multiprocessing.managers import SyncManager
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from .analysis import Analysis
 from .barcoded_filename import BarcodedFilename, Tissue
@@ -47,7 +47,10 @@ class Runner:
 
         self.last_operations[sample] = analysis.last_operation_filenames
 
-    def with_normals(self, sample: str, tumor: str, normal: str) -> None:
+    def with_normals(self,
+                     sample: str,
+                     tumor: str,
+                     normal: Optional[str]) -> None:
         if not self.parameters["use_normals"] \
                 or self.parameters["only_mapping"]:
             return

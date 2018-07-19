@@ -2,10 +2,10 @@ import argparse
 import logging
 import os
 import re
+import shutil
 import smtplib
 import sys
 import traceback
-from distutils.spawn import find_executable
 from email.mime.text import MIMEText
 from enum import Enum
 from multiprocessing import Manager, Pool
@@ -28,6 +28,7 @@ def get_parser() -> argparse.ArgumentParser:
         action="store",
         dest="aligner",
         choices=[aligner.name.lower() for aligner in Aligner] + ["auto"],
+        default="auto",
         help="Select the aligner. When this option is set to "
         "'auto' will be used the first aligner available")
     parser.add_argument(
@@ -35,6 +36,7 @@ def get_parser() -> argparse.ArgumentParser:
         action="store",
         dest="rnaseq_aligner",
         choices=[aligner.name.lower() for aligner in RnaSeqAligner] + ["auto"],
+        default="auto",
         help="Select the aligner for RNA-Seq data. When this option is set to "
         "'auto' will be used the first aligner available")
     parser.add_argument(
@@ -185,19 +187,24 @@ def set_aligner_param(args: argparse.Namespace,
     if type_aligner == "auto" or type_aligner is None:
         for aligner in available_aligners:
             aligner_exec = getattr(config, aligner.name.lower())
-            if aligner_exec is not None and find_executable(aligner_exec):
+            if aligner_exec is not None and\
+                    shutil.which(aligner_exec) is not None:
                 parameters[param_name] = aligner
                 break
 
         if param_name not in parameters:
             print(
                 "No valid aligner is available. "
-                "Please check your configuration file.",
+                "Please check your configuration file.\n"
+                "One of the following parameters must be valid: " +
+                " ".join(aligner.name.lower()
+                         for aligner
+                         in available_aligners),
                 file=sys.stderr)
             exit(-5)
     else:
         aligner_exec = getattr(config, type_aligner.lower())
-        if aligner_exec is not None and find_executable(aligner_exec):
+        if aligner_exec is not None and shutil.which(aligner_exec) is not None:
             if param_name == "aligner":
                 parameters[param_name] = Aligner[type_aligner.upper()]
             else:
@@ -420,7 +427,8 @@ def main() -> None:
         aligners = [Aligner.NOVOALIGN, Aligner.BWA]
         for aligner in aligners:
             aligner_exec = getattr(config, aligner.name.lower())
-            if aligner_exec is not None and find_executable(aligner_exec):
+            if aligner_exec is not None and\
+                    shutil.which(aligner_exec) is not None:
                 parameters["aligner"] = aligner
                 break
 
@@ -432,7 +440,7 @@ def main() -> None:
             exit(-5)
     else:
         aligner_exec = getattr(config, args.aligner)
-        if aligner_exec is not None and find_executable(aligner_exec):
+        if aligner_exec is not None and shutil.which(aligner_exec) is not None:
             parameters["aligner"] = Aligner[args.aligner.upper()]
         else:
             print("The chosen aligner is not executable", file=sys.stderr)
@@ -615,6 +623,9 @@ def main() -> None:
 
         triplets: List[Tuple[str, str, Optional[str]]] = []
         for sample, values in samples.items():
+            if "sample" not in values:
+                continue
+
             for tumor in values["sample"]:
                 if "control" in values:
                     triplets.append(
