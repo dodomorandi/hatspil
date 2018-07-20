@@ -375,8 +375,8 @@ class Executor:
                 sequencing_specific = [
                     control
                     for control in controls
-                    if control[1].barcode.sequencing ==
-                    file_data.barcode.sequencing]
+                    if control[1].barcode.sequencing
+                    == file_data.barcode.sequencing]
 
                 if sequencing_specific:
                     controls = sequencing_specific
@@ -593,23 +593,23 @@ class Executor:
 
     def __call__(self,
                  command: Union[str, List[str], Callable[..., None]],
-                 output_format: Optional[str]=None,
-                 input_filenames: Optional[Sequence[str]]=None,
+                 output_format: Optional[str] = None,
+                 input_filenames: Optional[Sequence[str]] = None,
                  input_function: Optional[Callable[[Union[str, List[str]]],
-                                                   Optional[str]]]=None,
-                 input_split_reads: bool=True,
-                 output_path: Optional[str]=None,
+                                                   Optional[str]]] = None,
+                 input_split_reads: bool = True,
+                 output_path: Optional[str] = None,
                  output_function: Optional[Callable[[str],
-                                                    Iterable[str]]]=None,
-                 error_string: Optional[str]=None,
-                 exception_string: Optional[str]=None,
-                 override_last_files: bool=True,
-                 write_bam_files: bool=True,
-                 unlink_inputs: bool=False,
-                 save_only_last: bool=True,
-                 use_normals: bool=False,
-                 split_by_organism: bool=False,
-                 only_human: bool=False) -> None:
+                                                    Iterable[str]]] = None,
+                 error_string: Optional[str] = None,
+                 exception_string: Optional[str] = None,
+                 override_last_files: bool = True,
+                 write_bam_files: bool = True,
+                 unlink_inputs: bool = False,
+                 save_only_last: bool = True,
+                 use_normals: bool = False,
+                 split_by_organism: bool = False,
+                 only_human: bool = False) -> None:
 
         self.data = ExecutorData(command,
                                  output_format,

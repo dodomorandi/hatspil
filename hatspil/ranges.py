@@ -99,10 +99,10 @@ class Ranges(List[RangeType]):
                 elif self_range.end < other_range.start:
                     break
 
-                if (self_range.start < other_range.start and
-                        self_range.end >= other_range.start) or\
-                        (other_range.start < self_range.start and
-                         other_range.end >= self_range.start):
+                if (self_range.start < other_range.start
+                    and self_range.end >= other_range.start)\
+                        or (other_range.start < self_range.start
+                            and other_range.end >= self_range.start):
                     overlaps_indices.append((self_index, other_index))
         return overlaps_indices
 
@@ -198,16 +198,16 @@ class GenomicRanges(Ranges):
                 assert other_range.start is not None
                 assert other_range.end is not None
 
-                if other_range.chrom < self_range.chrom or\
-                        other_range.end < self_range.start:
+                if other_range.chrom < self_range.chrom\
+                        or other_range.end < self_range.start:
                     continue
-                elif self_range.chrom < other_range.chrom or\
-                        self_range.end < other_range.start:
+                elif self_range.chrom < other_range.chrom\
+                        or self_range.end < other_range.start:
                     break
 
-                if (self_range.start < other_range.start and
-                        self_range.end >= other_range.start) or\
-                        (other_range.start < self_range.start and
-                         other_range.end >= self_range.start):
+                if (self_range.start < other_range.start
+                        and self_range.end >= other_range.start)\
+                        or (other_range.start < self_range.start
+                            and other_range.end >= self_range.start):
                     overlaps_indices.append((self_index, other_index))
         return overlaps_indices

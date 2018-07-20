@@ -202,10 +202,10 @@ def set_aligner_param(args: argparse.Namespace,
             print(
                 "No valid aligner is available. "
                 "Please check your configuration file.\n"
-                "One of the following parameters must be valid: " +
-                " ".join(aligner.name.lower()
-                         for aligner
-                         in available_aligners),
+                "One of the following parameters must be valid: "
+                + " ".join(aligner.name.lower()
+                           for aligner
+                           in available_aligners),
                 file=sys.stderr)
             exit(-5)
     else:
@@ -376,7 +376,7 @@ def main() -> None:
                                                 current_pattern +=\
                                                     group.replace("*", R"\d")
                                             else:
-                                                current_pattern += "R\d"
+                                                current_pattern += R"\d"
                                         else:
                                             current_pattern += R"\d{2}"
                                     else:
@@ -401,11 +401,11 @@ def main() -> None:
                         os.path.basename(filename))
                     if match:
                         barcoded_filename = BarcodedFilename(filename)
-                        if (barcoded_filename.tissue !=
-                                Tissue.PRIMARY_XENOGRAFT_TISSUE and
-                            barcoded_filename.tissue !=
-                                Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE) or \
-                                barcoded_filename.organism is None:
+                        if (barcoded_filename.tissue
+                                != Tissue.PRIMARY_XENOGRAFT_TISSUE
+                            and barcoded_filename.tissue
+                                != Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE)\
+                                or barcoded_filename.organism is None:
                             filenames_set.add(match.group(1))
                             added_files += 1
 
@@ -577,9 +577,10 @@ def main() -> None:
                 filename: barcode
                 for filename, barcode in normals.items()
                 if barcode.project == sample_barcode.project
-                and barcode.patient == sample_barcode.patient and
-                barcode.molecule == sample_barcode.molecule and barcode.analyte
-                == sample_barcode.analyte and barcode.kit == sample_barcode.kit
+                and barcode.patient == sample_barcode.patient
+                and barcode.molecule == sample_barcode.molecule
+                and barcode.analyte == sample_barcode.analyte
+                and barcode.kit == sample_barcode.kit
                 and barcode.biopsy == sample_barcode.biopsy
                 and barcode.sample == sample_barcode.sample
             }

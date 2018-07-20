@@ -29,13 +29,13 @@ class VariantCalling:
 
         os.makedirs(analysis.get_out_dir(), exist_ok=True)
         self.mutect_filenames = glob.glob(
-            os.path.join(analysis.get_out_dir(), self.analysis.basename) +
-            "*.mutect*.vcf")
+            os.path.join(analysis.get_out_dir(), self.analysis.basename)
+            + "*.mutect*.vcf")
         self.varscan_filenames: Dict[str, List[str]] = {}
         for varscan_type in ("snp", "indel"):
             self.varscan_filenames[varscan_type] = glob.glob(
-                os.path.join(analysis.get_out_dir(), self.analysis.basename) +
-                "*.varscan2." + varscan_type + ".vcf")
+                os.path.join(analysis.get_out_dir(), self.analysis.basename)
+                + "*.varscan2." + varscan_type + ".vcf")
         self.annovar_dirname = os.path.join(
             analysis.get_out_dir(), self.analysis.basename + "_annovar")
 
@@ -81,8 +81,8 @@ class VariantCalling:
                                    axis=1))
 
             mutect_data.drop(
-                mutect_data[mutect_data.tumor_f <
-                            VariantCalling.min_allele_frequency].index,
+                mutect_data[mutect_data.tumor_f
+                            < VariantCalling.min_allele_frequency].index,
                 inplace=True)
             mutect_data.drop(
                 mutect_data[(mutect_data.judgement == "REJECT") & (
@@ -99,8 +99,8 @@ class VariantCalling:
             mutect_data[
                 "tot_cov"] = mutect_data.t_ref_count + mutect_data.t_alt_count
             mutect_data.drop(
-                mutect_data[mutect_data.tot_cov <=
-                            VariantCalling.min_cov_position].index,
+                mutect_data[mutect_data.tot_cov
+                            <= VariantCalling.min_cov_position].index,
                 inplace=True)
 
         for varscan_type in ("snp", "indel"):
@@ -200,8 +200,8 @@ class VariantCalling:
                     lambda row: "%s:%d-%d_%s_%s" % (row.chr, row.start, row.
                                                     end, row.ref, row.alt),
                     axis=1)
-                tumor = current_data[current_data.sampleNames ==
-                                     "TUMOR"].copy()
+                tumor = current_data[current_data.sampleNames
+                                     == "TUMOR"].copy()
                 tumor.reset_index(inplace=True, drop=True)
 
                 if withNormals:
@@ -219,8 +219,8 @@ class VariantCalling:
                     tumor.drop(
                         tumor[(~tumor.indelError) | (~tumor.SOMATIC)
                               | (tumor.DP < VariantCalling.min_cov_position)
-                              | (tumor.FREQ <
-                                 VariantCalling.min_allele_frequency)
+                              | (tumor.FREQ
+                                 < VariantCalling.min_allele_frequency)
                               | (tumor.ADF <= 0) | (tumor.ADR <= 0)].index,
                         inplace=True)
                 else:
@@ -405,8 +405,8 @@ class VariantCalling:
         panel_drug = pd.read_hdf(VariantCalling.dataset_filename, "panel_drug")
         gene_info = pd.read_hdf(VariantCalling.dataset_filename, "gene_info")
 
-        selected_cancer_genes = cancer_genes[cancer_genes.cancer_site ==
-                                             VariantCalling.cancer_site]
+        selected_cancer_genes = cancer_genes[cancer_genes.cancer_site
+                                             == VariantCalling.cancer_site]
 
         annotation.reset_index(inplace=True, drop=True)
         gene_info.reset_index(inplace=True, drop=True)

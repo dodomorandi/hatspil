@@ -30,8 +30,8 @@ class Runner:
 
         if self.parameters["use_xenome"] and (
                 barcoded_filename.tissue == Tissue.PRIMARY_XENOGRAFT_TISSUE
-                or barcoded_filename.tissue ==
-                Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE):
+                or barcoded_filename.tissue
+                == Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE):
             xenograft = Xenograft(analysis, self.fastq_dir)
             xenograft.run()
 
