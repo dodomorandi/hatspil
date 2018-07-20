@@ -10,12 +10,13 @@ class Config:
                    "fastqc", "samtools", "xenome")
     optional_executables = ("novoalign", "bwa", "star")
     jars = ("picard", "varscan", "gatk", "mutect", "bam2tdf")
-    files = ("strelka_basedir", "strelka_config", "star_index",
-             "star_annotation", "hg19_ref", "hg19_index", "hg38_ref",
-             "hg38_index", "mm9_ref", "mm9_index", "mm10_ref", "mm10_index",
-             "cosmic_hg19", "cosmic_hg38", "dbsnp138_hg19", "dbsnp138_hg38",
-             "target_list", "bait_list", "indel_1", "indel_2",
-             "annovar_basedir", "annotations")
+    files = ("strelka_basedir", "strelka_config",
+             "hg19_ref", "hg19_index", "hg38_ref", "hg38_index", "mm9_ref",
+             "mm9_index", "mm10_ref", "mm10_index", "cosmic_hg19",
+             "cosmic_hg38", "dbsnp138_hg19", "dbsnp138_hg38", "target_list",
+             "bait_list", "indel_1", "indel_2", "annovar_basedir",
+             "annotations")
+    optional_files = ("star_index", "star_annotation")
     parameters = ("xenome_index", "xenome_threads", "strelka_threads",
                   "mean_len_library", "sd_len_library", "use_hg19", "use_hg38",
                   "use_mm9", "use_mm10", "kit", "mails", "use_mongodb")
@@ -182,27 +183,47 @@ class Config:
 
         return ok
 
+    def check_file_param(self, param: str) -> Optional[bool]:
+        if "hg19" in param:
+            if not self.use_hg19:
+                return None
+        elif "hg38" in param:
+            if not self.use_hg38:
+                return None
+        elif "mm9" in param:
+            if not self.use_mm9:
+                return None
+        elif "mm10" in param:
+            if not self.use_mm10:
+                return None
+
+        filepath = getattr(self, param)
+        if not os.access(filepath, os.R_OK):
+            sys.stderr.write("ERROR: %s cannot be read. "
+                             "Check config.\n" % param)
+            return False
+        return True
+
     def check_files(self) -> bool:
         ok = True
 
         for param in Config.files:
-            if "hg19" in param:
-                if not self.use_hg19:
-                    continue
-            elif "hg38" in param:
-                if not self.use_hg38:
-                    continue
-            elif "mm9" in param:
-                if not self.use_mm9:
-                    continue
-            elif "mm10" in param:
-                if not self.use_mm10:
-                    continue
+            param_is_valid = self.check_file_param(param)
+            if param_is_valid is None:
+                continue
 
-            filepath = getattr(self, param)
-            if not os.access(filepath, os.R_OK):
-                sys.stderr.write("ERROR: %s cannot be read. "
-                                 "Check config.\n" % param)
+            if not param_is_valid:
+                ok = False
+
+        return ok
+
+    def check_star_files(self) -> bool:
+        ok = True
+        for param in ("star_index", "star_annotation"):
+            param_is_valid = self.check_file_param(param)
+            assert(param_is_valid is not None)
+
+            if not param_is_valid:
                 ok = False
 
         return ok

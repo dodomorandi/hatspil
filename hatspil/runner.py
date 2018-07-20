@@ -2,7 +2,7 @@ from multiprocessing.managers import SyncManager
 from typing import Any, Dict, Optional
 
 from .analysis import Analysis
-from .barcoded_filename import BarcodedFilename, Tissue
+from .barcoded_filename import BarcodedFilename, Tissue, Analyte
 from .config import Config
 from .mapping import Mapping
 from .mutect import Mutect
@@ -42,8 +42,9 @@ class Runner:
         analysis.run_fake = False
 
         if not self.parameters["use_normals"] and \
-                not self.parameters["only_mapping"]:
-            self._run(analysis, False)
+                not self.parameters["only_mapping"] and \
+                barcoded_filename.analyte != Analyte.RNASEQ:
+            self._run_mutation_analysis(analysis, False)
 
         self.last_operations[sample] = analysis.last_operation_filenames
 
@@ -55,6 +56,10 @@ class Runner:
                 or self.parameters["only_mapping"]:
             return
 
+        barcoded_filename = BarcodedFilename.from_sample(sample)
+        if barcoded_filename.analyte == Analyte.RNASEQ:
+            return
+
         analysis = Analysis(sample, self.root, self.config, self.parameters)
         if normal is None:
             analysis.last_operation_filenames = {
@@ -62,12 +67,14 @@ class Runner:
                 "control": []
             }
 
-            self._run(analysis, False)
+            self._run_mutation_analysis(analysis, False)
         else:
             analysis.last_operation_filenames = tumor
-            self._run(analysis, True)
+            self._run_mutation_analysis(analysis, True)
 
-    def _run(self, analysis: Analysis, use_strelka: bool) -> None:
+    def _run_mutation_analysis(self,
+                               analysis: Analysis,
+                               use_strelka: bool) -> None:
         mutect = Mutect(analysis)
         varscan = VarScan(analysis)
 

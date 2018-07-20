@@ -1,4 +1,5 @@
 import argparse
+import itertools
 import logging
 import os
 import re
@@ -9,11 +10,11 @@ import traceback
 from email.mime.text import MIMEText
 from enum import Enum
 from multiprocessing import Manager, Pool
-from typing import (Any, Dict, Iterable, List, MutableMapping, Optional, Tuple,
-                    Union, cast)
+from typing import (Any, Callable, Dict, Iterable, List, MutableMapping,
+                    Optional, Tuple, Union, cast)
 
 from . import utils
-from .barcoded_filename import BarcodedFilename, Tissue
+from .barcoded_filename import Analyte, BarcodedFilename, Tissue
 from .config import Config
 from .mapping import Aligner, RnaSeqAligner
 from .runner import Runner
@@ -181,14 +182,19 @@ def set_aligner_param(args: argparse.Namespace,
                       parameters: MutableMapping[str, Any],
                       param_name: str,
                       available_aligners: Iterable[Enum],
+                      files_checkers: Iterable[Optional[Callable[[Config],
+                                                                 bool]]],
                       config: Config) -> None:
 
     type_aligner = getattr(args, param_name)
     if type_aligner == "auto" or type_aligner is None:
-        for aligner in available_aligners:
+        for aligner, files_checker in zip(available_aligners, files_checkers):
             aligner_exec = getattr(config, aligner.name.lower())
             if aligner_exec is not None and\
                     shutil.which(aligner_exec) is not None:
+                if files_checker is not None and not files_checker(config):
+                    continue
+
                 parameters[param_name] = aligner
                 break
 
@@ -203,7 +209,24 @@ def set_aligner_param(args: argparse.Namespace,
                 file=sys.stderr)
             exit(-5)
     else:
-        aligner_exec = getattr(config, type_aligner.lower())
+        aligner_names = [aligner.name.lower()
+                         for aligner in available_aligners]
+        aligner_lower = type_aligner.lower()
+        if aligner_lower not in aligner_names:
+            print("The aligner %s is not present in the available ones"
+                  % type_aligner,
+                  file=sys.stderr)
+            exit(-5)
+        aligner_index = aligner_names.index(aligner_lower)
+        files_checker = next(itertools.islice(
+            files_checkers, aligner_index, None))
+
+        if files_checker is not None and not files_checker(config):
+            print("The aligner %s does not have all the needed config "
+                  "parameters correctly set" % type_aligner)
+            exit(-5)
+
+        aligner_exec = getattr(config, aligner_lower)
         if aligner_exec is not None and shutil.which(aligner_exec) is not None:
             if param_name == "aligner":
                 parameters[param_name] = Aligner[type_aligner.upper()]
@@ -211,6 +234,7 @@ def set_aligner_param(args: argparse.Namespace,
                 parameters[param_name] = RnaSeqAligner[type_aligner.upper()]
         else:
             print("The chosen aligner is not executable", file=sys.stderr)
+            exit(-5)
 
 
 def main() -> None:
@@ -422,36 +446,25 @@ def main() -> None:
         "use_tdf": args.use_tdf
     }
 
-    #  Parse parameter --align
-    if args.aligner == "auto":
-        aligners = [Aligner.NOVOALIGN, Aligner.BWA]
-        for aligner in aligners:
-            aligner_exec = getattr(config, aligner.name.lower())
-            if aligner_exec is not None and\
-                    shutil.which(aligner_exec) is not None:
-                parameters["aligner"] = aligner
-                break
-
-        if "aligner" not in parameters:
-            print(
-                "No valid aligner is available. "
-                "Please check your configuration file.",
-                file=sys.stderr)
-            exit(-5)
-    else:
-        aligner_exec = getattr(config, args.aligner)
-        if aligner_exec is not None and shutil.which(aligner_exec) is not None:
-            parameters["aligner"] = Aligner[args.aligner.upper()]
-        else:
-            print("The chosen aligner is not executable", file=sys.stderr)
-            exit(-5)
-
     logging.basicConfig(format="%(asctime)-15s %(message)s")
 
-    set_aligner_param(args, parameters, "rnaseq_aligner",
-                      [RnaSeqAligner.STAR], config)
-    set_aligner_param(args, parameters, "aligner", [
-                      Aligner.NOVOALIGN, Aligner.BWA], config)
+    aligner_is_needed = False
+    rnaseq_aligner_is_needed = False
+    for sample in filenames:
+        barcoded_filename = BarcodedFilename.from_sample(sample)
+        if barcoded_filename.analyte == Analyte.RNASEQ:
+            rnaseq_aligner_is_needed = True
+        else:
+            aligner_is_needed = True
+
+    if rnaseq_aligner_is_needed:
+        set_aligner_param(args, parameters, "rnaseq_aligner",
+                          [RnaSeqAligner.STAR], [Config.check_star_files],
+                          config)
+    if aligner_is_needed:
+        set_aligner_param(args, parameters, "aligner", [
+                          Aligner.NOVOALIGN, Aligner.BWA], [None, None],
+                          config)
 
     if args.r_checks and args.post_recalibration:
         try:
