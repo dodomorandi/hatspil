@@ -8,3 +8,7 @@ class BarcodeError(RuntimeError):
 
 class DataError(RuntimeError):
     pass
+
+
+class AnnotationError(RuntimeError):
+    pass

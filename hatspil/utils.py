@@ -12,7 +12,7 @@ from typing import (Any, Dict, Generator, Iterable, List, Mapping, Sequence,
                     Tuple, Union, ValuesView, cast)
 
 from .config import Config
-from .exceptions import DataError
+from .exceptions import DataError, AnnotationError
 
 
 def get_current() -> str:
@@ -71,7 +71,7 @@ def get_sample_filenames(obj: Union[Sequence[str],
 
 def get_samples_by_organism(
         obj: Union[List[str], Dict[str, List[str]], str],
-        default_organism: str = "hg19") -> Dict[str, List[str]]:
+        default_organism: str) -> Dict[str, List[str]]:
 
     if isinstance(obj, list):
         return {default_organism: obj}
@@ -121,7 +121,10 @@ def get_picard_max_records_string(max_records: str) -> str:
 
 
 def find_fastqs_by_organism(
-        sample: str, fastq_dir: str) -> Dict[str, List[Tuple[str, int]]]:
+        sample: str,
+        fastq_dir: str,
+        default_organism: str) -> Dict[str, List[Tuple[str, int]]]:
+
     re_fastq_filename = re.compile(
         R"^%s(?:\.((?:hg|mm)\d+))?\.R([12])\.fastq(?:\.gz)?$" % sample, re.I)
     fastq_files = [
@@ -137,7 +140,7 @@ def find_fastqs_by_organism(
         organism = match.group(1)
         read_index = int(match.group(2))
         if organism is None or organism == "":
-            organism = "hg19"
+            organism = default_organism
         if organism in fastqs:
             fastqs[organism].append((filename, read_index))
         else:
@@ -190,3 +193,21 @@ def parsed_date(raw_date: str) -> str:
     except ValueError:
         raise ArgumentTypeError("expected string in format YYYY_MM_DD")
     return "%04d_%02d_%02d" % (date.year, date.month, date.day)
+
+
+def get_human_annotation(config: Config) -> str:
+    if config.use_hg38:
+        return "hg38"
+    elif config.use_hg19:
+        return "hg19"
+    else:
+        raise AnnotationError("no available human annotation in config")
+
+
+def get_mouse_annotation(config: Config) -> str:
+    if config.use_mm10:
+        return "mm10"
+    elif config.use_mm9:
+        return "mm9"
+    else:
+        raise AnnotationError("no available mouse annotation in config")

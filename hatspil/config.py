@@ -19,7 +19,8 @@ class Config:
     optional_files = ("star_index", "star_annotation")
     parameters = ("xenome_index", "xenome_threads", "strelka_threads",
                   "mean_len_library", "sd_len_library", "use_hg19", "use_hg38",
-                  "use_mm9", "use_mm10", "kit", "mails", "use_mongodb")
+                  "use_mm9", "use_mm10", "kit", "mails", "use_mongodb"
+                  "cancer_site")
     mongodb = ("database", "host", "port", "username", "password")
 
     def __init__(self, filename: Optional[str] = None) -> None:
@@ -75,6 +76,7 @@ class Config:
         self.indel_1 = "1000G_phase1.indels.hg19.sites.vcf"
         self.indel_2 = "Mills_and_1000G_gold_standard.indels.hg19.sites.vcf"
         self.annotations = "48379-1473715058_Amplicons.bed"
+        self.cancer_site = "soft_tissue"
         self.mails = ""
         self.use_mongodb = True
         self.mongodb_database = "hatspil"

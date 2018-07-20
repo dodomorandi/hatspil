@@ -717,7 +717,9 @@ class Mapping:
         self.analysis.logger.info("Compressing fastq files")
         self.chdir()
         fastq_files = utils.find_fastqs_by_organism(self.analysis.sample,
-                                                    self.fastq_dir)
+                                                    self.fastq_dir,
+                                                    utils.get_human_annotation(
+                                                        self.analysis.config))
         for filenames in fastq_files.values():
             for filename, _ in filenames:
                 utils.gzip(filename)

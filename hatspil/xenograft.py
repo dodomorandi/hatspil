@@ -6,7 +6,7 @@ from typing import Dict, List, Tuple, cast
 
 from . import utils
 from .analysis import Analysis
-from .barcoded_filename import BarcodedFilename, Tissue
+from .barcoded_filename import BarcodedFilename
 from .exceptions import PipelineError
 from .executor import AnalysisFileData, Executor, SingleAnalysis
 
@@ -26,6 +26,8 @@ class Xenograft:
         self.skip_filenames: Dict[str, List[str]] = {}
         self.already_done: Dict[str, List[str]] = {}
         self.input_filenames = SingleAnalysis()
+        self.human_annotation = utils.get_human_annotation(analysis.config)
+        self.mouse_annotation = utils.get_mouse_annotation(analysis.config)
 
     def chdir(self) -> None:
         os.chdir(self.fastq_dir)
@@ -42,7 +44,7 @@ class Xenograft:
             else:
                 organism = file_data.barcode.organism
                 if not organism:
-                    organism = "hg19"
+                    organism = utils.get_human_annotation(self.analysis.config)
                 if organism not in self.skip_filenames:
                     self.skip_filenames[organism] = []
                 self.skip_filenames[organism].append(
@@ -65,7 +67,7 @@ class Xenograft:
             can_skip = True
             removed: Dict[str, List[str]] = {}
             barcoded_filename = BarcodedFilename(fastqgz_data.filename)
-            for organism in ("hg19", "mm10"):
+            for organism in (self.human_annotation, self.mouse_annotation):
                 obtained_name = "%s.%s" % (barcoded_filename.get_barcode(),
                                            organism)
 
@@ -120,7 +122,9 @@ class Xenograft:
 
         executor = Executor(self.analysis)
         executor(
-            f"{self.xenome_command} --graft-name hg19 --host-name mm10 "
+            f"{self.xenome_command} "
+            f"--graft-name {self.human_annotation} "
+            f"--host-name {self.mouse_annotation} "
             f"--output-filename-prefix {self.analysis.sample} "
             f"{{input_filename}} "
             f"--tmp-dir {temp_dir} "
@@ -132,7 +136,7 @@ class Xenograft:
             output_format=f"{self.analysis.sample}_%s_%d.fastq",
             output_function=lambda filename: [
                 filename % (organism, index) for organism, index in itertools.
-                product(["hg19", "mm10"], [1, 2])
+                product([self.human_annotation, self.mouse_annotation], [1, 2])
             ],
             input_split_reads=False)
         shutil.rmtree(temp_dir)

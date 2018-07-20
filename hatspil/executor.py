@@ -436,7 +436,7 @@ class Executor:
 
         if organism is None or organism == "":
             additional_params["organism_str"] = ""
-            organism = "hg19"
+            organism = utils.get_human_annotation(self.analysis.config)
         else:
             additional_params["organism_str"] = "." + organism
 
@@ -564,7 +564,7 @@ class Executor:
 
             locals().update(self._get_additional_params(organism))
             if organism is None or organism == "":
-                organism = "hg19"
+                organism = utils.get_human_annotation(self.analysis.config)
 
             local_params = {key: value for key,
                             value in locals().items() if key != "self"}

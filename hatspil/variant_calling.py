@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, cast
 import pandas as pd
 import vcf
 
+from . import utils
 from .analysis import Analysis
 from .barcoded_filename import BarcodedFilename
 from .exceptions import PipelineError
@@ -17,8 +18,6 @@ from .ranges import GenomicRange, GenomicRanges
 class VariantCalling:
     min_allele_frequency = 0.01
     min_cov_position = 10
-    build_version = "hg19"
-    cancer_site = "soft_tissue"
     dataset_filename = os.path.join(os.path.dirname(__file__), "data.hdf")
     medium_damage = 5
     high_damage = 20
@@ -43,6 +42,7 @@ class VariantCalling:
                                                 analysis.basename, "results")
 
         os.makedirs(self.annovar_dirname, exist_ok=True)
+        self.build_version = utils.get_human_annotation(self.analysis.config)
 
         self.annovar_file = os.path.join(
             self.annovar_dirname, self.analysis.basename + "_annovar_input")
@@ -50,7 +50,7 @@ class VariantCalling:
             self.annovar_dirname, self.analysis.basename + "_variants.csv")
         self.multianno_filename = os.path.join("%s.%s_multianno.txt" %
                                                (self.annovar_file,
-                                                VariantCalling.build_version))
+                                                self.build_version))
 
     def chdir(self) -> None:
         os.chdir(self.analysis.get_out_dir())
@@ -376,7 +376,7 @@ class VariantCalling:
         executor(
             f"{config.perl} table_annovar.pl "
             f"{{input_filename}} humandb/ "
-            f"-buildver {VariantCalling.build_version} "
+            f"-buildver {self.build_version} "
             f"-protocol refGene,snp138,cosmic70,clinvar_20160302,"
             f"popfreq_all_20150413,dbnsfp30a,cadd13 "
             f"-operation g,f,f,f,f,f,f -nastring NA -remove -v",
@@ -405,8 +405,8 @@ class VariantCalling:
         panel_drug = pd.read_hdf(VariantCalling.dataset_filename, "panel_drug")
         gene_info = pd.read_hdf(VariantCalling.dataset_filename, "gene_info")
 
-        selected_cancer_genes = cancer_genes[cancer_genes.cancer_site
-                                             == VariantCalling.cancer_site]
+        selected_cancer_genes = cancer_genes[
+            cancer_genes.cancer_site == self.analysis.config.cancer_site]
 
         annotation.reset_index(inplace=True, drop=True)
         gene_info.reset_index(inplace=True, drop=True)
@@ -419,7 +419,7 @@ class VariantCalling:
         selected_symbols = annotation["Gene.refGene"].isin(
             selected_cancer_genes.symbol)
         annotation.loc[selected_symbols,
-                       "cancer_gene_site"] = VariantCalling.cancer_site
+                       "cancer_gene_site"] = self.analysis.config.cancer_site
 
         annotation.loc[annotation["Func.refGene"] == "splicing",
                        "ExonicFunc.refGene"] = "splicing"
