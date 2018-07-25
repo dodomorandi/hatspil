@@ -411,15 +411,6 @@ class Mapping:
             override_last_files=False
         )
         self.analysis.logger.info("Finished HTseq count")
-
-        self.analysis.logger.info("Creating BAM index")
-        executor(
-            f"{config.samtools} index {{input_filename}}",
-            output_format=f"{self.analysis.basename}.bai",
-            override_last_files=False,
-        )
-        self.analysis.logger.info("Finished creating BAM index")
-
         self.analysis.logger.info("Alignment finished. Aligner used: STAR")
 
     def sort_bam(self) -> None:
