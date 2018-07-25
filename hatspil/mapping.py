@@ -746,11 +746,13 @@ class Mapping:
                 self.align_bwa()
             else:
                 raise Exception("unexpected aligner for this type of sample")
-            self.convert_alignment()
-            self.sort_bam()
 
-            if self.analysis.parameters["mark_duplicates"]:
-                self.mark_duplicates()
+        self.convert_alignment()
+        self.sort_bam()
+
+        if self.analysis.parameters["mark_duplicates"]\
+                and barcoded.analyte != Analyte.RNASEQ:
+            self.mark_duplicates()
 
         if barcoded.analyte == Analyte.WHOLE_EXOME:
             self.indel_realign()
