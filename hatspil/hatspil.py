@@ -334,16 +334,16 @@ def main() -> None:
                     exit(-1)
 
                 current_pattern = R"^("
-                current_pattern += match.group(1).replace("*", R"[^-]")
+                current_pattern += match.group(1).replace("*", R"[^-]+")
                 group = match.group(2)
                 if group:
                     current_pattern += "-"
-                    current_pattern += group.replace("*", R"[^-]")
+                    current_pattern += group.replace("*", R"[^-]+")
 
                     group = match.group(3)
                     if group:
                         current_pattern += "-"
-                        current_pattern += group.replace("*", R"\d{2}")
+                        current_pattern += group.replace("*", R"\d[0-9A-Za-z]")
 
                         group = match.group(4)
                         if group:
@@ -380,7 +380,7 @@ def main() -> None:
                                         else:
                                             current_pattern += R"\d{2}"
                                     else:
-                                        current_pattern += R"\d{3}"
+                                        current_pattern += R"-\d{3}"
                                 else:
                                     current_pattern += R"\d-\d{3}"
                             else:
