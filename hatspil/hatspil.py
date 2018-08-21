@@ -16,7 +16,7 @@ from typing import (Any, Callable, Dict, Iterable, List, MutableMapping,
 from . import utils
 from .barcoded_filename import Analyte, BarcodedFilename, Tissue
 from .config import Config
-from .mapping import Aligner, RnaSeqAligner
+from .aligner import GenericAligner, RnaSeqAligner
 from .runner import Runner
 
 
@@ -28,7 +28,9 @@ def get_parser() -> argparse.ArgumentParser:
         "--aligner",
         action="store",
         dest="aligner",
-        choices=[aligner.name.lower() for aligner in Aligner] + ["auto"],
+        choices=[aligner.name.lower()
+                 for aligner
+                 in GenericAligner] + ["auto"],
         default="auto",
         help="Select the aligner. When this option is set to "
         "'auto' will be used the first aligner available")
@@ -229,7 +231,7 @@ def set_aligner_param(args: argparse.Namespace,
         aligner_exec = getattr(config, aligner_lower)
         if aligner_exec is not None and shutil.which(aligner_exec) is not None:
             if param_name == "aligner":
-                parameters[param_name] = Aligner[type_aligner.upper()]
+                parameters[param_name] = GenericAligner[type_aligner.upper()]
             else:
                 parameters[param_name] = RnaSeqAligner[type_aligner.upper()]
         else:
@@ -463,7 +465,8 @@ def main() -> None:
                           config)
     if aligner_is_needed:
         set_aligner_param(args, parameters, "aligner", [
-                          Aligner.NOVOALIGN, Aligner.BWA], [None, None],
+                          GenericAligner.NOVOALIGN, GenericAligner.BWA],
+                          [None, None],
                           config)
 
     if args.r_checks and args.post_recalibration:
