@@ -1,9 +1,9 @@
-from typing import Dict, Any
-
-from pymongo import MongoClient
+from typing import Any, Dict, Optional
 
 from hatspil.barcoded_filename import BarcodedFilename
 from hatspil.config import Config
+from pymongo import MongoClient
+
 from .collection import Collection
 
 
@@ -42,7 +42,7 @@ class Db:
         for collection_name in Db._COLLECTIONS:
             setattr(self, collection_name, Collection(self, collection_name))
 
-    def store_barcoded(self, barcoded: BarcodedFilename):
+    def store_barcoded(self, barcoded: BarcodedFilename) -> Optional[Dict[str, Any]]:
         if not self.config.use_mongodb:
             return None
 
@@ -96,7 +96,9 @@ class Db:
             "sequencing": sequencing,
         }
 
-    def from_barcoded(self, barcoded: BarcodedFilename) -> Dict[str, Dict[str, Any]]:
+    def from_barcoded(
+        self, barcoded: BarcodedFilename
+    ) -> Optional[Dict[str, Dict[str, Any]]]:
         if not self.config.use_mongodb:
             return None
 

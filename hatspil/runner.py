@@ -1,8 +1,8 @@
 from multiprocessing.managers import SyncManager
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from .analysis import Analysis
-from .barcoded_filename import Analyte, BarcodedFilename, Tissue
+from .barcoded_filename import Analyte, BarcodedFilename
 from .config import Config
 from .db import Db
 from .mapping import Mapping
@@ -11,7 +11,6 @@ from .starter import Starter
 from .strelka import Strelka
 from .variant_calling import VariantCalling
 from .varscan import VarScan
-from .xenograft import Xenograft
 
 
 class Runner:
@@ -34,10 +33,22 @@ class Runner:
         Starter.run(analysis, self.fastq_dir)
 
         db = Db(analysis.config)
-        for filenames in analysis.last_operation_filenames.values():
-            for filename in filenames:
-                barcoded_filename = BarcodedFilename(filename)
-                db.store_barcoded(barcoded_filename)
+        filenames: List[str] = []
+        if analysis.last_operation_filenames is not None:
+            if isinstance(analysis.last_operation_filenames, str):
+                filenames = [analysis.last_operation_filenames]
+            elif isinstance(analysis.last_operation_filenames, dict):
+                filenames = [
+                    filename
+                    for filenames_list in analysis.last_operation_filenames.values()
+                    for filename in filenames_list
+                ]
+            else:
+                filenames = analysis.last_operation_filenames
+
+        for filename in filenames:
+            barcoded_filename = BarcodedFilename(filename)
+            db.store_barcoded(barcoded_filename)
 
         if self.parameters["skip_mapping"]:
             analysis.run_fake = True

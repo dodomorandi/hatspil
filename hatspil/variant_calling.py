@@ -2,7 +2,7 @@ import glob
 import math
 import os
 import re
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 import vcf
@@ -626,7 +626,6 @@ class VariantCalling:
         config = self.analysis.config
         if config.use_mongodb:
             from pymongo.errors import DocumentTooLarge
-            from pymongo.collection import Collection
 
             barcoded_sample = BarcodedFilename.from_sample(self.analysis.sample)
 
@@ -651,14 +650,19 @@ class VariantCalling:
 
             db = Db(self.analysis.config)
 
-            annotation_ids = [
-                db.annotations.find_or_insert({"id": annotation["id"]}, annotation)[
-                    "_id"
-                ]
-                for annotation in annotations
-            ]
+            annotation_ids: List[str] = []
+            for annotation in annotations:
+                new_annotation = db.annotations.find_or_insert(
+                    {"id": annotation["id"]}, annotation
+                )
+                assert new_annotation
+                new_annotation_id = new_annotation["_id"]
+                assert new_annotation_id
+                annotation_ids.append(new_annotation_id)
 
-            sequencing = db.from_barcoded(barcoded_sample)["sequencing"]
+            db_from_barcoded = db.from_barcoded(barcoded_sample)
+            assert db_from_barcoded
+            sequencing = db_from_barcoded["sequencing"]
             assert sequencing is not None
 
             try:

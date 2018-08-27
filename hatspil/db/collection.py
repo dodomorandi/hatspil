@@ -1,10 +1,12 @@
-import hatspil.db
+from typing import Any, Dict, Optional, cast
 
-from typing import Dict
+import hatspil.db
 from pymongo import ReturnDocument
 
 
 class Collection:
+    db: Optional["hatspil.db.Db"]
+
     def __init__(self, db: "hatspil.db.Db", collection_name: str) -> None:
         self.collection_name = collection_name
         if db.config.use_mongodb:
@@ -14,8 +16,10 @@ class Collection:
             self.db = None
             self.collection = None
 
-    def find_or_insert(self, data: Dict, new_data: Dict = None):
-        if not self.db.config.use_mongodb:
+    def find_or_insert(
+        self, data: Dict, new_data: Optional[Dict] = None
+    ) -> Optional[Dict[str, Any]]:
+        if not self.db or not self.db.config.use_mongodb:
             return None
 
         assert self.collection is not None
@@ -23,13 +27,15 @@ class Collection:
         set_data = dict(data)
         if new_data is not None:
             set_data.update(new_data)
-        return self.collection.find_one_and_update(
+        retval = self.collection.find_one_and_update(
             data, {"$set": set_data}, upsert=True, return_document=ReturnDocument.AFTER
         )
+        return cast(Optional[Dict[str, Any]], retval)
 
-    def find(self, data: Dict):
-        if not self.db.config.use_mongodb:
+    def find(self, data: Dict) -> Optional[Dict[str, Any]]:
+        if not self.db or not self.db.config.use_mongodb:
             return None
 
         assert self.collection is not None
-        return self.collection.find_one(data)
+        retval = self.collection.find_one(data)
+        return cast(Optional[Dict[str, Any]], retval)

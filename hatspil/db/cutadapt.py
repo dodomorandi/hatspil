@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, List, TextIO, Tuple
+from typing import Any, Dict, List, TextIO
 
 import hatspil.db
 from hatspil.analysis import Analysis
@@ -33,7 +33,9 @@ class Cutadapt:
 
         data = Cutadapt.from_file_to_dict(cutadapt_report_filename)
         barcoded = BarcodedFilename.from_sample(analysis.sample)
-        sequencing = self.db.from_barcoded(barcoded)["sequencing"]
+        db_from_barcoded = self.db.from_barcoded(barcoded)
+        assert db_from_barcoded
+        sequencing = db_from_barcoded["sequencing"]
         data["sequencing"] = sequencing["_id"]
         data["date"] = analysis.current
 
@@ -117,7 +119,7 @@ class Cutadapt:
 
         line = next(fd)
         match = Cutadapt.RE_ADAPTER_INFO.match(line)
-
+        assert(match)
         data[f"{prefix}_sequence"] = match.group(1)
         data[f"{prefix}_type"] = match.group(2)
         data[f"{prefix}_length"] = int(match.group(3))
@@ -147,10 +149,10 @@ class Cutadapt:
         bases_preceding_removed_adapter: Dict[str, float] = {}
         for _ in range(5):
             line = next(fd)
-            base, fraction = [x.strip() for x in line.split(":")]
-            if len(base) != 1:
-                base = "other"
-            bases_preceding_removed_adapter[base] = float(fraction[:-1]) / 100
+            base_name, fraction = [x.strip() for x in line.split(":")]
+            if len(base_name) != 1:
+                base_name = "other"
+            bases_preceding_removed_adapter[base_name] = float(fraction[:-1]) / 100
         data[f"{prefix}_preceding_bases"] = bases_preceding_removed_adapter
 
         next(fd)  # Empty line
