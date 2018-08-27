@@ -7,6 +7,8 @@ from . import utils
 from .aligner import Aligner, RnaSeqAligner
 from .analysis import Analysis
 from .barcoded_filename import Analyte, BarcodedFilename
+from .db import Db
+from .db.cutadapt import Cutadapt
 from .exceptions import PipelineError
 from .executor import AnalysisFileData, Executor
 from .xenograft import Xenograft, XenograftClassifier

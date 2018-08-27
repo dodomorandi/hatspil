@@ -9,8 +9,15 @@ from .collection import Collection
 
 class Db:
     _COLLECTIONS = [
-        "projects", "patients", "biopsies", "samples", "sequencings",
-        "annotations", "variants", "analyses", "cutadapt"
+        "projects",
+        "patients",
+        "biopsies",
+        "samples",
+        "sequencings",
+        "annotations",
+        "variants",
+        "analyses",
+        "cutadapt",
     ]
     projects: Collection
     patients: Collection
@@ -28,8 +35,7 @@ class Db:
         if config.use_mongodb:
             mongo = MongoClient(config.mongodb_host, config.mongodb_port)
             self.db = mongo[config.mongodb_database]
-            self.db.authenticate(config.mongodb_username,
-                                 config.mongodb_password)
+            self.db.authenticate(config.mongodb_username, config.mongodb_password)
         else:
             self.db = None
 
@@ -44,18 +50,19 @@ class Db:
         if not project:
             return None
 
-        patient = self.patients.find_or_insert({
-            "project": project["_id"],
-            "name": barcoded.patient
-        })
+        patient = self.patients.find_or_insert(
+            {"project": project["_id"], "name": barcoded.patient}
+        )
         if not patient:
             return None
 
-        biopsy = self.biopsies.find_or_insert({
-            "patient": patient["_id"],
-            "index": barcoded.biopsy,
-            "tissue": int(barcoded.tissue)
-        })
+        biopsy = self.biopsies.find_or_insert(
+            {
+                "patient": patient["_id"],
+                "index": barcoded.biopsy,
+                "tissue": int(barcoded.tissue),
+            }
+        )
         if not biopsy:
             return None
 
@@ -71,14 +78,13 @@ class Db:
             return None
 
         sequencing = self.sequencings.find_or_insert(
+            {"sample": sample["_id"], "index": barcoded.sequencing},
             {
-                "sample": sample["_id"],
-                "index": barcoded.sequencing
-            }, {
                 "molecule": int(barcoded.molecule),
                 "analyte": int(barcoded.analyte),
-                "kit": barcoded.kit
-            })
+                "kit": barcoded.kit,
+            },
+        )
         if not sequencing:
             return None
 
@@ -87,11 +93,10 @@ class Db:
             "patient": patient,
             "biopsy": biopsy,
             "sample": sample,
-            "sequencing": sequencing
+            "sequencing": sequencing,
         }
 
-    def from_barcoded(
-            self, barcoded: BarcodedFilename) -> Dict[str, Dict[str, Any]]:
+    def from_barcoded(self, barcoded: BarcodedFilename) -> Dict[str, Dict[str, Any]]:
         if not self.config.use_mongodb:
             return None
 
@@ -99,18 +104,19 @@ class Db:
         if not project:
             return None
 
-        patient = self.patients.find({
-            "project": project["_id"],
-            "name": barcoded.patient
-        })
+        patient = self.patients.find(
+            {"project": project["_id"], "name": barcoded.patient}
+        )
         if not patient:
             return None
 
-        biopsy = self.biopsies.find({
-            "patient": patient["_id"],
-            "index": barcoded.biopsy,
-            "tissue": int(barcoded.tissue)
-        })
+        biopsy = self.biopsies.find(
+            {
+                "patient": patient["_id"],
+                "index": barcoded.biopsy,
+                "tissue": int(barcoded.tissue),
+            }
+        )
         if not biopsy:
             return None
 
@@ -125,10 +131,9 @@ class Db:
         if not sample:
             return None
 
-        sequencing = self.sequencings.find({
-            "sample": sample["_id"],
-            "index": barcoded.sequencing
-        })
+        sequencing = self.sequencings.find(
+            {"sample": sample["_id"], "index": barcoded.sequencing}
+        )
         if not sequencing:
             return None
 
@@ -137,5 +142,5 @@ class Db:
             "patient": patient,
             "biopsy": biopsy,
             "sample": sample,
-            "sequencing": sequencing
+            "sequencing": sequencing,
         }

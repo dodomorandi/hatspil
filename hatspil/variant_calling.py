@@ -1,9 +1,3 @@
-from .executor import Executor
-from .ranges import GenomicRange, GenomicRanges
-from .barcoded_filename import BarcodedFilename
-from .exceptions import PipelineError
-from .db import Db
-
 import glob
 import math
 import os
@@ -16,6 +10,7 @@ import vcf
 from . import utils
 from .analysis import Analysis
 from .barcoded_filename import BarcodedFilename
+from .db import Db
 from .exceptions import PipelineError
 from .executor import Executor
 from .ranges import GenomicRange, GenomicRanges
@@ -657,10 +652,9 @@ class VariantCalling:
             db = Db(self.analysis.config)
 
             annotation_ids = [
-                db.annotations.find_or_insert(
-                    {"id": annotation["id"]},
-                    annotation,
-                )["_id"]
+                db.annotations.find_or_insert({"id": annotation["id"]}, annotation)[
+                    "_id"
+                ]
                 for annotation in annotations
             ]
 
@@ -669,22 +663,17 @@ class VariantCalling:
 
             try:
                 db.analyses.find_or_insert(
-                    {
-                        "sequencing": sequencing["_id"],
-                        "date": self.analysis.current
-                    },
+                    {"sequencing": sequencing["_id"], "date": self.analysis.current},
                     {"variants": variants, "annotations": annotation_ids},
                 )
 
             except DocumentTooLarge:
                 self.analysis.logger.warning(
                     "annotations and variants cannot be saved inside the MongoDB, "
-                    "document too large. Saving data using empty objects")
+                    "document too large. Saving data using empty objects"
+                )
                 db.analyses.find_or_insert(
-                    {
-                        "sequencing": sequencing["_id"],
-                        "date": self.analysis.current,
-                    },
+                    {"sequencing": sequencing["_id"], "date": self.analysis.current},
                     {"variants": [], "annotations": []},
                 )
 
