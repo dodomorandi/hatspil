@@ -8,11 +8,11 @@ import tempfile
 from typing import List, Optional, Sequence, Union
 
 from . import utils
+from .aligner import Aligner, RnaSeqAligner
 from .analysis import Analysis
 from .barcoded_filename import Analyte, BarcodedFilename
 from .exceptions import PipelineError
 from .executor import AnalysisFileData, Executor
-from .aligner import Aligner, RnaSeqAligner
 from .xenograft import Xenograft, XenograftClassifier
 
 

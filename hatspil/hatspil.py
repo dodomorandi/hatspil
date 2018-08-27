@@ -24,11 +24,11 @@ from typing import (
 )
 
 from . import utils
+from .aligner import GenericAligner, RnaSeqAligner
 from .barcoded_filename import Analyte, BarcodedFilename, Tissue
 from .config import Config
-from .aligner import GenericAligner, RnaSeqAligner
 from .runner import Runner
-from .xenograft import XenograftClassifier, Xenograft
+from .xenograft import Xenograft, XenograftClassifier
 
 
 def get_parser() -> argparse.ArgumentParser:

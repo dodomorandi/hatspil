@@ -2,7 +2,7 @@ from multiprocessing.managers import SyncManager
 from typing import Any, Dict, Optional
 
 from .analysis import Analysis
-from .barcoded_filename import BarcodedFilename, Tissue, Analyte
+from .barcoded_filename import Analyte, BarcodedFilename, Tissue
 from .config import Config
 from .mapping import Mapping
 from .mutect import Mutect

@@ -25,7 +25,7 @@ from typing import (
 
 from .barcoded_filename import BarcodedFilename
 from .config import Config
-from .exceptions import DataError, AnnotationError
+from .exceptions import AnnotationError, DataError
 
 
 def get_current() -> str:

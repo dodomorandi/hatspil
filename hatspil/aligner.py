@@ -5,10 +5,10 @@ import shutil
 import tempfile
 from enum import Enum, auto
 
+from . import utils
 from .analysis import Analysis
 from .barcoded_filename import Analyte, BarcodedFilename
 from .executor import Executor
-from . import utils
 
 
 class GenericAligner(Enum):
