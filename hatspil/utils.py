@@ -8,9 +8,10 @@ import subprocess
 from argparse import ArgumentTypeError
 from copy import deepcopy
 from logging import Logger
-from typing import (Any, Dict, Generator, Iterable, List, Mapping, Sequence,
-                    Tuple, Union, ValuesView, cast)
+from typing import (Any, Dict, Generator, Iterable, List, Mapping, Optional,
+                    Sequence, Tuple, Union, ValuesView, cast)
 
+from .barcoded_filename import BarcodedFilename
 from .config import Config
 from .exceptions import DataError, AnnotationError
 
@@ -49,13 +50,27 @@ def get_sample_filenames(obj: Union[Sequence[str],
                          ) -> Union[List[str],
                                     Mapping[str, List[str]]]:
     if isinstance(obj, list):
-        return list(obj)
+        if split_by_organism and len(obj) > 1:
+            filenames: Dict[str, List[str]] = {}
+            for filename in obj:
+                organism = get_organism_from_filename(filename)
+                if organism is None:
+                    organism = ''
+                filenames.setdefault(organism, []).append(filename)
+            if len(filenames) > 1:
+                return filenames
+            else:
+                return list(next(iter(filenames.values())))
+        else:
+            return list(obj)
     elif isinstance(obj, dict):
         if split_by_organism and len(obj) > 1:
             return deepcopy(obj)
         else:
             values = obj.values()
-            if isinstance(next(iter(values)), list):
+            if not values:
+                return []
+            elif isinstance(next(iter(values)), list):
                 return [
                     filename for filenames in values
                     for filename in filenames
@@ -66,7 +81,22 @@ def get_sample_filenames(obj: Union[Sequence[str],
                 raise DataError("unexpected filenames type")
     else:
         assert isinstance(obj, str)
-        return [obj]
+        if split_by_organism:
+            organism = get_organism_from_filename(obj)
+            if organism:
+                return {organism: [obj]}
+            else:
+                return [obj]
+        else:
+            return [obj]
+
+
+def get_organism_from_filename(filename: str) -> Optional[str]:
+    try:
+        barcoded = BarcodedFilename(os.path.basename(filename))
+        return barcoded.organism
+    except Exception:
+        return None
 
 
 def get_samples_by_organism(

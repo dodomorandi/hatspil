@@ -152,10 +152,10 @@ class Xenograft:
 class BarcodedFilename:
     re_filename = re.compile(R"^([^-]+)-([^-]+)-(\d[0-9A-Za-z])-(\d)(\d)(\d)-"
                              R"(\d)(\d)(\d)(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
-                             R"(?:\.(?:R([12])|[^.]+))*?\.(\w+?)(\.gz)?$")
+                             R"(?:\.R([12]))?\.(\w+?)(\.gz)?$")
     re_sample = re.compile(R"^([^-]+)-([^-]+)-(\d[0-9A-Za-z])-(\d)(\d)(\d)-"
                            R"(\d)?(\d)?(\d)?(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
-                           R"(?:\.(?:R([12])|[^.]+))*?$")
+                           R"(?:\.R([12]))?$")
     project: str
     patient: str
     tissue: Tissue
@@ -333,6 +333,41 @@ class BarcodedFilename:
                                              self.kit, biopsy,
                                              self.get_sample_index(),
                                              sequencing)
+
+    def get_barcoded_filename(self) -> Optional[str]:
+        if self.biopsy is None \
+                or self.sequencing is None \
+                or self.extension is None:
+            return None
+
+        if self.read_index:
+            read_str = f".R{self.read_index}"
+        else:
+            read_str = ""
+
+        if self.gzipped:
+            extension = f"{self.extension}.gz"
+        else:
+            extension = self.extension
+
+        if self.organism:
+            organism = f".{self.organism}"
+        else:
+            organism = ""
+
+        return "{}-{}-{}-{}{}{}-{}{}{}{}{}.{}".format(
+            self.project,
+            self.patient,
+            self.get_tissue_str(),
+            self.molecule,
+            self.analyte,
+            self.kit,
+            self.biopsy,
+            self.get_sample_index(),
+            self.sequencing,
+            organism,
+            read_str,
+            extension)
 
     def get_directory(self, analysis_dir: Optional[str] = None) -> str:
         if analysis_dir is None:

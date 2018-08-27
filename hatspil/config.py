@@ -7,8 +7,9 @@ from typing import Optional
 
 class Config:
     executables = ("java", "java7", "perl", "seqtk",
-                   "fastqc", "samtools", "xenome")
-    optional_executables = ("novoalign", "bwa", "star")
+                   "fastqc", "samtools")
+    optional_executables = ("novoalign", "bwa", "star", "xenome",
+                            "disambiguate")
     jars = ("picard", "varscan", "gatk", "mutect", "bam2tdf")
     files = ("strelka_basedir", "strelka_config",
              "hg19_ref", "hg19_index", "hg38_ref", "hg38_index", "mm9_ref",
@@ -47,6 +48,7 @@ class Config:
         self.xenome = "xenome"
         self.xenome_index = "xenome_idx"
         self.xenome_threads = 1
+        self.disambiguate = "disambiguate"
         self.strelka_basedir = "/usr/share/strelka"
         self.strelka_config = "/usr/share/strelka/config.ini"
         self.strelka_threads = 1

@@ -27,7 +27,7 @@ class Mutect:
                 f'{{genome_ref}} --dbsnp {{dbsnp}} --cosmic '
                 f'{{cosmic}} --input_file:tumor {{input_filenames.sample]}} '
                 f'--input_file:normal {{input_filenames.control}} --out '
-                f'{self.analysis.basename}{{organism_str}}.mutect.1.17.vcf ',
+                f'{self.analysis.basename}.mutect.1.17{{organism_str}}.vcf ',
                 override_last_files=False,
                 error_string="Mutect exited with status {status}",
                 exception_string="mutect error",
@@ -39,7 +39,7 @@ class Mutect:
                 f'{config.mutect_args} --reference_sequence '
                 f'{{genome_ref}} --dbsnp {{dbsnp}} --cosmic '
                 f'{{cosmic}} --input_file:tumor {{input_filename}} --out '
-                f'{self.analysis.basename}{{organism_str}}.mutect.1.17.vcf ',
+                f'{self.analysis.basename}.mutect.1.17{{organism_str}}.vcf ',
                 override_last_files=False,
                 error_string="Mutect exited with status {status}",
                 exception_string="mutect error")

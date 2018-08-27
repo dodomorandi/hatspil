@@ -1,17 +1,28 @@
+import argparse
 import itertools
 import os
 import re
 import shutil
-from typing import Dict, List, Tuple, cast
+import subprocess
+from enum import Enum, auto
+from typing import Dict, List, Optional, Tuple, Union, cast, Any
+from copy import deepcopy
 
 from . import utils
 from .analysis import Analysis
-from .barcoded_filename import BarcodedFilename
+from .barcoded_filename import BarcodedFilename, Analyte
+from .config import Config
 from .exceptions import PipelineError
 from .executor import AnalysisFileData, Executor, SingleAnalysis
+from .aligner import Aligner, RnaSeqAligner, GenericAligner
 
 
-class Xenograft:
+class XenograftClassifier(Enum):
+    XENOME = auto()
+    DISAMBIGUATE = auto()
+
+
+class Xenome:
     def __init__(self, analysis: Analysis, fastq_dir: str) -> None:
         self.analysis = analysis
         self.fastq_dir = fastq_dir
@@ -247,3 +258,223 @@ class Xenograft:
             self.compress()
         self.update_last_filenames()
         self.cannot_unlink_results()
+
+
+class Disambiguate:
+    def __init__(self, analysis: Analysis, fastq_dir: str) -> None:
+        self.analysis = analysis
+        self.fastq_dir = fastq_dir
+        self.aligned_fastq_files: Union[str,
+                                        List[str],
+                                        Dict[str, List[str]],
+                                        None] = None
+        self.tempdir = os.path.join(analysis.get_bam_dir(),
+                                    "disambiguate_{}".format(analysis.sample))
+
+    def create_avatar_links(self) -> None:
+        self.analysis.logger.info("Creating links for avatar organism")
+
+        def get_output_format(*args: AnalysisFileData,
+                              **kwargs: AnalysisFileData) -> str:
+            input_filename = kwargs["input_filename"].filename
+            assert(input_filename)
+            dirname = os.path.dirname(input_filename)
+            barcode = BarcodedFilename(filename=input_filename)
+            barcode.organism = utils.get_mouse_annotation(
+                self.analysis.config)
+
+            barcoded_filename = barcode.get_barcoded_filename()
+            if not barcoded_filename:
+                raise PipelineError(f"'{input_filename}' is an invalid "
+                                    "filename that cannot be re-barcoded")
+
+            return os.path.join(dirname, barcoded_filename)
+
+        def do_symlinks(*args: Any, **kwargs: Any) -> None:
+            input_filename: str = kwargs["input_filename"].filename
+            output_filenames: List[str] = kwargs["output_filename"]
+            assert(len(output_filenames) == 2)
+
+            os.symlink(input_filename, output_filenames[1])
+
+        executor = Executor(self.analysis)
+        executor(do_symlinks,
+                 input_split_reads=True,
+                 only_human=True,
+                 split_by_organism=True,
+                 output_format=["{input_filename}", get_output_format])
+        self.aligned_fastq_files = deepcopy(
+            self.analysis.last_operation_filenames)
+        self.analysis.can_unlink = False
+
+    def unlink_symlinks(self) -> None:
+        assert(self.aligned_fastq_files)
+        self.analysis.logger.info("Removing fastq symlinks")
+        last_operation_filenames = self.analysis.last_operation_filenames
+        self.analysis.last_operation_filenames = self.aligned_fastq_files
+
+        def unlink_files(*args: Any, **kwargs: Any) -> None:
+            input_filename: AnalysisFileData = kwargs["input_filename"]
+            assert(input_filename.barcode)
+            organism = input_filename.barcode.organism
+            if organism and organism.startswith("mm"):
+                os.unlink(input_filename.filename)
+
+        executor = Executor(self.analysis)
+        executor(unlink_files,
+                 split_by_organism=True,
+                 input_split_reads=True,
+                 only_human=False,
+                 override_last_files=False)
+
+        self.analysis.last_operation_filenames = last_operation_filenames
+
+    def disambiguate(self) -> None:
+        self.analysis.logger.info("Running disambiguate")
+
+        analysis = self.analysis
+        config = analysis.config
+
+        barcoded = BarcodedFilename.from_sample(self.analysis.sample)
+        if barcoded.analyte == Analyte.RNASEQ:
+            aligner = self.analysis.parameters["rnaseq_aligner"]
+            if aligner == RnaSeqAligner.STAR:
+                aligner_str = "star"
+            else:
+                raise PipelineError("cannot use aligner {} in combination "
+                                    "with disambiguate"
+                                    .format(aligner.name.lower()))
+        else:
+            aligner = self.analysis.parameters["aligner"]
+            if aligner == GenericAligner.BWA:
+                aligner_str = "bwa"
+            else:
+                raise PipelineError("cannot use aligner {} in combination "
+                                    "with disambiguate"
+                                    .format(aligner.name.lower()))
+
+        executor = Executor(self.analysis)
+
+        human_bam_index: Optional[int] = None
+
+        def get_human_bam_index(*args: Any, **kwargs: Any) -> None:
+            nonlocal human_bam_index
+
+            analysis: SingleAnalysis = kwargs["input_filenames"]
+            for index, analysis_file_data in enumerate(analysis):
+                filename = analysis_file_data.filename
+                try:
+                    barcoded = BarcodedFilename(filename)
+                except Exception:
+                    continue
+
+                organism = barcoded.organism
+                if not organism or organism.startswith("hg"):
+                    human_bam_index = index
+                    return
+
+        executor(get_human_bam_index,
+                 split_by_organism=False,
+                 split_input_files=False,
+                 override_last_files=False)
+
+        assert(human_bam_index is not None)
+
+        executor(f"{config.disambiguate} "
+                 f"-s {analysis.sample} "
+                 f"-o {self.tempdir} "
+                 f"-a {aligner_str} "
+                 "{input_filename}",
+                 split_by_organism=False,
+                 split_input_files=False,
+                 output_format=[
+                     f"{os.path.join(self.tempdir, self.analysis.sample)}"
+                     ".disambiguatedSpeciesA.bam",
+                     f"{os.path.join(self.tempdir, self.analysis.sample)}"
+                     ".disambiguatedSpeciesB.bam"
+                 ],
+                 input_function=lambda filenames: " ".join(filenames),
+                 unlink_inputs=True)
+
+        bam_dir = self.analysis.get_bam_dir()
+        out_prefix = os.path.join(bam_dir, self.analysis.basename)
+        executor(lambda *args, **kwargs:
+                 os.rename(kwargs["input_filename"].filename,
+                           kwargs["output_filename"]),
+                 split_by_organism=False,
+                 split_input_files=False,
+                 input_function=lambda filenames:
+                 cast(List[str], filenames)[
+                     cast(int, human_bam_index)],
+                 output_format=f"{out_prefix}.disambiguated"
+                 "{organism_str}.bam")
+
+        shutil.rmtree(self.tempdir)
+
+        self.analysis.logger.info("Finished running disambiguate")
+
+    def run(self) -> None:
+        self.create_avatar_links()
+
+        aligner = Aligner(self.analysis)
+        aligner.only_human = False
+        aligner.run()
+
+        self.unlink_symlinks()
+
+        aligner.sort_bam()
+
+        self.disambiguate()
+
+
+class Xenograft:
+    CLASSIFIERS = [XenograftClassifier.DISAMBIGUATE,
+                   XenograftClassifier.XENOME]
+
+    def __init__(self, analysis: Analysis, fastq_dir: str) -> None:
+        self.analysis = analysis
+        self.fastq_dir = fastq_dir
+        self.classifier = analysis.parameters["xenograft_classifier"]
+        assert(self.classifier is not None)
+
+    @staticmethod
+    def get_available_classifier(cmdline_args: argparse.Namespace,
+                                 config: Config)\
+            -> Optional[XenograftClassifier]:
+
+        classifier_name = cmdline_args.xenograft_classifier
+        if classifier_name == "auto" or classifier_name is None:
+            for classifier in Xenograft.CLASSIFIERS:
+                classifier_exe = getattr(config, classifier.name.lower())
+                if classifier_exe is not None \
+                        and shutil.which(classifier_exe) is not None:
+                    return classifier
+
+            return None
+        else:
+            classifier_names = [classifier.name.lower()
+                                for classifier in Xenograft.CLASSIFIERS]
+            classifier_name_lower = classifier_name.lower()
+            if classifier_name_lower not in classifier_names:
+                return None
+
+            classifier_exe = getattr(config, classifier_name_lower)
+            if classifier_exe is not None \
+                    and shutil.which(classifier_exe) is not None:
+                classifier_index = classifier_names.index(
+                    classifier_name_lower)
+                return Xenograft.CLASSIFIERS[classifier_index]
+            else:
+                return None
+
+    def run(self) -> None:
+        classifier: Union[Xenome, Disambiguate]
+
+        if self.classifier == XenograftClassifier.XENOME:
+            classifier = Xenome(self.analysis, self.fastq_dir)
+        elif self.classifier == XenograftClassifier.DISAMBIGUATE:
+            classifier = Disambiguate(self.analysis, self.fastq_dir)
+        else:
+            raise PipelineError("unexpected xenograft classifier")
+
+        classifier.run()

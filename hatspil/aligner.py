@@ -1,12 +1,14 @@
 import csv
 import logging
 import os
+import shutil
 import tempfile
 from enum import Enum, auto
 
 from .analysis import Analysis
 from .barcoded_filename import Analyte, BarcodedFilename
 from .executor import Executor
+from . import utils
 
 
 class GenericAligner(Enum):
@@ -23,6 +25,11 @@ class Aligner:
         self.analysis = analysis
         self.output_basename = os.path.join("REPORTS", self.analysis.basename)
         self.only_human = True
+
+        self.max_records_str = utils.get_picard_max_records_string(
+            self.analysis.parameters["picard_max_records"])
+        self.sort_tempdir = os.path.join(self.analysis.get_bam_dir(),
+                                         "%s_sort_tmp" % self.analysis.sample)
 
     def chdir(self) -> None:
         os.chdir(self.analysis.get_bam_dir())
@@ -257,6 +264,47 @@ class Aligner:
         )
         self.analysis.logger.info("Finished HTseq count")
         self.analysis.logger.info("Alignment finished. Aligner used: STAR")
+
+    def sort_bam(self) -> None:
+        self.analysis.logger.info("Sorting BAM(s)")
+        self.chdir()
+        config = self.analysis.config
+
+        os.makedirs(self.sort_tempdir, exist_ok=True)
+
+        executor = Executor(self.analysis)
+        executor(
+            f'{config.java} {config.picard_jvm_args} -jar {config.picard} '
+            f'SortSam '
+            f'I={{input_filename}} '
+            f'O={{output_filename}} SO=coordinate '
+            f"TMP_DIR={self.sort_tempdir}"
+            f'{self.max_records_str}',
+            output_format=f"{self.analysis.basename}.srt{{organism_str}}.bam",
+            error_string="Picard SortSam exited with status {status}",
+            exception_string="picard SortSam error",
+            only_human=self.only_human,
+            split_by_organism=True,
+            unlink_inputs=True)
+
+        executor(
+            f'{config.java} {config.picard_jvm_args} -jar {config.picard} '
+            f'ReorderSam '
+            f'I={{input_filename}} '
+            f'O={{output_filename}} R={{genome_ref}} '
+            f'CREATE_INDEX=true'
+            f'{self.max_records_str}',
+            output_format=f"{self.analysis.basename}"
+                          f".srt.reorder{{organism_str}}.bam",
+            error_string="Picard ReorderSam exited with status {status}",
+            exception_string="picard ReorderSam error",
+            only_human=self.only_human,
+            split_by_organism=True,
+            unlink_inputs=True)
+
+        if os.path.exists(self.sort_tempdir):
+            shutil.rmtree(self.sort_tempdir)
+        self.analysis.logger.info("Finished sorting")
 
     def run(self) -> None:
         barcoded = BarcodedFilename.from_sample(self.analysis.sample)

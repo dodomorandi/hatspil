@@ -125,7 +125,7 @@ class VarScan:
             f"--min-avg-qual {self.minQ} "
             f"--min-var-freq {self.min_var_frequency} "
             f"--p-value 1 --output-vcf 1 "
-            f">{self.analysis.basename}{organism_str}.varscan2.vcf",
+            f">{self.analysis.basename}.varscan2{organism_str}.vcf",
             shell=True)
 
         indel_process = subprocess.Popen(
@@ -136,7 +136,7 @@ class VarScan:
             f"--min-avg-qual {self.minQ} "
             f"--min-var-freq {self.min_var_frequency} "
             f"--p-value 1 --output-vcf 1 "
-            f">{self.analysis.basename}{organism_str}.varscan2.indel.vcf",
+            f">{self.analysis.basename}.varscan2.indel{organism_str}.vcf",
             shell=True)
 
         self.analysis.logger.info("Waiting for Variant and InDel calls for id "

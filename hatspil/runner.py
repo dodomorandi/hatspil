@@ -28,13 +28,6 @@ class Runner:
 
         Starter.run(analysis, self.fastq_dir)
 
-        if self.parameters["use_xenome"] and (
-                barcoded_filename.tissue == Tissue.PRIMARY_XENOGRAFT_TISSUE
-                or barcoded_filename.tissue
-                == Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE):
-            xenograft = Xenograft(analysis, self.fastq_dir)
-            xenograft.run()
-
         if self.parameters["skip_mapping"]:
             analysis.run_fake = True
         mapping = Mapping(analysis, self.fastq_dir)

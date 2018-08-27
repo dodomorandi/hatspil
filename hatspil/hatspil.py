@@ -18,6 +18,7 @@ from .barcoded_filename import Analyte, BarcodedFilename, Tissue
 from .config import Config
 from .aligner import GenericAligner, RnaSeqAligner
 from .runner import Runner
+from .xenograft import XenograftClassifier, Xenograft
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -42,6 +43,18 @@ def get_parser() -> argparse.ArgumentParser:
         default="auto",
         help="Select the aligner for RNA-Seq data. When this option is set to "
         "'auto' will be used the first aligner available")
+    parser.add_argument(
+        "--xenograft-classifier",
+        action="store",
+        dest="xenograft_classifier",
+        choices=[classifier.name.lower()
+                 for classifier
+                 in XenograftClassifier] + ["auto"],
+        default="auto",
+        help="Select the xenograft classifier, the software used to "
+        "distinguish the reads belonging to different organisms. When this "
+        "option is set to 'auto' will be used the first classifier "
+        "available")
     parser.add_argument(
         "--configout",
         action="store",
@@ -98,11 +111,11 @@ def get_parser() -> argparse.ArgumentParser:
         help="Do not mark PCR duplicates during mapping phase "
         "for xenograft tissues.")
     parser.add_argument(
-        "--no-xenome",
+        "--skip-xenograft-classifier",
         action="store_false",
-        dest="use_xenome",
-        help="Do not use xenograft analysis using xenome even "
-        "if the tissue has the xenograft flag")
+        dest="use_xenograft_classifier",
+        help="Do not use xenograft classifiers even with xenograft "
+        "tissues")
     parser.add_argument(
         "--post-recalibration",
         action="store_true",
@@ -432,7 +445,7 @@ def main() -> None:
         raise RuntimeError("Unhandled condition")
 
     parameters = {
-        "use_xenome": args.use_xenome,
+        "use_xenograft_classifier": args.use_xenograft_classifier,
         "use_cutadapt": args.use_cutadapt,
         "mark_duplicates": args.mark_duplicates,
         "run_post_recalibration": args.post_recalibration,
@@ -452,12 +465,16 @@ def main() -> None:
 
     aligner_is_needed = False
     rnaseq_aligner_is_needed = False
+    xenograft_classifier_is_needed = False
     for sample in filenames:
         barcoded_filename = BarcodedFilename.from_sample(sample)
         if barcoded_filename.analyte == Analyte.RNASEQ:
             rnaseq_aligner_is_needed = True
         else:
             aligner_is_needed = True
+
+        if barcoded_filename.is_xenograft():
+            xenograft_classifier_is_needed = True
 
     if rnaseq_aligner_is_needed:
         set_aligner_param(args, parameters, "rnaseq_aligner",
@@ -468,6 +485,19 @@ def main() -> None:
                           GenericAligner.NOVOALIGN, GenericAligner.BWA],
                           [None, None],
                           config)
+
+    if xenograft_classifier_is_needed:
+        xenograft_classifier = Xenograft.get_available_classifier(args, config)
+        if xenograft_classifier is None:
+            if args.xenograft_classifier == "auto":
+                print("Xenograft classifier is needed but none is available. "
+                      "Check config.", file=sys.stderr)
+            else:
+                print(f"Xenograft classifier '{args.xenograft_classifier}' is "
+                      "selected, but it cannot be used. Check config.",
+                      file=sys.stderr)
+            exit(-1)
+        parameters["xenograft_classifier"] = xenograft_classifier
 
     if args.r_checks and args.post_recalibration:
         try:
@@ -514,6 +544,7 @@ def main() -> None:
     try:
         with Pool(5) as pool:
             pool.map(runner, filenames)
+
         if args.mail:
             msg = MIMEText("Pipeline for file list %s successfully completed."
                            % args.list_file)

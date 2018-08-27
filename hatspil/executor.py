@@ -57,7 +57,12 @@ AnalysesPerOrganism = Dict[str, List[SingleAnalysis]]
 class ExecutorData:
     def __init__(self,
                  command: Union[str, List[str], Callable[..., None]],
-                 output_format: Optional[str],
+                 output_format: Union[str,
+                                      Callable[..., str],
+                                      List[Union[
+                                          str,
+                                          Callable[..., str]]],
+                                      None],
                  input_filenames: Optional[Sequence[str]],
                  input_function: Optional[Callable[[Union[str, List[str]]],
                                                    Optional[str]]],
@@ -73,7 +78,8 @@ class ExecutorData:
                  save_only_last: bool,
                  use_normals: bool,
                  split_by_organism: bool,
-                 only_human: bool) -> None:
+                 only_human: bool,
+                 split_input_files: bool) -> None:
 
         self.command = command
         self.output_format = output_format
@@ -91,6 +97,7 @@ class ExecutorData:
         self.use_normals = use_normals
         self.split_by_organism = split_by_organism
         self.only_human = only_human
+        self.split_input_files = split_input_files
 
 
 class Executor:
@@ -122,40 +129,24 @@ class Executor:
                 new_filename.append(filename)
         output_filename = new_filename
 
-        if self.data.save_only_last:
-            if command_index == commands_len - 1:
-                if organism in output_filenames:
-                    output_filenames[organism] += output_filename
-                else:
-                    output_filenames[organism] = output_filename
-
-                for filename in output_filename:
-                    output_extension = \
-                        os.path.splitext(filename)[1]
-                    if output_extension == ".bam":
-                        if organism in output_bamfiles:
-                            output_bamfiles[organism] += \
-                                output_filename
-                        else:
-                            output_bamfiles[organism] = \
-                                output_filename
-
-        else:
-            if organism in output_filenames:
-                output_filenames[organism] += output_filename
-            else:
-                output_filenames[organism] = output_filename
-
+        if not self.data.save_only_last or command_index == commands_len - 1:
             for filename in output_filename:
-                output_extension = os.path.splitext(
-                    filename)[1]
+                if self.data.split_by_organism:
+                    try:
+                        output_organism = BarcodedFilename(filename).organism
+                        if not output_organism:
+                            output_organism = organism
+                    except Exception:
+                        output_organism = organism
+                else:
+                    output_organism = organism
+
+                output_filenames.setdefault(output_organism, []) \
+                    .append(filename)
+                output_extension = os.path.splitext(filename)[1]
                 if output_extension == ".bam":
-                    if organism in output_bamfiles:
-                        output_bamfiles[organism] += \
-                            output_filename
-                    else:
-                        output_bamfiles[organism] = \
-                            output_filename
+                    output_bamfiles.setdefault(output_organism, []) \
+                        .append(filename)
 
     def _get_output_filename(self,
                              all_params: Mapping[str, Any]) \
@@ -164,19 +155,28 @@ class Executor:
 
         locals().update(all_params)
         if self.data.output_format is not None:
-            if not isinstance(self.data.output_format, list):
-                output_format = [self.data.output_format]
+
+            if isinstance(self.data.output_format, list):
+                raw_output_formats = self.data.output_format[:]
             else:
-                output_format = list(self.data.output_format)
+                raw_output_formats = [self.data.output_format]
+
+            output_formats: List[str] = []
+            for raw_output_format in raw_output_formats:
+                if isinstance(raw_output_format, str):
+                    output_formats.append(raw_output_format)
+                else:
+                    # output_format is a Callable[..., str]
+                    output_formats.append(raw_output_format(**all_params))
 
             if self.data.output_path is not None:
-                output_format = [
-                    os.path.join(self.data.output_path, s)
-                    for s in output_format
+                output_formats = [
+                    os.path.join(self.data.output_path, output_format)
+                    for output_format in output_formats
                 ]
 
             output_filename = []
-            for s in output_format:
+            for s in output_formats:
                 for match in Executor.RE_REPLACER.finditer(s):
                     try:
                         evaluated = eval(match.group(1))
@@ -306,13 +306,29 @@ class Executor:
                     analysis_file.filename for analysis_file in analysis]
 
                 if self.data.input_split_reads:
-                    mod_analyses.append(
-                        SingleAnalysis([AnalysisFileData(filename)
-                                        for filename
-                                        in map(cast(Callable[[str], str],
-                                                    self.data.input_function),
-                                               filenames)
-                                        if filename]))
+                    splitted_data: Dict[int, List[str]] = {}
+                    for filename in filenames:
+                        try:
+                            barcoded = BarcodedFilename(filename)
+                            if barcoded.read_index:
+                                splitted_data.setdefault(
+                                    barcoded.read_index, []) \
+                                    .append(filename)
+                            else:
+                                splitted_data.setdefault(0, []) \
+                                    .append(filename)
+                        except Exception:
+                            splitted_data.setdefault(0, []).append(filename)
+
+                    for filenames in splitted_data.values():
+                        param: Union[str, List[str]] = list(filenames)
+                        if len(param) == 1:
+                            param = param[0]
+
+                        input_str = self.data.input_function(param)
+                        if input_str:
+                            mod_analyses.append(
+                                SingleAnalysis([AnalysisFileData(input_str)]))
                 else:
                     result = cast(Callable[[List[str]], str],
                                   self.data.input_function)(filenames)
@@ -409,13 +425,26 @@ class Executor:
         if isinstance(raw_input_filenames, dict):
             for organism, filenames in raw_input_filenames.items():
                 analyses = input_filenames.setdefault(organism, [])
-                for filename in filenames:
-                    analyses.append(SingleAnalysis(
-                        [AnalysisFileData(filename)]))
+                if self.data.split_input_files:
+                    for filename in filenames:
+                        analyses.append(SingleAnalysis(
+                            [AnalysisFileData(filename)]))
+                else:
+                    analyses.append(SingleAnalysis([
+                        AnalysisFileData(filename)
+                        for filename
+                        in filenames]))
         else:
             analyses = input_filenames.setdefault("", [])
-            for filename in raw_input_filenames:
-                analyses.append(SingleAnalysis([AnalysisFileData(filename)]))
+            if self.data.split_input_files:
+                for filename in raw_input_filenames:
+                    analyses.append(SingleAnalysis(
+                        [AnalysisFileData(filename)]))
+            else:
+                analyses.append(SingleAnalysis([
+                    AnalysisFileData(filename)
+                    for filename
+                    in raw_input_filenames]))
 
         if self.analysis.parameters["use_normals"] and self.data.use_normals:
             for organism, analyses in input_filenames.items():
@@ -434,7 +463,7 @@ class Executor:
             -> Dict[str, str]:
         additional_params = {}
 
-        if organism is None or organism == "":
+        if not organism:
             additional_params["organism_str"] = ""
             organism = utils.get_human_annotation(self.analysis.config)
         else:
@@ -531,26 +560,12 @@ class Executor:
 
             real_analysis_input = analysis_input
             analysis_input = mod_analysis_input
-
-            # The input_function returns one string for all the files
-            # if not splitted
-            if not self.data.input_split_reads:
-                assert len(analysis_input) == 1
-                input_filename = analysis_input[0]
-            else:
-                input_filenames = analysis_input
-                if len(analysis_input) == 1:
-                    input_filename = analysis_input[0]
         else:
             real_analysis_input = None
 
-            if self.data.input_split_reads:
-                assert len(analysis_input) == 1
-                input_filename = analysis_input[0]
-            else:
-                input_filenames = analysis_input
-                if len(analysis_input) == 1:
-                    input_filename = analysis_input[0]
+        input_filenames = analysis_input
+        if len(analysis_input) == 1:
+            input_filename = analysis_input[0]
 
         file_data = analysis_input.sample
         if not file_data:
@@ -563,7 +578,7 @@ class Executor:
                 or organism.startswith("hg"):
 
             locals().update(self._get_additional_params(organism))
-            if organism is None or organism == "":
+            if not organism:
                 organism = utils.get_human_annotation(self.analysis.config)
 
             local_params = {key: value for key,
@@ -593,7 +608,12 @@ class Executor:
 
     def __call__(self,
                  command: Union[str, List[str], Callable[..., None]],
-                 output_format: Optional[str] = None,
+                 output_format: Union[str,
+                                      Callable[..., str],
+                                      List[Union[
+                                          str,
+                                          Callable[..., str]]],
+                                      None] = None,
                  input_filenames: Optional[Sequence[str]] = None,
                  input_function: Optional[Callable[[Union[str, List[str]]],
                                                    Optional[str]]] = None,
@@ -609,7 +629,8 @@ class Executor:
                  save_only_last: bool = True,
                  use_normals: bool = False,
                  split_by_organism: bool = False,
-                 only_human: bool = False) -> None:
+                 only_human: bool = False,
+                 split_input_files: bool = True) -> None:
 
         self.data = ExecutorData(command,
                                  output_format,
@@ -626,7 +647,8 @@ class Executor:
                                  save_only_last,
                                  use_normals,
                                  split_by_organism,
-                                 only_human)
+                                 only_human,
+                                 split_input_files)
 
         _input_filenames, mod_input_filenames = self._get_input_filenames()
 
