@@ -7,7 +7,7 @@ from .exceptions import BarcodeError
 
 
 class Molecule(IntEnum):
-    DNA = 0,
+    DNA = 0
     RNA = 1
 
 
@@ -19,27 +19,27 @@ class Analyte(IntEnum):
 
 
 class Tissue(IntEnum):
-    PRIMARY_SOLID_TUMOR = 1,
-    RECURRENT_SOLID_TUMOR = 2,
-    PRIMARY_BLOOD_DERIVED_CANCER_PERIPHERAL_BLOOD = 3,
+    PRIMARY_SOLID_TUMOR = 1
+    RECURRENT_SOLID_TUMOR = 2
+    PRIMARY_BLOOD_DERIVED_CANCER_PERIPHERAL_BLOOD = 3
     RECURRENT_BLOOD_DERIVED_CANCER_BONE_MARROW = 4
-    ADDITIONAL_NEW_PRIMARY = 5,
-    METASTATIC = 6,
+    ADDITIONAL_NEW_PRIMARY = 5
+    METASTATIC = 6
     ADDITIONAL_METASTATIC = 7
-    HUMAN_TUMOR_ORGANIC_CELLS = 8,
-    PRIMARY_BLOOD_DERIVED_CANCER_BONE_MARROW = 9,
-    BLOOD_DERIVED_NORMAL = 10,
-    SOLID_TISSUE_NORMAL = 11,
-    BUCCAL_CELL_NORMAL = 12,
-    EBV_IMMORTALIZED_NORMAL = 13,
-    BONE_MARROW_NORMAL = 14,
-    SAMPLE_TYPE_15 = 15,
-    SAMPLE_TYPE_16 = 16,
-    CONTROL_ANALYTE = 20,
-    RECURRENT_BLOOD_DERIVED_CANCER_PERIPHERAL_BLOOD = 40,
-    CELL_LINES = 50,
-    PRIMARY_XENOGRAFT_TISSUE = 60,
-    CELL_LINE_DERIVED_XENOGRAFT_TISSUE = 61,
+    HUMAN_TUMOR_ORGANIC_CELLS = 8
+    PRIMARY_BLOOD_DERIVED_CANCER_BONE_MARROW = 9
+    BLOOD_DERIVED_NORMAL = 10
+    SOLID_TISSUE_NORMAL = 11
+    BUCCAL_CELL_NORMAL = 12
+    EBV_IMMORTALIZED_NORMAL = 13
+    BONE_MARROW_NORMAL = 14
+    SAMPLE_TYPE_15 = 15
+    SAMPLE_TYPE_16 = 16
+    CONTROL_ANALYTE = 20
+    RECURRENT_BLOOD_DERIVED_CANCER_PERIPHERAL_BLOOD = 40
+    CELL_LINES = 50
+    PRIMARY_XENOGRAFT_TISSUE = 60
+    CELL_LINE_DERIVED_XENOGRAFT_TISSUE = 61
     SAMPLE_TYPE_99 = 99
 
     @staticmethod
@@ -58,28 +58,35 @@ class Tissue(IntEnum):
             raise BarcodeError("Unexpected value type for tissue")
 
     def is_normal(self) -> bool:
-        return self in (Tissue.BLOOD_DERIVED_NORMAL,
-                        Tissue.SOLID_TISSUE_NORMAL, Tissue.BUCCAL_CELL_NORMAL,
-                        Tissue.EBV_IMMORTALIZED_NORMAL,
-                        Tissue.BONE_MARROW_NORMAL)
+        return self in (
+            Tissue.BLOOD_DERIVED_NORMAL,
+            Tissue.SOLID_TISSUE_NORMAL,
+            Tissue.BUCCAL_CELL_NORMAL,
+            Tissue.EBV_IMMORTALIZED_NORMAL,
+            Tissue.BONE_MARROW_NORMAL,
+        )
 
     def is_tumor(self) -> bool:
-        return self in (Tissue.PRIMARY_SOLID_TUMOR,
-                        Tissue.RECURRENT_SOLID_TUMOR,
-                        Tissue.PRIMARY_BLOOD_DERIVED_CANCER_PERIPHERAL_BLOOD,
-                        Tissue.RECURRENT_BLOOD_DERIVED_CANCER_BONE_MARROW,
-                        Tissue.ADDITIONAL_NEW_PRIMARY,
-                        Tissue.METASTATIC,
-                        Tissue.ADDITIONAL_METASTATIC,
-                        Tissue.HUMAN_TUMOR_ORGANIC_CELLS,
-                        Tissue.PRIMARY_BLOOD_DERIVED_CANCER_BONE_MARROW,
-                        Tissue.RECURRENT_BLOOD_DERIVED_CANCER_PERIPHERAL_BLOOD,
-                        Tissue.PRIMARY_XENOGRAFT_TISSUE,
-                        Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE)
+        return self in (
+            Tissue.PRIMARY_SOLID_TUMOR,
+            Tissue.RECURRENT_SOLID_TUMOR,
+            Tissue.PRIMARY_BLOOD_DERIVED_CANCER_PERIPHERAL_BLOOD,
+            Tissue.RECURRENT_BLOOD_DERIVED_CANCER_BONE_MARROW,
+            Tissue.ADDITIONAL_NEW_PRIMARY,
+            Tissue.METASTATIC,
+            Tissue.ADDITIONAL_METASTATIC,
+            Tissue.HUMAN_TUMOR_ORGANIC_CELLS,
+            Tissue.PRIMARY_BLOOD_DERIVED_CANCER_BONE_MARROW,
+            Tissue.RECURRENT_BLOOD_DERIVED_CANCER_PERIPHERAL_BLOOD,
+            Tissue.PRIMARY_XENOGRAFT_TISSUE,
+            Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE,
+        )
 
     def is_xenograft(self) -> bool:
-        return self in (Tissue.PRIMARY_XENOGRAFT_TISSUE,
-                        Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE)
+        return self in (
+            Tissue.PRIMARY_XENOGRAFT_TISSUE,
+            Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE,
+        )
 
 
 class Xenograft:
@@ -93,24 +100,27 @@ class Xenograft:
 
         if self.generation == 0:
             if self.parent != 0:
-                raise BarcodeError("the first generation of xenograft must "
-                                   "have the parent attribute set to 0 (ie "
-                                   "the sample field can only be 0, 1 or 2)")
+                raise BarcodeError(
+                    "the first generation of xenograft must "
+                    "have the parent attribute set to 0 (ie "
+                    "the sample field can only be 0, 1 or 2)"
+                )
 
     @staticmethod
-    def create(raw_tissue: str, raw_sample: Union[str, int])\
-            -> Optional["Xenograft"]:
+    def create(raw_tissue: str, raw_sample: Union[str, int]) -> Optional["Xenograft"]:
         if raw_tissue[0] != "6":
             return None
 
         if not re.match("^6[A-Za-z]$", raw_tissue):
-            raise BarcodeError("old xenograft barcoding detected, unable to "
-                               "proceed.\n'6' must be followed by A-Z in case "
-                               "of primary xenograft tissue or a-z in case of "
-                               "cell line derived from xenograft tissue. The "
-                               "index of the letter corresponds to the "
-                               "generation. The tissue value must be adjusted "
-                               "as well.")
+            raise BarcodeError(
+                "old xenograft barcoding detected, unable to "
+                "proceed.\n'6' must be followed by A-Z in case "
+                "of primary xenograft tissue or a-z in case of "
+                "cell line derived from xenograft tissue. The "
+                "index of the letter corresponds to the "
+                "generation. The tissue value must be adjusted "
+                "as well."
+            )
 
         generation = ord(raw_tissue[1].lower()) - ord("a")
         if isinstance(raw_sample, str):
@@ -127,7 +137,7 @@ class Xenograft:
         return {
             "generation": self.generation,
             "parent": self.parent,
-            "child": self.child
+            "child": self.child,
         }
 
     @staticmethod
@@ -137,25 +147,33 @@ class Xenograft:
         assert "child" in dictionary
 
         return Xenograft(
-            int(dictionary["generation"]), int(dictionary["parent"]),
-            int(dictionary["child"]))
+            int(dictionary["generation"]),
+            int(dictionary["parent"]),
+            int(dictionary["child"]),
+        )
 
     def to_human(self) -> str:
         if self.generation == 0:
-            return "%d%s" % (self.generation + 1, chr(ord('A') + self.child))
+            return "%d%s" % (self.generation + 1, chr(ord("A") + self.child))
         else:
-            return "%d%s%s" % (self.generation + 1,
-                               chr(ord('a') + self.parent),
-                               chr(ord('A') + self.child))
+            return "%d%s%s" % (
+                self.generation + 1,
+                chr(ord("a") + self.parent),
+                chr(ord("A") + self.child),
+            )
 
 
 class BarcodedFilename:
-    re_filename = re.compile(R"^([^-]+)-([^-]+)-(\d[0-9A-Za-z])-(\d)(\d)(\d)-"
-                             R"(\d)(\d)(\d)(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
-                             R"(?:\.R([12]))?\.(\w+?)(\.gz)?$")
-    re_sample = re.compile(R"^([^-]+)-([^-]+)-(\d[0-9A-Za-z])-(\d)(\d)(\d)-"
-                           R"(\d)?(\d)?(\d)?(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
-                           R"(?:\.R([12]))?$")
+    re_filename = re.compile(
+        r"^([^-]+)-([^-]+)-(\d[0-9A-Za-z])-(\d)(\d)(\d)-"
+        r"(\d)(\d)(\d)(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
+        r"(?:\.R([12]))?\.(\w+?)(\.gz)?$"
+    )
+    re_sample = re.compile(
+        r"^([^-]+)-([^-]+)-(\d[0-9A-Za-z])-(\d)(\d)(\d)-"
+        r"(\d)?(\d)?(\d)?(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
+        r"(?:\.R([12]))?$"
+    )
     project: str
     patient: str
     tissue: Tissue
@@ -178,8 +196,7 @@ class BarcodedFilename:
         filename = os.path.basename(filename)
         match = BarcodedFilename.re_filename.match(filename)
         if not match:
-            raise RuntimeError(
-                "Error parsing barcoded filename '%s'" % filename)
+            raise RuntimeError("Error parsing barcoded filename '%s'" % filename)
 
         self.project = match.group(1)
         self.patient = match.group(2)
@@ -211,7 +228,7 @@ class BarcodedFilename:
             self.gzipped = False
 
     @staticmethod
-    def from_sample(sample: str) -> 'BarcodedFilename':
+    def from_sample(sample: str) -> "BarcodedFilename":
         match = BarcodedFilename.re_sample.match(sample)
         if not match:
             raise RuntimeError("Error parsing barcoded sampling '%s'" % sample)
@@ -235,8 +252,7 @@ class BarcodedFilename:
             barcoded.xenograft = None
             barcoded.sample = None
         else:
-            barcoded.xenograft = Xenograft.create(
-                match.group(3), match.group(8))
+            barcoded.xenograft = Xenograft.create(match.group(3), match.group(8))
             if barcoded.xenograft is None:
                 barcoded.sample = int(match.group(8))
             else:
@@ -261,14 +277,20 @@ class BarcodedFilename:
         return barcoded
 
     @staticmethod
-    def from_parameters(project: str, patient: str, tissue: str,
-                        biopsy: Union[int, str], sample: Union[int, str],
-                        xenograft_generation: Union[int, str],
-                        xenograft_parent: Union[int, str],
-                        xenograft_child: Union[int, str],
-                        sequencing: Union[int, str], molecule: Union[int, str],
-                        analyte: Union[int, str],
-                        kit: Union[int, str]) -> "BarcodedFilename":
+    def from_parameters(
+        project: str,
+        patient: str,
+        tissue: str,
+        biopsy: Union[int, str],
+        sample: Union[int, str],
+        xenograft_generation: Union[int, str],
+        xenograft_parent: Union[int, str],
+        xenograft_child: Union[int, str],
+        sequencing: Union[int, str],
+        molecule: Union[int, str],
+        analyte: Union[int, str],
+        kit: Union[int, str],
+    ) -> "BarcodedFilename":
         barcoded = BarcodedFilename()
         barcoded.project = project
         barcoded.patient = patient
@@ -276,30 +298,32 @@ class BarcodedFilename:
         barcoded.biopsy = int(biopsy)
 
         if xenograft_generation is not None:
-            if xenograft_parent is None or\
-                    xenograft_child is None:
+            if xenograft_parent is None or xenograft_child is None:
                 raise Exception(
                     "all three xenograft parameters (generation, parent and "
-                    "child) must be specified")
+                    "child) must be specified"
+                )
 
             if not barcoded.tissue.is_xenograft():
                 raise Exception(
                     "xenograft parameters have been passed, but the tissue "
-                    "is not a xenograft")
+                    "is not a xenograft"
+                )
 
             barcoded.xenograft = Xenograft(
-                int(xenograft_generation), int(xenograft_parent),
-                int(xenograft_child))
+                int(xenograft_generation), int(xenograft_parent), int(xenograft_child)
+            )
             barcoded.sample = None
         else:
             if sample is None:
                 raise Exception(
-                    "'sample' or all xenograft parameters must be specified")
+                    "'sample' or all xenograft parameters must be specified"
+                )
 
             if barcoded.tissue.is_xenograft():
                 raise Exception(
-                    "'sample' parameter has been passed, but tissue "
-                    "is xenograft")
+                    "'sample' parameter has been passed, but tissue is xenograft"
+                )
 
             barcoded.sample = int(sample)
             barcoded.xenograft = None
@@ -327,17 +351,20 @@ class BarcodedFilename:
         else:
             sequencing = str(self.sequencing)
 
-        return "%s-%s-%02s-%d%d%d-%s%d%s" % (self.project, self.patient,
-                                             self.get_tissue_str(),
-                                             self.molecule, self.analyte,
-                                             self.kit, biopsy,
-                                             self.get_sample_index(),
-                                             sequencing)
+        return "%s-%s-%02s-%d%d%d-%s%d%s" % (
+            self.project,
+            self.patient,
+            self.get_tissue_str(),
+            self.molecule,
+            self.analyte,
+            self.kit,
+            biopsy,
+            self.get_sample_index(),
+            sequencing,
+        )
 
     def get_barcoded_filename(self) -> Optional[str]:
-        if self.biopsy is None \
-                or self.sequencing is None \
-                or self.extension is None:
+        if self.biopsy is None or self.sequencing is None or self.extension is None:
             return None
 
         if self.read_index:
@@ -367,7 +394,8 @@ class BarcodedFilename:
             self.sequencing,
             organism,
             read_str,
-            extension)
+            extension,
+        )
 
     def get_directory(self, analysis_dir: Optional[str] = None) -> str:
         if analysis_dir is None:
@@ -385,19 +413,32 @@ class BarcodedFilename:
         return os.path.join(analysis_dir, barcode_dir)
 
     def __repr__(self) -> str:
-        repr = "{project=" + str(self.project) +\
-               " patient=" + str(self.patient) +\
-               " tissue=" + self.get_tissue_str() +\
-               " molecule=" + str(self.molecule) +\
-               " analyte=" + str(self.analyte) +\
-               " kit=" + str(self.kit) +\
-               " biopsy=" + str(self.biopsy)
+        repr = (
+            "{project="
+            + str(self.project)
+            + " patient="
+            + str(self.patient)
+            + " tissue="
+            + self.get_tissue_str()
+            + " molecule="
+            + str(self.molecule)
+            + " analyte="
+            + str(self.analyte)
+            + " kit="
+            + str(self.kit)
+            + " biopsy="
+            + str(self.biopsy)
+        )
 
         if self.xenograft:
             repr += " xenograft=" + self.xenograft.to_human()
 
-        repr += " sample=" + str(self.get_sample_index()) +\
-                " sequencing=" + str(self.sequencing)
+        repr += (
+            " sample="
+            + str(self.get_sample_index())
+            + " sequencing="
+            + str(self.sequencing)
+        )
 
         if self.organism:
             repr += " organism=" + str(self.organism)
@@ -433,9 +474,11 @@ class BarcodedFilename:
         return self.xenograft is not None
 
     def equals_without_tissue(self, other: "BarcodedFilename") -> bool:
-        return self.project == other.project and \
-            self.patient == other.patient and \
-            self.molecule == other.molecule and \
-            self.analyte == other.analyte and \
-            self.kit == other.kit and \
-            self.biopsy == other.biopsy
+        return (
+            self.project == other.project
+            and self.patient == other.patient
+            and self.molecule == other.molecule
+            and self.analyte == other.analyte
+            and self.kit == other.kit
+            and self.biopsy == other.biopsy
+        )

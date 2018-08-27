@@ -24,19 +24,17 @@ class VarScan:
         os.makedirs(analysis.get_out_dir(), exist_ok=True)
 
         if self.analysis.using_normals:
-            self.first_fifo = "/data/scratch/matteo/%s.fifo" %\
-                              self.analysis.basename
+            self.first_fifo = "/data/scratch/matteo/%s.fifo" % self.analysis.basename
         else:
-            self.first_fifo = "/data/scratch/matteo/%s.fifo" %\
-                              self.analysis.basename
-            self.second_fifo = "/data/scratch/matteo/%s.indel.fifo" %\
-                               self.analysis.basename
+            self.first_fifo = "/data/scratch/matteo/%s.fifo" % self.analysis.basename
+            self.second_fifo = (
+                "/data/scratch/matteo/%s.indel.fifo" % self.analysis.basename
+            )
 
     def chdir(self) -> None:
         os.chdir(self.analysis.get_out_dir())
 
-    def _run_varscan_normals(self,
-                             **kwargs: Union[str, SingleAnalysis]) -> None:
+    def _run_varscan_normals(self, **kwargs: Union[str, SingleAnalysis]) -> None:
         self.analysis.logger.info("Running VarScan Somatic")
 
         genome_ref: str = cast(str, kwargs["genome_ref"])
@@ -53,7 +51,8 @@ class VarScan:
             "| awk '{if($4 >= 6) print $0}' "
             "| awk '{if($7 != 0) print $0}'"
             f">{self.first_fifo}",
-            shell=True)
+            shell=True,
+        )
 
         somatic_process = subprocess.Popen(
             f"{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
@@ -66,11 +65,13 @@ class VarScan:
             f"--normal-purity {self.normal_purity} "
             f"--tumor-purity {self.tumor_purity} "
             f"--output-vcf 1",
-            shell=True)
+            shell=True,
+        )
 
-        self.analysis.logger.info("Waiting for VarScan somatic for id "
-                                  "%s%s..." % (self.analysis.basename,
-                                               organism_str))
+        self.analysis.logger.info(
+            "Waiting for VarScan somatic for id "
+            "%s%s..." % (self.analysis.basename, organism_str)
+        )
 
         pileup_finished = False
         somatic_finished = False
@@ -102,8 +103,7 @@ class VarScan:
 
         self.analysis.logger.info("Finished VarScan Somatic")
 
-    def _run_varscan_no_normals(self, **kwargs: Union[str, AnalysisFileData]) \
-            -> None:
+    def _run_varscan_no_normals(self, **kwargs: Union[str, AnalysisFileData]) -> None:
         self.analysis.logger.info("Running VarScan mpileup2snp/indel")
 
         genome_ref = cast(str, kwargs["genome_ref"])
@@ -115,7 +115,8 @@ class VarScan:
         pileup_process = subprocess.Popen(
             f"{config.samtools} mpileup -d 8000 -f {genome_ref} "
             f"{input_filename} | tee {self.first_fifo} > {self.second_fifo}",
-            shell=True)
+            shell=True,
+        )
 
         snp_process = subprocess.Popen(
             f"{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
@@ -126,7 +127,8 @@ class VarScan:
             f"--min-var-freq {self.min_var_frequency} "
             f"--p-value 1 --output-vcf 1 "
             f">{self.analysis.basename}.varscan2{organism_str}.vcf",
-            shell=True)
+            shell=True,
+        )
 
         indel_process = subprocess.Popen(
             f"{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
@@ -137,11 +139,13 @@ class VarScan:
             f"--min-var-freq {self.min_var_frequency} "
             f"--p-value 1 --output-vcf 1 "
             f">{self.analysis.basename}.varscan2.indel{organism_str}.vcf",
-            shell=True)
+            shell=True,
+        )
 
-        self.analysis.logger.info("Waiting for Variant and InDel calls for id "
-                                  "%s%s..." % (self.analysis.basename,
-                                               organism_str))
+        self.analysis.logger.info(
+            "Waiting for Variant and InDel calls for id "
+            "%s%s..." % (self.analysis.basename, organism_str)
+        )
 
         pileup_finished = False
         snp_finished = False
@@ -200,7 +204,8 @@ class VarScan:
             override_last_files=False,
             input_filenames=[f"{self.analysis.basename}.varscan2.snp.vcf"],
             error_string="VarScan processSomatic exited with status {status}",
-            exception_string="varscan processSomatic error")
+            exception_string="varscan processSomatic error",
+        )
 
         executor(
             f"{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
@@ -211,7 +216,8 @@ class VarScan:
             override_last_files=False,
             input_filenames=[f"{self.analysis.basename}.varscan2.snp.vcf"],
             error_string="VarScan processSomatic exited with status {status}",
-            exception_string="varscan processSomatic error")
+            exception_string="varscan processSomatic error",
+        )
 
         self.analysis.logger.info("Finished VarScan processSomatic")
 
@@ -234,7 +240,8 @@ class VarScan:
             override_last_files=False,
             input_filenames=[f"{self.analysis.basename}.varscan2.cnv.vcf"],
             error_string="VarScan copynumber exited with status {status}",
-            exception_string="varscan copynumber error")
+            exception_string="varscan copynumber error",
+        )
 
     def run(self) -> None:
         self.analysis.logger.info("Running VarScan")
@@ -252,9 +259,8 @@ class VarScan:
         executor = Executor(self.analysis)
         if self.analysis.using_normals:
             executor(
-                self._run_varscan_normals,
-                override_last_files=False,
-                use_normals=True)
+                self._run_varscan_normals, override_last_files=False, use_normals=True
+            )
         else:
             executor(self._run_varscan_no_normals, override_last_files=False)
 

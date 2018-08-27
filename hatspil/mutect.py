@@ -23,25 +23,27 @@ class Mutect:
             executor(
                 f"{config.java7} {config.mutect_jvm_args} "
                 f"-jar {config.mutect} "
-                f'{config.mutect_args} --reference_sequence '
-                f'{{genome_ref}} --dbsnp {{dbsnp}} --cosmic '
-                f'{{cosmic}} --input_file:tumor {{input_filenames.sample]}} '
-                f'--input_file:normal {{input_filenames.control}} --out '
-                f'{self.analysis.basename}.mutect.1.17{{organism_str}}.vcf ',
+                f"{config.mutect_args} --reference_sequence "
+                f"{{genome_ref}} --dbsnp {{dbsnp}} --cosmic "
+                f"{{cosmic}} --input_file:tumor {{input_filenames.sample]}} "
+                f"--input_file:normal {{input_filenames.control}} --out "
+                f"{self.analysis.basename}.mutect.1.17{{organism_str}}.vcf ",
                 override_last_files=False,
                 error_string="Mutect exited with status {status}",
                 exception_string="mutect error",
-                use_normals=True)
+                use_normals=True,
+            )
         else:
             executor(
                 f"{config.java7} {config.mutect_jvm_args} "
                 f"-jar {config.mutect} "
-                f'{config.mutect_args} --reference_sequence '
-                f'{{genome_ref}} --dbsnp {{dbsnp}} --cosmic '
-                f'{{cosmic}} --input_file:tumor {{input_filename}} --out '
-                f'{self.analysis.basename}.mutect.1.17{{organism_str}}.vcf ',
+                f"{config.mutect_args} --reference_sequence "
+                f"{{genome_ref}} --dbsnp {{dbsnp}} --cosmic "
+                f"{{cosmic}} --input_file:tumor {{input_filename}} --out "
+                f"{self.analysis.basename}.mutect.1.17{{organism_str}}.vcf ",
                 override_last_files=False,
                 error_string="Mutect exited with status {status}",
-                exception_string="mutect error")
+                exception_string="mutect error",
+            )
 
         self.analysis.logger.info("Finished mutect")

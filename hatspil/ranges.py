@@ -1,5 +1,4 @@
-from typing import (Iterable, List, Optional, Sequence, Tuple, TypeVar, Union,
-                    cast)
+from typing import Iterable, List, Optional, Sequence, Tuple, TypeVar, Union, cast
 
 RangeType = TypeVar("RangeType", bound="Range")
 RangesType = TypeVar("RangesType", bound="Ranges")
@@ -31,18 +30,18 @@ class Range:
 
         return cast(RangeType, Range(new_start, new_end))
 
-    def union(self: RangeType, other: RangeType)\
-            -> Union[RangeType, List[RangeType]]:
+    def union(self: RangeType, other: RangeType) -> Union[RangeType, List[RangeType]]:
         assert self.start is not None
         assert self.end is not None
         assert other.start is not None
         assert other.end is not None
 
-        if (self.start < other.start and self.end > other.start) or\
-                (other.start < self.start and other.end > self.start):
-            return cast(RangeType,
-                        Range(min(self.start, other.start),
-                              max(self.end, other.end)))
+        if (self.start < other.start and self.end > other.start) or (
+            other.start < self.start and other.end > self.start
+        ):
+            return cast(
+                RangeType, Range(min(self.start, other.start), max(self.end, other.end))
+            )
         else:
             return Ranges([self, other])
 
@@ -60,8 +59,9 @@ class Range:
         assert other.start is not None
         assert other.end is not None
 
-        return self.start < other.start or \
-            (self.start == other.start and self.end < other.end)
+        return self.start < other.start or (
+            self.start == other.start and self.end < other.end
+        )
 
     def __le__(self: RangeType, other: RangeType) -> bool:
         assert self.start is not None
@@ -69,15 +69,17 @@ class Range:
         assert other.start is not None
         assert other.end is not None
 
-        return self.start < other.start or \
-            (self.start == other.start and self.end <= other.end)
+        return self.start < other.start or (
+            self.start == other.start and self.end <= other.end
+        )
 
 
 class Ranges(List[RangeType]):
     def __init__(self, ranges: Sequence[RangeType] = []) -> None:
         super().__init__(ranges)
-        self.resorted = not all(self[index] <= self[index + 1]
-                                for index in range(len(self) - 1))
+        self.resorted = not all(
+            self[index] <= self[index + 1] for index in range(len(self) - 1)
+        )
         if self.resorted:
             super().sort()
 
@@ -88,8 +90,7 @@ class Ranges(List[RangeType]):
             assert self_range.start is not None
             assert self_range.end is not None
 
-            other_iter: Iterable[Tuple[int, RangeType]] = iter(
-                enumerate(other))
+            other_iter: Iterable[Tuple[int, RangeType]] = iter(enumerate(other))
             for other_index, other_range in other_iter:
                 assert other_range.start is not None
                 assert other_range.end is not None
@@ -99,20 +100,25 @@ class Ranges(List[RangeType]):
                 elif self_range.end < other_range.start:
                     break
 
-                if (self_range.start < other_range.start
-                    and self_range.end >= other_range.start)\
-                        or (other_range.start < self_range.start
-                            and other_range.end >= self_range.start):
+                if (
+                    self_range.start < other_range.start
+                    and self_range.end >= other_range.start
+                ) or (
+                    other_range.start < self_range.start
+                    and other_range.end >= self_range.start
+                ):
                     overlaps_indices.append((self_index, other_index))
         return overlaps_indices
 
 
 class GenomicRange(Range):
-    def __init__(self,
-                 chrom: Optional[str],
-                 start: Optional[int],
-                 end: Optional[int],
-                 strand: str = "*") -> None:
+    def __init__(
+        self,
+        chrom: Optional[str],
+        start: Optional[int],
+        end: Optional[int],
+        strand: str = "*",
+    ) -> None:
         super().__init__(start, end)
         self.chrom = chrom
         self.strand = strand
@@ -127,13 +133,9 @@ class GenomicRange(Range):
         else:
             strand = "*"
 
-        return GenomicRange(self.chrom,
-                            new_range.start,
-                            new_range.end,
-                            strand)
+        return GenomicRange(self.chrom, new_range.start, new_range.end, strand)
 
-    def union(self, other: "GenomicRange")\
-            -> Union["GenomicRange", "GenomicRanges"]:
+    def union(self, other: "GenomicRange") -> Union["GenomicRange", "GenomicRanges"]:
         if self.chrom == other.chrom:
             union_result = super().union(other)
             if isinstance(union_result, Range):
@@ -142,8 +144,9 @@ class GenomicRange(Range):
                 else:
                     strand = "*"
 
-                return GenomicRange(self.chrom, union_result.start,
-                                    union_result.end, strand)
+                return GenomicRange(
+                    self.chrom, union_result.start, union_result.end, strand
+                )
             else:
                 return GenomicRanges([self, other])
         else:
@@ -167,8 +170,9 @@ class GenomicRange(Range):
         assert other.start is not None
         assert other.end is not None
 
-        return self.chrom < other.chrom or\
-            (self.chrom == other.chrom and super().__lt__(other))
+        return self.chrom < other.chrom or (
+            self.chrom == other.chrom and super().__lt__(other)
+        )
 
     def __le__(self, other: "GenomicRange") -> bool:
         assert self.chrom is not None
@@ -178,8 +182,9 @@ class GenomicRange(Range):
         assert other.start is not None
         assert other.end is not None
 
-        return self.chrom < other.chrom or\
-            (self.chrom == other.chrom and super().__le__(other))
+        return self.chrom < other.chrom or (
+            self.chrom == other.chrom and super().__le__(other)
+        )
 
 
 class GenomicRanges(Ranges):
@@ -198,16 +203,23 @@ class GenomicRanges(Ranges):
                 assert other_range.start is not None
                 assert other_range.end is not None
 
-                if other_range.chrom < self_range.chrom\
-                        or other_range.end < self_range.start:
+                if (
+                    other_range.chrom < self_range.chrom
+                    or other_range.end < self_range.start
+                ):
                     continue
-                elif self_range.chrom < other_range.chrom\
-                        or self_range.end < other_range.start:
+                elif (
+                    self_range.chrom < other_range.chrom
+                    or self_range.end < other_range.start
+                ):
                     break
 
-                if (self_range.start < other_range.start
-                        and self_range.end >= other_range.start)\
-                        or (other_range.start < self_range.start
-                            and other_range.end >= self_range.start):
+                if (
+                    self_range.start < other_range.start
+                    and self_range.end >= other_range.start
+                ) or (
+                    other_range.start < self_range.start
+                    and other_range.end >= self_range.start
+                ):
                     overlaps_indices.append((self_index, other_index))
         return overlaps_indices

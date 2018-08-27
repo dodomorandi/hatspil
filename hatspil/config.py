@@ -6,22 +6,47 @@ from typing import Optional
 
 
 class Config:
-    executables = ("java", "java7", "perl", "seqtk",
-                   "fastqc", "samtools")
-    optional_executables = ("novoalign", "bwa", "star", "xenome",
-                            "disambiguate")
+    executables = ("java", "java7", "perl", "seqtk", "fastqc", "samtools")
+    optional_executables = ("novoalign", "bwa", "star", "xenome", "disambiguate")
     jars = ("picard", "varscan", "gatk", "mutect", "bam2tdf")
-    files = ("strelka_basedir", "strelka_config",
-             "hg19_ref", "hg19_index", "hg38_ref", "hg38_index", "mm9_ref",
-             "mm9_index", "mm10_ref", "mm10_index", "cosmic_hg19",
-             "cosmic_hg38", "dbsnp138_hg19", "dbsnp138_hg38", "target_list",
-             "bait_list", "indel_1", "indel_2", "annovar_basedir",
-             "annotations")
+    files = (
+        "strelka_basedir",
+        "strelka_config",
+        "hg19_ref",
+        "hg19_index",
+        "hg38_ref",
+        "hg38_index",
+        "mm9_ref",
+        "mm9_index",
+        "mm10_ref",
+        "mm10_index",
+        "cosmic_hg19",
+        "cosmic_hg38",
+        "dbsnp138_hg19",
+        "dbsnp138_hg38",
+        "target_list",
+        "bait_list",
+        "indel_1",
+        "indel_2",
+        "annovar_basedir",
+        "annotations",
+    )
     optional_files = ("star_index", "star_annotation")
-    parameters = ("xenome_index", "xenome_threads", "strelka_threads",
-                  "mean_len_library", "sd_len_library", "use_hg19", "use_hg38",
-                  "use_mm9", "use_mm10", "kit", "mails", "use_mongodb"
-                  "cancer_site")
+    parameters = (
+        "xenome_index",
+        "xenome_threads",
+        "strelka_threads",
+        "mean_len_library",
+        "sd_len_library",
+        "use_hg19",
+        "use_hg38",
+        "use_mm9",
+        "use_mm10",
+        "kit",
+        "mails",
+        "use_mongodb",
+        "cancer_site",
+    )
     mongodb = ("database", "host", "port", "username", "password")
 
     def __init__(self, filename: Optional[str] = None) -> None:
@@ -33,9 +58,9 @@ class Config:
         self.star_annotation = "star_annotation"
         self.bwa = "bwa"
         self.novoalign = "novoalign"
-        self.picard = 'picard.jar'
-        self.picard_jvm_args = '-Xmx128g'
-        self.varscan = 'VarScan.jar'
+        self.picard = "picard.jar"
+        self.picard_jvm_args = "-Xmx128g"
+        self.varscan = "VarScan.jar"
         self.varscan_jvm_args = "-Xmx36g"
         self.gatk = "GenomeAnalysisTK.jar"
         self.gatk_jvm_args = "-Xmx128g"
@@ -54,18 +79,18 @@ class Config:
         self.strelka_threads = 1
         self.annovar_basedir = "/usr/share/annovar"
         self.bam2tdf = "bam2tdf.jar"
-        self.hg19_ref = 'ucsc.hg19.fasta'
+        self.hg19_ref = "ucsc.hg19.fasta"
         self.hg19_index = "ucsc.hg19"
-        self.hg38_ref = 'ucsc.hg38.fasta'
+        self.hg38_ref = "ucsc.hg38.fasta"
         self.hg38_index = "ucsc.hg38"
-        self.mm9_ref = 'ucsc.mm9.fasta'
+        self.mm9_ref = "ucsc.mm9.fasta"
         self.mm9_index = "ucsc.mm9"
-        self.mm10_ref = 'ucsc.mm10.fasta'
+        self.mm10_ref = "ucsc.mm10.fasta"
         self.mm10_index = "ucsc.mm10"
         self.cosmic_hg19 = "Cosmic.hg19.vcf"
         self.cosmic_hg38 = "Cosmic.hg38.vcf"
-        self.dbsnp138_hg19 = 'dbsnp_138.hg19.vcf'
-        self.dbsnp138_hg38 = 'dbsnp_138.hg38.vcf'
+        self.dbsnp138_hg19 = "dbsnp_138.hg19.vcf"
+        self.dbsnp138_hg38 = "dbsnp_138.hg38.vcf"
         self.use_hg19 = True
         self.use_hg38 = True
         self.use_mm9 = True
@@ -90,12 +115,12 @@ class Config:
         if filename:
             parser = ConfigParser()
             parser.read(filename)
-            for section_name in "EXECUTABLES", "JARS", "FILES", "PARAMETERS",\
-                    "MONGODB":
+            for section_name in "EXECUTABLES", "JARS", "FILES", "PARAMETERS", "MONGODB":
                 if section_name not in parser:
                     sys.stderr.write(
                         "WARNING: %s section in config not "
-                        "found. Values are set to default\n" % section_name)
+                        "found. Values are set to default\n" % section_name
+                    )
                     continue
 
                 section = parser[section_name]
@@ -106,16 +131,23 @@ class Config:
                         setattr(self, key, section[key])
 
             if "PARAMETERS" in parser:
-                for param in "xenome_threads", "strelka_threads",\
-                        "mean_len_library", "sd_len_library":
+                for param in (
+                    "xenome_threads",
+                    "strelka_threads",
+                    "mean_len_library",
+                    "sd_len_library",
+                ):
                     if param in parser["PARAMETERS"]:
-                        setattr(self, param,
-                                parser["PARAMETERS"].getint(param))
-                for param in "use_hg19", "use_hg38", "use_mm9", "use_mm10",\
-                        "use_mongodb":
+                        setattr(self, param, parser["PARAMETERS"].getint(param))
+                for param in (
+                    "use_hg19",
+                    "use_hg38",
+                    "use_mm9",
+                    "use_mm10",
+                    "use_mongodb",
+                ):
                     if param in parser["PARAMETERS"]:
-                        setattr(self, param,
-                                parser["PARAMETERS"].getboolean(param))
+                        setattr(self, param, parser["PARAMETERS"].getboolean(param))
 
             if "MONGODB" in parser:
                 if "port" in parser["MONGODB"]:
@@ -146,8 +178,9 @@ class Config:
 
         mongodb_params = {}
         for mongodb_param in Config.mongodb:
-            mongodb_params["mongodb_" + mongodb_param] = \
-                str(getattr(self, "mongodb_" + mongodb_param))
+            mongodb_params["mongodb_" + mongodb_param] = str(
+                getattr(self, "mongodb_" + mongodb_param)
+            )
         config["MONGODB"] = mongodb_params
 
         with open(filename, "w") as fd:
@@ -159,30 +192,40 @@ class Config:
         for param in Config.jars:
             jar = getattr(self, param)
             if not os.access(jar, os.R_OK):
-                sys.stderr.write("ERROR: %s jar file cannot be found. "
-                                 "Check config.\n" % param)
+                sys.stderr.write(
+                    "ERROR: %s jar file cannot be found. Check config.\n" % param
+                )
                 ok = False
 
         for param in Config.executables:
             executable = getattr(self, param)
-            if subprocess.call(
+            if (
+                subprocess.call(
                     executable,
                     shell=True,
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL) == 127:
-                sys.stderr.write("ERROR: %s cannot be executed. "
-                                 "Check config.\n" % param)
+                    stderr=subprocess.DEVNULL,
+                )
+                == 127
+            ):
+                sys.stderr.write(
+                    "ERROR: %s cannot be executed. Check config.\n" % param
+                )
                 ok = False
 
         for param in Config.optional_executables:
             executable = getattr(self, param)
-            if subprocess.call(
+            if (
+                subprocess.call(
                     executable,
                     shell=True,
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL) == 127:
+                    stderr=subprocess.DEVNULL,
+                )
+                == 127
+            ):
                 setattr(self, param, None)
 
         return ok
@@ -203,8 +246,7 @@ class Config:
 
         filepath = getattr(self, param)
         if not os.access(filepath, os.R_OK):
-            sys.stderr.write("ERROR: %s cannot be read. "
-                             "Check config.\n" % param)
+            sys.stderr.write("ERROR: %s cannot be read. Check config.\n" % param)
             return False
         return True
 
@@ -225,7 +267,7 @@ class Config:
         ok = True
         for param in ("star_index", "star_annotation"):
             param_is_valid = self.check_file_param(param)
-            assert(param_is_valid is not None)
+            assert param_is_valid is not None
 
             if not param_is_valid:
                 ok = False

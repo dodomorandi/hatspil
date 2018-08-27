@@ -8,8 +8,20 @@ import subprocess
 from argparse import ArgumentTypeError
 from copy import deepcopy
 from logging import Logger
-from typing import (Any, Dict, Generator, Iterable, List, Mapping, Optional,
-                    Sequence, Tuple, Union, ValuesView, cast)
+from typing import (
+    Any,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    ValuesView,
+    cast,
+)
 
 from .barcoded_filename import BarcodedFilename
 from .config import Config
@@ -24,12 +36,13 @@ def get_current() -> str:
 def run_and_log(command: str, logger: Logger) -> int:
     logger.info("Running command: %s", command)
     with subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            shell=True,
-            universal_newlines=True,
-            bufsize=1) as process:
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        shell=True,
+        universal_newlines=True,
+        bufsize=1,
+    ) as process:
         (out, err) = process.communicate()
 
         for line in out.split("\n"):
@@ -43,19 +56,17 @@ def run_and_log(command: str, logger: Logger) -> int:
         return process.wait()
 
 
-def get_sample_filenames(obj: Union[Sequence[str],
-                                    Mapping[str, List[str]],
-                                    str],
-                         split_by_organism: bool = False
-                         ) -> Union[List[str],
-                                    Mapping[str, List[str]]]:
+def get_sample_filenames(
+    obj: Union[Sequence[str], Mapping[str, List[str]], str],
+    split_by_organism: bool = False,
+) -> Union[List[str], Mapping[str, List[str]]]:
     if isinstance(obj, list):
         if split_by_organism and len(obj) > 1:
             filenames: Dict[str, List[str]] = {}
             for filename in obj:
                 organism = get_organism_from_filename(filename)
                 if organism is None:
-                    organism = ''
+                    organism = ""
                 filenames.setdefault(organism, []).append(filename)
             if len(filenames) > 1:
                 return filenames
@@ -71,10 +82,7 @@ def get_sample_filenames(obj: Union[Sequence[str],
             if not values:
                 return []
             elif isinstance(next(iter(values)), list):
-                return [
-                    filename for filenames in values
-                    for filename in filenames
-                ]
+                return [filename for filenames in values for filename in filenames]
             elif isinstance(next(iter(values)), str):
                 return list(cast(ValuesView[str], values))
             else:
@@ -100,8 +108,8 @@ def get_organism_from_filename(filename: str) -> Optional[str]:
 
 
 def get_samples_by_organism(
-        obj: Union[List[str], Dict[str, List[str]], str],
-        default_organism: str) -> Dict[str, List[str]]:
+    obj: Union[List[str], Dict[str, List[str]], str], default_organism: str
+) -> Dict[str, List[str]]:
 
     if isinstance(obj, list):
         return {default_organism: obj}
@@ -111,8 +119,7 @@ def get_samples_by_organism(
         return {default_organism: [obj]}
 
 
-def get_genome_ref_index_by_organism(config: Config,
-                                     organism: str) -> Tuple[str, str]:
+def get_genome_ref_index_by_organism(config: Config, organism: str) -> Tuple[str, str]:
     if organism == "hg19":
         return (config.hg19_ref, config.hg19_index)
     elif organism == "hg38":
@@ -151,14 +158,15 @@ def get_picard_max_records_string(max_records: str) -> str:
 
 
 def find_fastqs_by_organism(
-        sample: str,
-        fastq_dir: str,
-        default_organism: str) -> Dict[str, List[Tuple[str, int]]]:
+    sample: str, fastq_dir: str, default_organism: str
+) -> Dict[str, List[Tuple[str, int]]]:
 
     re_fastq_filename = re.compile(
-        R"^%s(?:\.((?:hg|mm)\d+))?\.R([12])\.fastq(?:\.gz)?$" % sample, re.I)
+        r"^%s(?:\.((?:hg|mm)\d+))?\.R([12])\.fastq(?:\.gz)?$" % sample, re.I
+    )
     fastq_files = [
-        filename for filename in os.listdir(fastq_dir)
+        filename
+        for filename in os.listdir(fastq_dir)
         if re_fastq_filename.match(filename)
     ]
 
@@ -181,22 +189,22 @@ def find_fastqs_by_organism(
 
 def gzip(filename: str) -> None:
     compressed_filename = filename + ".gz"
-    with open(filename, "rb") as in_fd, \
-            gz.open(compressed_filename, "wb", compresslevel=6) as out_fd:
+    with open(filename, "rb") as in_fd, gz.open(
+        compressed_filename, "wb", compresslevel=6
+    ) as out_fd:
         shutil.copyfileobj(in_fd, out_fd)
     os.unlink(filename)
 
 
 def gunzip(filename: str) -> None:
     decompressed_filename = filename[:-3]
-    with open(decompressed_filename, "wb") as out_fd, \
-            gz.open(filename, "rb") as in_fd:
+    with open(decompressed_filename, "wb") as out_fd, gz.open(filename, "rb") as in_fd:
         shutil.copyfileobj(in_fd, out_fd)
     os.unlink(filename)
 
 
 def check_gz(filename: str) -> bool:
-    chunk_size = 2**20
+    chunk_size = 2 ** 20
     with gz.open(filename, "rb") as fd:
         try:
             while fd.read(1):
@@ -207,11 +215,9 @@ def check_gz(filename: str) -> bool:
             return False
 
 
-def flatten(iterable: Iterable[Union[Iterable, Any]]
-            ) -> Generator[Any, None, None]:
+def flatten(iterable: Iterable[Union[Iterable, Any]]) -> Generator[Any, None, None]:
     for element in iterable:
-        if isinstance(element, collections.Iterable) \
-                and not isinstance(element, str):
+        if isinstance(element, collections.Iterable) and not isinstance(element, str):
             yield from flatten(element)
         else:
             yield element

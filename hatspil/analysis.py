@@ -9,8 +9,9 @@ from .exceptions import PipelineError
 
 
 class Analysis:
-    def __init__(self, sample: str, root: str, config: Config,
-                 parameters: Dict[str, Any]) -> None:
+    def __init__(
+        self, sample: str, root: str, config: Config, parameters: Dict[str, Any]
+    ) -> None:
         self.sample = sample
         self.root = root
         if parameters["use_date"] is None:
@@ -23,10 +24,9 @@ class Analysis:
         self.out_dir = os.path.join(self.root, "Variants")
         self.bamfiles: Dict[str, List[str]] = {}
         self.config = config
-        self.last_operation_filenames: Union[str,
-                                             List[str],
-                                             Dict[str, List[str]],
-                                             None] = None
+        self.last_operation_filenames: Union[
+            str, List[str], Dict[str, List[str]], None
+        ] = None
         self.run_fake = False
         self.can_unlink = True
 
@@ -39,9 +39,9 @@ class Analysis:
 
         self.logger = logging.getLogger(self.basename)
         self.log_handler = logging.FileHandler(
-            os.path.join(logs_dir, self.basename + ".steps.txt"))
-        self.log_handler.setFormatter(
-            logging.Formatter("%(asctime)s-15 %(message)s"))
+            os.path.join(logs_dir, self.basename + ".steps.txt")
+        )
+        self.log_handler.setFormatter(logging.Formatter("%(asctime)s-15 %(message)s"))
         self.logger.addHandler(self.log_handler)
         self.logger.setLevel(logging.INFO)
 
@@ -62,8 +62,7 @@ class Analysis:
                 else:
                     return None
             else:
-                raise PipelineError(
-                    "unexpected type for last_operation_filenames")
+                raise PipelineError("unexpected type for last_operation_filenames")
 
         if len(filename) > 0:
             return filename
@@ -86,9 +85,11 @@ class Analysis:
 
     @property
     def using_normals(self) -> bool:
-        return self.parameters["use_normals"] \
-            and self.last_operation_filenames is not None \
-            and isinstance(self.last_operation_filenames, dict) \
-            and "normal" in self.last_operation_filenames \
-            and isinstance(self.last_operation_filenames["normal"], list) \
+        return (
+            self.parameters["use_normals"]
+            and self.last_operation_filenames is not None
+            and isinstance(self.last_operation_filenames, dict)
+            and "normal" in self.last_operation_filenames
+            and isinstance(self.last_operation_filenames["normal"], list)
             and len(self.last_operation_filenames["normal"]) > 0
+        )

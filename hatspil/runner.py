@@ -14,8 +14,14 @@ from .xenograft import Xenograft
 
 
 class Runner:
-    def __init__(self, manager: SyncManager, root: str, config: Config,
-                 parameters: Dict[str, Any], fastq_dir: str) -> None:
+    def __init__(
+        self,
+        manager: SyncManager,
+        root: str,
+        config: Config,
+        parameters: Dict[str, Any],
+        fastq_dir: str,
+    ) -> None:
         self.last_operations: Dict[str, Any] = manager.dict()
         self.root = root
         self.config = config
@@ -34,19 +40,17 @@ class Runner:
         mapping.run()
         analysis.run_fake = False
 
-        if not self.parameters["use_normals"] and \
-                not self.parameters["only_mapping"] and \
-                barcoded_filename.analyte != Analyte.RNASEQ:
+        if (
+            not self.parameters["use_normals"]
+            and not self.parameters["only_mapping"]
+            and barcoded_filename.analyte != Analyte.RNASEQ
+        ):
             self._run_mutation_analysis(analysis, False)
 
         self.last_operations[sample] = analysis.last_operation_filenames
 
-    def with_normals(self,
-                     sample: str,
-                     tumor: str,
-                     normal: Optional[str]) -> None:
-        if not self.parameters["use_normals"] \
-                or self.parameters["only_mapping"]:
+    def with_normals(self, sample: str, tumor: str, normal: Optional[str]) -> None:
+        if not self.parameters["use_normals"] or self.parameters["only_mapping"]:
             return
 
         barcoded_filename = BarcodedFilename.from_sample(sample)
@@ -55,19 +59,14 @@ class Runner:
 
         analysis = Analysis(sample, self.root, self.config, self.parameters)
         if normal is None:
-            analysis.last_operation_filenames = {
-                "sample": [tumor],
-                "control": []
-            }
+            analysis.last_operation_filenames = {"sample": [tumor], "control": []}
 
             self._run_mutation_analysis(analysis, False)
         else:
             analysis.last_operation_filenames = tumor
             self._run_mutation_analysis(analysis, True)
 
-    def _run_mutation_analysis(self,
-                               analysis: Analysis,
-                               use_strelka: bool) -> None:
+    def _run_mutation_analysis(self, analysis: Analysis, use_strelka: bool) -> None:
         mutect = Mutect(analysis)
         varscan = VarScan(analysis)
 

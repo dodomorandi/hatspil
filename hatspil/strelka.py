@@ -8,8 +8,9 @@ from .executor import Executor
 class Strelka:
     def __init__(self, analysis: Analysis) -> None:
         self.analysis = analysis
-        self.strelka_perl = os.path.join(self.analysis.config.strelka_basedir,
-                                         "bin", "configureStrelkaWorkflow.pl")
+        self.strelka_perl = os.path.join(
+            self.analysis.config.strelka_basedir, "bin", "configureStrelkaWorkflow.pl"
+        )
         self.strelka_dir = os.path.join("Strelka", self.analysis.basename)
 
         self.chdir()
@@ -34,7 +35,8 @@ class Strelka:
             f"--config={self.analysis.config.strelka_config} "
             f"--output-dir={self.strelka_dir}",
             override_last_files=False,
-            use_normals=True)
+            use_normals=True,
+        )
 
         self.analysis.logger.info("Finished configuring strelka")
 
@@ -47,7 +49,8 @@ class Strelka:
         executor(
             f"make -j {self.analysis.config.strelka_threads}",
             override_last_files=False,
-            use_normals=True)
+            use_normals=True,
+        )
 
         self.analysis.logger.info("Finished make for strelka")
 
