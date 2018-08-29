@@ -583,7 +583,9 @@ class Executor:
             }
             output_filename = self._get_output_filename(local_params)
 
-            local_params.update({"output_filename": output_filename})
+            local_params.update(
+                {"output_filename": output_filename, "config": self.analysis.config}
+            )
             commands = self._get_commands(local_params)
 
             for command_index, current_command in enumerate(commands):

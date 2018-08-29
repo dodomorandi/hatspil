@@ -1,11 +1,7 @@
-import csv
-import logging
 import math
 import os
 import re
-import shutil
-import tempfile
-from typing import List, Optional, Sequence, Union
+from typing import Any, List, Optional, Sequence, Union
 
 from . import utils
 from .aligner import Aligner, RnaSeqAligner
@@ -178,6 +174,39 @@ class Mapping:
         )
         self.analysis.logger.info("Finished alignment SAM->BAM")
 
+    def create_bam_index(self) -> None:
+        self.chdir()
+        config = self.analysis.config
+        executor = Executor(self.analysis)
+        self.analysis.logger.info("Sorting BAM and creating BAI file")
+        executor(
+            f"{config.samtools} sort {{input_filename}} -O BAM -o {{output_filename}}",
+            unlink_inputs=True,
+            split_by_organism=True,
+            output_format=f"{self.analysis.basename}.srt{{organism_str}}.bam",
+        )
+
+        executor(
+            f"{config.samtools} index {{input_filename}}",
+            split_by_organism=True,
+            override_last_files=False,
+        )
+
+        def rename_files(*args: Any, **kwargs: Any) -> None:
+            bam_filename = kwargs["input_filename"].filename
+            assert os.path.splitext(bam_filename)[1].lower() == ".bam"
+            output_bam_filename = kwargs["output_filename"]
+            os.rename(bam_filename, output_bam_filename)
+            os.rename(f"{bam_filename}.bai", f"{output_bam_filename}.bai")
+
+        executor(
+            rename_files,
+            split_by_organism=True,
+            output_format=f"{self.analysis.basename}{{organism_str}}.bam",
+        )
+
+        self.analysis.logger.info("Finished sorting and creating BAI file")
+
     def add_bam_groups(self) -> None:
         self.chdir()
         config = self.analysis.config
@@ -205,6 +234,7 @@ class Mapping:
             output_format=f"{self.analysis.basename}{{organism_str}}.bam",
             split_by_organism=True,
         )
+        self.create_bam_index()
 
         self.analysis.logger.info("Finished adding/replacing read groups to BAM")
 

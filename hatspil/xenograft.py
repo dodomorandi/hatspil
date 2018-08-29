@@ -124,8 +124,13 @@ class Xenome:
         self.chdir()
         retval = True
 
+        run_fake = self.analysis.run_fake
+        self.analysis.run_fake = False
+
         executor = Executor(self.analysis)
         executor(self._check_lambda, input_split_reads=False)
+
+        self.analysis.run_fake = run_fake
 
         if len(self.input_filenames) == 0:
             retval = False
@@ -245,6 +250,9 @@ class Xenome:
         self.analysis.logger.info("Finished fixing xenome fastq")
 
     def compress(self) -> None:
+        if self.analysis.run_fake:
+            return
+
         self.analysis.logger.info("Compressing fastq files")
         self.chdir()
         fastq_files = [
@@ -395,12 +403,15 @@ class Disambiguate:
                     human_bam_index = index
                     return
 
+        run_fake = self.analysis.run_fake
+        self.analysis.run_fake = False
         executor(
             get_human_bam_index,
             split_by_organism=False,
             split_input_files=False,
             override_last_files=False,
         )
+        self.analysis.run_fake = run_fake
 
         assert human_bam_index is not None
 
@@ -436,7 +447,8 @@ class Disambiguate:
             output_format=f"{out_prefix}.disambiguated{{organism_str}}.bam",
         )
 
-        shutil.rmtree(self.tempdir)
+        if not self.analysis.run_fake:
+            shutil.rmtree(self.tempdir)
 
         self.analysis.logger.info("Finished running disambiguate")
 

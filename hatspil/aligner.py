@@ -161,11 +161,13 @@ class Aligner:
             split_by_organism=True,
             only_human=self.only_human,
         )
+        star_index_format = "{getattr(config, 'star_index_' + organism)}"
+        features_format = "{getattr(config, 'features_' + organism)}"
 
         self.analysis.logger.info("Step 1: Alignment 1st Pass:")
 
         executor(
-            f"{config.star} --genomeDir {config.star_index} "
+            f"{config.star} --genomeDir {star_index_format} "
             f"--readFilesIn {{input_filename}} "
             f"--outFileNamePrefix {star_dir_format}/{output_format}. "
             f"--runThreadN 5 "
@@ -242,6 +244,17 @@ class Aligner:
                 str(kwargs["input_filename"]), str(kwargs["output_filename"])
             ),
             split_by_organism=True,
+            output_format=lambda *args, **kwargs: kwargs[
+                "input_filename"
+            ].filename.replace(".Aligned.out", ""),
+            only_human=self.only_human,
+        )
+
+        executor(
+            lambda *args, **kwargs: os.rename(
+                str(kwargs["input_filename"]), str(kwargs["output_filename"])
+            ),
+            split_by_organism=True,
             output_format=os.path.join(bam_directory, f"{output_format}.sam"),
             only_human=self.only_human,
         )
@@ -256,7 +269,7 @@ class Aligner:
             f"-i gene_id "
             f"-r pos "
             f"-s no "
-            f"- {config.star_annotation} "
+            f"- {features_format} "
             f"> {counts_format}",
             override_last_files=False,
             split_by_organism=True,

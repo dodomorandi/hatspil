@@ -31,7 +31,16 @@ class Config:
         "annovar_basedir",
         "annotations",
     )
-    optional_files = ("star_index", "star_annotation")
+    optional_files = (
+        "star_index_hg19",
+        "star_index_hg38",
+        "star_index_mm9",
+        "star_index_mm10",
+        "features_hg19",
+        "features_hg38",
+        "features_mm9",
+        "features_mm10",
+    )
     parameters = (
         "xenome_index",
         "xenome_threads",
@@ -54,8 +63,14 @@ class Config:
         self.java7 = "java"
         self.perl = "perl"
         self.star = "STAR"
-        self.star_index = "star_index"
-        self.star_annotation = "star_annotation"
+        self.star_index_hg19 = "star_index_hg19"
+        self.star_index_hg38 = "star_index_hg38"
+        self.star_index_mm9 = "star_index_mm9"
+        self.star_index_mm10 = "star_index_mm10"
+        self.features_hg19 = "features_hg19.gtf"
+        self.features_hg38 = "features_hg38.gtf"
+        self.features_mm9 = "features_mm9.gtf"
+        self.features_mm10 = "features_mm10.gtf"
         self.bwa = "bwa"
         self.novoalign = "novoalign"
         self.picard = "picard.jar"
@@ -265,11 +280,13 @@ class Config:
 
     def check_star_files(self) -> bool:
         ok = True
-        for param in ("star_index", "star_annotation"):
-            param_is_valid = self.check_file_param(param)
-            assert param_is_valid is not None
+        for param in ("star_index", "features"):
+            for organism in ("hg19", "hg38", "mm9", "mm10"):
+                param_is_valid = self.check_file_param(f"{param}_{organism}")
+                if param_is_valid is None:
+                    continue
 
-            if not param_is_valid:
-                ok = False
+                if not param_is_valid:
+                    ok = False
 
         return ok
