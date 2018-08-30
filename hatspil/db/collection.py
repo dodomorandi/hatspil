@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, cast
+from typing import Any, Dict, List, Optional, cast
 
 import hatspil.db
 from pymongo import ReturnDocument
@@ -39,3 +39,10 @@ class Collection:
         assert self.collection is not None
         retval = self.collection.find_one(data)
         return cast(Optional[Dict[str, Any]], retval)
+
+    def find_all(self, data: Optional[Dict] = None) -> Optional[List[Dict[str, Any]]]:
+        if not self.db or not self.db.config.use_mongodb:
+            return None
+
+        assert self.collection is not None
+        return cast(List[Dict[str, Any]], self.collection.find(data))

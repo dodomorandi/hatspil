@@ -119,7 +119,7 @@ class Cutadapt:
 
         line = next(fd)
         match = Cutadapt.RE_ADAPTER_INFO.match(line)
-        assert(match)
+        assert match
         data[f"{prefix}_sequence"] = match.group(1)
         data[f"{prefix}_type"] = match.group(2)
         data[f"{prefix}_length"] = int(match.group(3))

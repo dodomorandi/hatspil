@@ -9,6 +9,7 @@ from .analysis import Analysis
 from .barcoded_filename import Analyte, BarcodedFilename
 from .db import Db
 from .db.cutadapt import Cutadapt
+from .db.picard_metrics import PicardMetrics, PicardMetricsType
 from .exceptions import PipelineError
 from .executor import AnalysisFileData, Executor
 from .xenograft import Xenograft, XenograftClassifier
@@ -269,6 +270,20 @@ class Mapping:
                 split_by_organism=True,
                 unlink_inputs=True,
             )
+
+            db = Db(self.analysis.config)
+            picard_metrics = PicardMetrics(db)
+            executor(
+                lambda *args, **kwargs: picard_metrics.store_from_file(
+                    self.analysis,
+                    f"{self.output_basename}.marked_dup_metrics{{}}.txt".format(
+                        kwargs["organism_str"]
+                    ),
+                    PicardMetricsType.marked_duplicates,
+                ),
+                split_by_organism=True,
+                override_last_files=False,
+            )
         elif barcoded.analyte == Analyte.GENE_PANEL:
             executor(
                 f"{config.java} {config.picard_jvm_args} -jar {config.picard} "
@@ -330,6 +345,33 @@ class Mapping:
                 split_by_organism=True,
                 unlink_inputs=True,
             )
+
+            db = Db(self.analysis.config)
+            picard_metrics = PicardMetrics(db)
+            executor(
+                lambda *args, **kwargs: picard_metrics.store_from_file(
+                    self.analysis,
+                    f"{self.output_basename}.marked_dup_metrics{{}}.txt".format(
+                        kwargs["organism_str"]
+                    ),
+                    PicardMetricsType.marked_duplicates,
+                ),
+                split_by_organism=True,
+                override_last_files=False,
+            )
+
+            executor(
+                lambda *args, **kwargs: picard_metrics.store_from_file(
+                    self.analysis,
+                    f"{self.output_basename}.UMI_metrics{{}}.txt".format(
+                        kwargs["organism_str"]
+                    ),
+                    PicardMetricsType.umi,
+                ),
+                split_by_organism=True,
+                override_last_files=False,
+            )
+
         else:
             raise Exception("Unhandled analyte")
 
@@ -479,12 +521,29 @@ class Mapping:
             unlink_inputs=True,
         )
 
+        db = Db(self.analysis)
+        picard_metrics = PicardMetrics(db)
+        executor(
+            lambda *args, **kwargs: picard_metrics.store_from_file(
+                self.analysis,
+                f"{self.output_basename}.no_dup_metrics{{}}.txt".format(
+                    kwargs["organism_str"]
+                ),
+                PicardMetricsType.no_duplicates,
+            ),
+            split_by_organism=True,
+            override_last_files=False,
+        )
+
         self.analysis.logger.info("Finished recalibration")
 
     def metrics_collection(self) -> None:
         self.analysis.logger.info("Running metrics collection")
         self.chdir()
         config = self.analysis.config
+
+        db = Db(self.analysis.config)
+        picard_metrics = PicardMetrics(db)
 
         executor = Executor(self.analysis)
         executor(
@@ -507,6 +566,18 @@ class Mapping:
         )
 
         executor(
+            lambda *args, **kwargs: picard_metrics.store_from_file(
+                self.analysis,
+                f"{self.output_basename}.hs_metrics{{}}.txt".format(
+                    kwargs["organism_str"]
+                ),
+                PicardMetricsType.hs,
+            ),
+            split_by_organism=True,
+            override_last_files=False,
+        )
+
+        executor(
             f"{config.java} {config.picard_jvm_args} -jar {config.picard} "
             f"CollectGcBiasMetrics "
             f"R={{genome_ref}} I={{input_filename}} "
@@ -516,6 +587,18 @@ class Mapping:
             f"{self.max_records_str}",
             error_string="Picard CollectGcBiasMetrics exited with status {status}",
             exception_string="picard CollectGcBiasMetrics error",
+            split_by_organism=True,
+            override_last_files=False,
+        )
+
+        executor(
+            lambda *args, **kwargs: picard_metrics.store_from_file(
+                self.analysis,
+                f"{self.output_basename}.gcbias.metrics{{}}.txt".format(
+                    kwargs["organism_str"]
+                ),
+                PicardMetricsType.gcbias,
+            ),
             split_by_organism=True,
             override_last_files=False,
         )

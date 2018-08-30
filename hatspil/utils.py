@@ -247,3 +247,16 @@ def get_mouse_annotation(config: Config) -> str:
         return "mm9"
     else:
         raise AnnotationError("no available mouse annotation in config")
+
+
+reFloat = re.compile(r"^(\d+\.\d*|\.\d+)$")
+reInt = re.compile(r"^(\d+)$")
+
+
+def parse_as_number(s: str) -> Union[int, float, str]:
+    if reFloat.match(s):
+        return float(s)
+    elif reInt.match(s):
+        return int(s)
+    else:
+        return s

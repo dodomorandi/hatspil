@@ -1,6 +1,7 @@
 from typing import Any, Dict, Optional
 
-from hatspil.barcoded_filename import BarcodedFilename
+from bson import ObjectId
+from hatspil.barcoded_filename import BarcodedFilename, Xenograft
 from hatspil.config import Config
 from pymongo import MongoClient
 
@@ -18,6 +19,7 @@ class Db:
         "variants",
         "analyses",
         "cutadapt",
+        "picard_metrics",
     ]
     projects: Collection
     patients: Collection
@@ -28,6 +30,7 @@ class Db:
     variants: Collection
     analyses: Collection
     cutadapt: Collection
+    picard_metrics: Collection
 
     def __init__(self, config: Config) -> None:
         self.config = config
@@ -134,7 +137,12 @@ class Db:
             return None
 
         sequencing = self.sequencings.find(
-            {"sample": sample["_id"], "index": barcoded.sequencing}
+            {
+                "sample": sample["_id"],
+                "index": barcoded.sequencing,
+                "analyte": int(barcoded.analyte),
+                "molecule": int(barcoded.molecule),
+            }
         )
         if not sequencing:
             return None
@@ -146,3 +154,110 @@ class Db:
             "sample": sample,
             "sequencing": sequencing,
         }
+
+    def from_sequencing_id(
+        self, sequencing_id: ObjectId
+    ) -> Optional[Dict[str, Dict[str, Any]]]:
+        if not self.config.use_mongodb:
+            return None
+
+        sequencing = self.sequencings.find({"_id": sequencing_id})
+        if not sequencing:
+            return None
+
+        sample = self.samples.find({"_id": sequencing["sample"]})
+        if not sample:
+            return None
+
+        biopsy = self.biopsies.find({"_id": sample["biopsy"]})
+        if not biopsy:
+            return None
+
+        patient = self.patients.find({"_id": biopsy["patient"]})
+        if not patient:
+            return None
+
+        project = self.projects.find({"_id": patient["project"]})
+        if not project:
+            return None
+
+        return {
+            "project": project,
+            "patient": patient,
+            "biopsy": biopsy,
+            "sample": sample,
+            "sequencing": sequencing,
+        }
+
+    @staticmethod
+    def to_barcoded(data: Dict[str, Any]) -> Optional[BarcodedFilename]:
+        project = data["project"]
+        assert project
+        project_name = project["name"]
+
+        patient = data["patient"]
+        assert patient
+        patient_name = patient["name"]
+
+        biopsy = data["biopsy"]
+        assert biopsy
+        biopsy_index = biopsy["index"]
+        tissue = biopsy["tissue"]
+
+        sample = data["sample"]
+        assert sample
+        xenograft_generation: Optional[int]
+        xenograft_parent: Optional[int]
+        xenograft_child: Optional[int]
+        if "xenograft" in sample:
+            xenograft = Xenograft.from_dict(sample["xenograft"])
+            assert xenograft
+            xenograft_generation = xenograft.generation
+            xenograft_parent = xenograft.parent
+            xenograft_child = xenograft.child
+            sample_index = None
+
+            assert xenograft_generation is not None
+            assert xenograft_parent is not None
+            assert xenograft_child is not None
+        else:
+            sample_index = sample["index"]
+            xenograft_generation = None
+            xenograft_parent = None
+            xenograft_child = None
+
+            assert sample_index is not None and sample_index != ""
+
+        sequencing = data["sequencing"]
+        assert sequencing
+        sequencing_index = sequencing["index"]
+        molecule = sequencing["molecule"]
+        analyte = sequencing["analyte"]
+        # At to date, kit  is unused and can be inexistent
+        if "kit" in sequencing:
+            kit = sequencing["kit"]
+        else:
+            kit = 0
+
+        assert project_name
+        assert patient_name
+        assert biopsy_index is not None
+        assert tissue
+        assert molecule is not None
+        assert analyte is not None
+        assert kit is not None
+
+        return BarcodedFilename.from_parameters(
+            project_name,
+            patient_name,
+            tissue,
+            biopsy_index,
+            sample_index,
+            xenograft_generation,
+            xenograft_parent,
+            xenograft_child,
+            sequencing_index,
+            molecule,
+            analyte,
+            kit,
+        )
