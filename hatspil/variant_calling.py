@@ -647,13 +647,15 @@ class VariantCalling:
                 for record in annotation.to_dict("records")
             ]
             del annotation
+            for annotation in annotations:
+                annotation.update({"assembly": self.build_version})
 
             db = Db(self.analysis.config)
 
             annotation_ids: List[str] = []
             for annotation in annotations:
                 new_annotation = db.annotations.find_or_insert(
-                    {"id": annotation["id"]}, annotation
+                    {"id": annotation["id"], "assembly": self.build_version}, annotation
                 )
                 assert new_annotation
                 new_annotation_id = new_annotation["_id"]
@@ -677,7 +679,11 @@ class VariantCalling:
                     "document too large. Saving data using empty objects"
                 )
                 db.analyses.find_or_insert(
-                    {"sequencing": sequencing["_id"], "date": self.analysis.current},
+                    {
+                        "sequencing": sequencing["_id"],
+                        "date": self.analysis.current,
+                        "assembly": self.build_version,
+                    },
                     {"variants": [], "annotations": []},
                 )
 
