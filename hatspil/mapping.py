@@ -521,7 +521,7 @@ class Mapping:
             unlink_inputs=True,
         )
 
-        db = Db(self.analysis)
+        db = Db(self.analysis.config)
         picard_metrics = PicardMetrics(db)
         executor(
             lambda *args, **kwargs: picard_metrics.store_from_file(
