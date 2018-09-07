@@ -29,7 +29,7 @@ class Config:
         "indel_1",
         "indel_2",
         "annovar_basedir",
-        "annotations",
+        "amplicons",
     )
     optional_files = (
         "star_index_hg19",
@@ -117,7 +117,7 @@ class Config:
         self.bait_list = "04818-1466508813_amplicons.interval_list"
         self.indel_1 = "1000G_phase1.indels.hg19.sites.vcf"
         self.indel_2 = "Mills_and_1000G_gold_standard.indels.hg19.sites.vcf"
-        self.annotations = "48379-1473715058_Amplicons.bed"
+        self.amplicons = "amplicons.bed"
         self.cancer_site = "soft_tissue"
         self.mails = ""
         self.use_mongodb = True
