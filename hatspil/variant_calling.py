@@ -9,7 +9,7 @@ import vcf
 
 from . import utils
 from .analysis import Analysis
-from .barcoded_filename import BarcodedFilename
+from .barcoded_filename import Analyte, BarcodedFilename
 from .db import Db
 from .exceptions import PipelineError
 from .executor import Executor
@@ -449,6 +449,7 @@ class VariantCalling:
         cancer_genes = pd.read_hdf(VariantCalling.dataset_filename, "cancer_genes")
         panel_drug = pd.read_hdf(VariantCalling.dataset_filename, "panel_drug")
         gene_info = pd.read_hdf(VariantCalling.dataset_filename, "gene_info")
+        gene_info.drop_duplicates(subset="symbol", inplace=True)
 
         selected_cancer_genes = cancer_genes[
             cancer_genes.cancer_site == self.analysis.config.cancer_site
@@ -546,24 +547,31 @@ class VariantCalling:
         ].tolist()
         annotation.loc[empty_canonical_refseqs, "hgnc_canonical_refseq"] = float("nan")
 
-        haloplex = pd.read_table(
-            self.analysis.config.annotations,
-            header=None,
-            names=("chrom", "start", "end", "name", "length", "strand"),
-            skiprows=2,
-            delim_whitespace=True,
-        )
+        barcoded_sample = BarcodedFilename.from_sample(self.analysis.sample)
 
-        haloplex.sort_values(["chrom", "start", "end"], inplace=True)
-        haloplex_ranges = GenomicRanges(
-            [
-                GenomicRange(row.chrom, row.start, row.end)
-                for _, row in haloplex.iterrows()
-            ]
-        )
-        overlaps = annotation_ranges.overlaps(haloplex_ranges)
-        annotation["in_gene_panel"] = False
-        annotation.loc[set([index[0] for index in overlaps]), "in_gene_panel"] = True
+        if barcoded_sample.analyte == Analyte.GENE_PANEL:
+            amplicons = pd.read_table(
+                self.analysis.config.amplicons,
+                header=None,
+                names=("chrom", "start", "end", "name", "length", "strand"),
+                skiprows=2,
+                delim_whitespace=True,
+            )
+
+            amplicons.sort_values(["chrom", "start", "end"], inplace=True)
+            amplicons_ranges = GenomicRanges(
+                [
+                    GenomicRange(row.chrom, row.start, row.end)
+                    for _, row in amplicons.iterrows()
+                ]
+            )
+
+            amplicons_overlaps = annotation_ranges.overlaps(amplicons_ranges)
+            annotation["in_gene_panel"] = False
+            annotation.loc[
+                set([index[0] for index in amplicons_overlaps]), "in_gene_panel"
+            ] = True
+
         annotation["druggable"] = annotation["Gene.refGene"].isin(
             panel_drug.gene_symbol
         )
@@ -626,8 +634,6 @@ class VariantCalling:
         config = self.analysis.config
         if config.use_mongodb:
             from pymongo.errors import DocumentTooLarge
-
-            barcoded_sample = BarcodedFilename.from_sample(self.analysis.sample)
 
             self.variants = pd.read_csv(self.variants_filename, index_col=False)
             variants = [
