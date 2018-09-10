@@ -612,6 +612,9 @@ def main() -> None:
                 assert barcoded_filename.biopsy is not None
                 assert barcoded_filename.sequencing is not None
 
+                sample_index = barcoded_filename.get_sample_index()
+                assert sample_index
+
                 fake_sample = "%s-%s-%d%d%d-%d%d%d" % (
                     barcoded_filename.project,
                     barcoded_filename.patient,
@@ -619,7 +622,7 @@ def main() -> None:
                     barcoded_filename.analyte,
                     barcoded_filename.kit,
                     barcoded_filename.biopsy,
-                    barcoded_filename.get_sample_index(),
+                    sample_index,
                     barcoded_filename.sequencing,
                 )
 

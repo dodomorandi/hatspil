@@ -209,6 +209,7 @@ class Db:
         xenograft_generation: Optional[int]
         xenograft_parent: Optional[int]
         xenograft_child: Optional[int]
+        sample_index: Optional[str]
         if "xenograft" in sample:
             xenograft = Xenograft.from_dict(sample["xenograft"])
             assert xenograft
