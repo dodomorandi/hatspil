@@ -43,23 +43,50 @@ class Mapping:
 
         report_filename = f"{self.sample_base_out}.cutadapt.txt"
         executor = Executor(self.analysis)
+        is_paired_end: bool
+
+        def get_is_paired_end(*args: str, **kwargs: str) -> None:
+            nonlocal is_paired_end
+            is_paired_end = len(kwargs["input_filenames"]) == 2
+
         executor(
-            f"cutadapt -a AGATCGGAAGAGCACACGTCTGAACTCCAG "
-            "-A AGATCGGAAGAGCGTCGTGTAGGGAAAGAG "
-            f'-m 20 -o "{{output_filename[0]}}" -p '
-            f'"{{output_filename[1]}}" {{input_filename}} '
-            f'> "{report_filename}"',
-            output_format=f"{self.analysis.sample}.clipped{{organism_str}}"
-            ".R%d.fastq",
-            input_function=lambda l: " ".join(sorted(l)),
+            get_is_paired_end,
             input_split_reads=False,
             split_by_organism=True,
-            output_path=self.fastq_dir,
-            unlink_inputs=True,
-            output_function=lambda filename: [
-                filename % (index + 1) for index in range(2)
-            ],
+            override_last_files=False,
         )
+
+        if is_paired_end:
+            executor(
+                f"cutadapt -a AGATCGGAAGAGCACACGTCTGAACTCCAG "
+                "-A AGATCGGAAGAGCGTCGTGTAGGGAAAGAG "
+                f'-m 20 -o "{{output_filename[0]}}" -p '
+                f'"{{output_filename[1]}}" {{input_filename}} '
+                f'> "{report_filename}"',
+                output_format=f"{self.analysis.sample}.clipped{{organism_str}}"
+                ".R%d.fastq",
+                input_function=lambda l: " ".join(sorted(l)),
+                input_split_reads=False,
+                split_by_organism=True,
+                output_path=self.fastq_dir,
+                unlink_inputs=True,
+                output_function=lambda filename: [
+                    filename % (index + 1) for index in range(2)
+                ],
+            )
+        else:
+            executor(
+                f"cutadapt -a AGATCGGAAGAGCACACGTCTGAACTCCAG "
+                f'-m 20 -o "{{output_filename}}" '
+                f" {{input_filename}} "
+                f'> "{report_filename}"',
+                output_format=f"{self.analysis.sample}.clipped{{organism_str}}"
+                ".R1.fastq",
+                input_split_reads=False,
+                split_by_organism=True,
+                output_path=self.fastq_dir,
+                unlink_inputs=True,
+            )
 
         db = Db(self.analysis.config)
         cutadapt = Cutadapt(db)
