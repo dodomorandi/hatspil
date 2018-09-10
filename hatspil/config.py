@@ -55,6 +55,8 @@ class Config:
         "mails",
         "use_mongodb",
         "cancer_site",
+        "adapter_r1",
+        "adapter_r2",
     )
     mongodb = ("database", "host", "port", "username", "password")
 
@@ -106,6 +108,8 @@ class Config:
         self.cosmic_hg38 = "Cosmic.hg38.vcf"
         self.dbsnp138_hg19 = "dbsnp_138.hg19.vcf"
         self.dbsnp138_hg38 = "dbsnp_138.hg38.vcf"
+        self.adapter_r1 = ""
+        self.adapter_r2 = ""
         self.use_hg19 = True
         self.use_hg38 = True
         self.use_mm9 = True

@@ -40,6 +40,7 @@ class Mapping:
     def cutadapt(self) -> None:
         self.analysis.logger.info("Cutting adapters")
         self.chdir()
+        config = self.analysis.config
 
         report_filename = f"{self.sample_base_out}.cutadapt.txt"
         executor = Executor(self.analysis)
@@ -57,9 +58,14 @@ class Mapping:
         )
 
         if is_paired_end:
+            if not config.adapter_r1 or not config.adapter_r2:
+                self.analysis.logger.warning("cutadapt needs both adapter to perform "
+                                             "a paired-end trimming. Skipping cutadapt")
+                return
+
             executor(
-                f"cutadapt -a AGATCGGAAGAGCACACGTCTGAACTCCAG "
-                "-A AGATCGGAAGAGCGTCGTGTAGGGAAAGAG "
+                f"cutadapt -a {config.adapter_r1} "
+                "-A {config.adapter_r2} "
                 f'-m 20 -o "{{output_filename[0]}}" -p '
                 f'"{{output_filename[1]}}" {{input_filename}} '
                 f'> "{report_filename}"',
@@ -75,8 +81,13 @@ class Mapping:
                 ],
             )
         else:
+            if not config.adapter_r1:
+                self.analysis.logger.warning("cutadapt needs the R1 adapter to perform "
+                                             "a single end trimming. Skipping cutadapt")
+                return
+
             executor(
-                f"cutadapt -a AGATCGGAAGAGCACACGTCTGAACTCCAG "
+                f"cutadapt -a {config.adapter_r1} "
                 f'-m 20 -o "{{output_filename}}" '
                 f" {{input_filename}} "
                 f'> "{report_filename}"',
@@ -88,7 +99,7 @@ class Mapping:
                 unlink_inputs=True,
             )
 
-        db = Db(self.analysis.config)
+        db = Db(config)
         cutadapt = Cutadapt(db)
         cutadapt.store_from_file(self.analysis, report_filename)
 
