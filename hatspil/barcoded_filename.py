@@ -130,8 +130,11 @@ class Xenograft:
 
         return Xenograft(generation, parent, child)
 
-    def get_sample_index(self) -> int:
-        return self.parent * 3 + self.child
+    def get_sample_index(self) -> Optional[int]:
+        if self.parent is not None and self.child is not None:
+            return self.parent * 3 + self.child
+        else:
+            return None
 
     def to_dict(self) -> Dict[str, int]:
         return {
@@ -280,12 +283,12 @@ class BarcodedFilename:
     def from_parameters(
         project: str,
         patient: str,
-        tissue: Union[int, str],
+        tissue: str,
         biopsy: Union[int, str],
-        sample: Union[int, str, None],
-        xenograft_generation: Union[int, str, None],
-        xenograft_parent: Union[int, str, None],
-        xenograft_child: Union[int, str, None],
+        sample: Union[int, str],
+        xenograft_generation: Union[int, str],
+        xenograft_parent: Union[int, str],
+        xenograft_child: Union[int, str],
         sequencing: Union[int, str],
         molecule: Union[int, str],
         analyte: Union[int, str],
@@ -351,7 +354,13 @@ class BarcodedFilename:
         else:
             sequencing = str(self.sequencing)
 
-        return "%s-%s-%02s-%d%d%d-%s%d%s" % (
+        sample_index = self.get_sample_index()
+        if sample_index is None:
+            sample = "□"
+        else:
+            sample = str(sample_index)
+
+        return "%s-%s-%02s-%d%d%d-%s%s%s" % (
             self.project,
             self.patient,
             self.get_tissue_str(),
@@ -359,7 +368,7 @@ class BarcodedFilename:
             self.analyte,
             self.kit,
             biopsy,
-            self.get_sample_index(),
+            sample,
             sequencing,
         )
 
@@ -463,9 +472,8 @@ class BarcodedFilename:
         else:
             return "%02d" % self.tissue
 
-    def get_sample_index(self) -> int:
+    def get_sample_index(self) -> Optional[int]:
         if self.xenograft is None:
-            assert self.sample is not None
             return self.sample
         else:
             return self.xenograft.get_sample_index()
