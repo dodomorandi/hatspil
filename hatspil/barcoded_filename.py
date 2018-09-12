@@ -78,6 +78,7 @@ class Tissue(IntEnum):
             Tissue.HUMAN_TUMOR_ORGANIC_CELLS,
             Tissue.PRIMARY_BLOOD_DERIVED_CANCER_BONE_MARROW,
             Tissue.RECURRENT_BLOOD_DERIVED_CANCER_PERIPHERAL_BLOOD,
+            Tissue.CELL_LINES,
             Tissue.PRIMARY_XENOGRAFT_TISSUE,
             Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE,
         )
