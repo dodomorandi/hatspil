@@ -89,7 +89,7 @@ class Analysis:
             self.parameters["use_normals"]
             and self.last_operation_filenames is not None
             and isinstance(self.last_operation_filenames, dict)
-            and "normal" in self.last_operation_filenames
-            and isinstance(self.last_operation_filenames["normal"], list)
-            and len(self.last_operation_filenames["normal"]) > 0
+            and "control" in self.last_operation_filenames
+            and isinstance(self.last_operation_filenames["control"], list)
+            and len(self.last_operation_filenames["control"]) > 0
         )

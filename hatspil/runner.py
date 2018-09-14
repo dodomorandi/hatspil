@@ -90,7 +90,7 @@ class Runner:
 
             self._run_mutation_analysis(analysis, False)
         else:
-            analysis.last_operation_filenames = tumor
+            analysis.last_operation_filenames = {"sample": [tumor], "control": [normal]}
             self._run_mutation_analysis(analysis, True)
 
     def _run_mutation_analysis(self, analysis: Analysis, use_strelka: bool) -> None:
