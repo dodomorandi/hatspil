@@ -38,7 +38,7 @@ class VariantCalling:
                 os.path.join(analysis.get_out_dir(), self.analysis.basename)
                 + "*.varscan2."
                 + varscan_type
-                + ".vcf"
+                + "*.vcf"
             )
         self.annovar_dirname = os.path.join(
             analysis.get_out_dir(), self.analysis.basename + "_annovar"
