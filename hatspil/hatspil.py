@@ -612,27 +612,8 @@ def main() -> None:
                 assert barcoded_filename.biopsy is not None
                 assert barcoded_filename.sequencing is not None
 
-                sample_index = barcoded_filename.get_sample_index()
-                assert sample_index
-
-                fake_sample = "%s-%s-%d%d%d-%d%d%d" % (
-                    barcoded_filename.project,
-                    barcoded_filename.patient,
-                    barcoded_filename.molecule,
-                    barcoded_filename.analyte,
-                    barcoded_filename.kit,
-                    barcoded_filename.biopsy,
-                    sample_index,
-                    barcoded_filename.sequencing,
-                )
-
-                if barcoded_filename.tissue in (
-                    Tissue.BONE_MARROW_NORMAL,
-                    Tissue.BUCCAL_CELL_NORMAL,
-                    Tissue.SOLID_TISSUE_NORMAL,
-                    Tissue.BLOOD_DERIVED_NORMAL,
-                    Tissue.EBV_IMMORTALIZED_NORMAL,
-                ):
+                fake_sample = "-".join(barcoded_filename.get_barcode().split("-")[0:4])
+                if barcoded_filename.tissue.is_normal():
                     sample_type = "control"
                 else:
                     sample_type = "sample"
