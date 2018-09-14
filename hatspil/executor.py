@@ -368,8 +368,9 @@ class Executor:
         analyses: List[SingleAnalysis]
     ) -> List[SingleAnalysis]:
 
-        for analysis in analyses:
-            assert len(analysis) == 1
+        for analysis_index, analysis in enumerate(analyses):
+            if not analysis:
+                continue
 
             file_data = next(iter(analysis))
             if file_data.type != AnalysisType.Sample:
@@ -396,7 +397,7 @@ class Executor:
                 if sequencing_specific:
                     controls = sequencing_specific
 
-                analysis = SingleAnalysis(
+                analyses[analysis_index] = SingleAnalysis(
                     analysis + [control[1] for control in controls]
                 )
 
