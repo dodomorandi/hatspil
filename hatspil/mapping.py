@@ -671,6 +671,9 @@ class Mapping:
         self.analysis.logger.info("Finished compressing fastq files")
 
     def run(self) -> None:
+        if self.analysis.parameters["skip_mapping"]:
+            self.analysis.run_fake = True
+
         barcoded = BarcodedFilename.from_sample(self.analysis.sample)
 
         parsing_xenograft = (
@@ -716,3 +719,5 @@ class Mapping:
             self.bam2tdf()
         if self.analysis.parameters["compress_fastq"]:
             self.compress_fastq()
+
+        self.analysis.run_fake = False
