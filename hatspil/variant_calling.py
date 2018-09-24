@@ -278,7 +278,7 @@ class VariantCalling:
                 if varscan_data is None:
                     varscan_data = tumor
                 else:
-                    varscan_data = pd.concat((varscan_data, tumor))
+                    varscan_data = pd.concat((varscan_data, tumor), sort=True)
 
         if os.path.exists(self.strelka_results_dir):
             strelka_data_list = []
@@ -358,13 +358,13 @@ class VariantCalling:
         if strelka_data is None:
             strelka_data = pd.DataFrame(columns=("key", "DP", "FREQ"))
         else:
-            self.variants = pd.concat([self.variants, strelka_data])
+            self.variants = pd.concat([self.variants, strelka_data], sort=True)
 
         if varscan_data is None:
             varscan_data = pd.DataFrame(columns=("key", "DP", "FREQ"))
         else:
             varscan_data = varscan_data[["key", "DP", "FREQ"]].copy()
-            self.variants = pd.concat([self.variants, varscan_data])
+            self.variants = pd.concat([self.variants, varscan_data], sort=True)
 
         if mutect_data is None:
             mutect_data = pd.DataFrame(columns=("key", "DP", "FREQ"))
@@ -372,7 +372,7 @@ class VariantCalling:
             mutect_data = mutect_data.rename(
                 index=str, columns={"tot_cov": "DP", "tumor_f": "FREQ"}
             )[["key", "DP", "FREQ"]].copy()
-            self.variants = pd.concat([self.variants, mutect_data])
+            self.variants = pd.concat([self.variants, mutect_data], sort=True)
 
         self.variants.drop_duplicates(("key",), inplace=True)
         methods = []
