@@ -246,12 +246,12 @@ class VariantCalling:
                     normal = current_data[current_data.sampleNames == "NORMAL"]
                     normal.reset_index(inplace=True, drop=True)
 
-                    normals = normal.merge(tumor, on="key", how="left")[
-                        ["totalDepth", "refDepth", "altDepth"]
+                    normals = tumor.merge(normal, on="key", how="left")[
+                        ["totalDepth_x", "refDepth_x", "altDepth_x"]
                     ]
-                    tumor["totalDepth.NORMAL"] = normals["totalDepth"].values
-                    tumor["refDepth.NORMAL"] = normals["refDepth"].values
-                    tumor["altDepth.NORMAL"] = normals["altDepth"].values
+                    tumor["totalDepth.NORMAL"] = normals["totalDepth_x"].values
+                    tumor["refDepth.NORMAL"] = normals["refDepth_x"].values
+                    tumor["altDepth.NORMAL"] = normals["altDepth_x"].values
 
                 if withNormals:
                     tumor.drop(
