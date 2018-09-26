@@ -43,20 +43,23 @@ class Mapping:
         config = self.analysis.config
 
         report_filename = f"{self.sample_base_out}.cutadapt.txt"
+        if isinstance(self.analysis.last_operation_filenames, list):
+            is_paired_end = len(self.analysis.last_operation_filenames) == 2
+        elif isinstance(self.analysis.last_operation_filenames, dict):
+            first_filenames = next(
+                iter(self.analysis.last_operation_filenames.values())
+            )
+            is_paired_end = len(first_filenames) == 2
+            assert all(
+                map(
+                    lambda filenames: len(filenames) == len(first_filenames),
+                    self.analysis.last_operation_filenames.values(),
+                )
+            )
+        else:
+            is_paired_end = False
+
         executor = Executor(self.analysis)
-        is_paired_end: bool
-
-        def get_is_paired_end(*args: str, **kwargs: str) -> None:
-            nonlocal is_paired_end
-            is_paired_end = len(kwargs["input_filenames"]) == 2
-
-        executor(
-            get_is_paired_end,
-            input_split_reads=False,
-            split_by_organism=True,
-            override_last_files=False,
-        )
-
         if is_paired_end:
             if not config.adapter_r1 or not config.adapter_r2:
                 self.analysis.logger.warning(
