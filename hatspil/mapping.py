@@ -59,8 +59,10 @@ class Mapping:
 
         if is_paired_end:
             if not config.adapter_r1 or not config.adapter_r2:
-                self.analysis.logger.warning("cutadapt needs both adapter to perform "
-                                             "a paired-end trimming. Skipping cutadapt")
+                self.analysis.logger.warning(
+                    "cutadapt needs both adapter to perform "
+                    "a paired-end trimming. Skipping cutadapt"
+                )
                 return
 
             executor(
@@ -82,8 +84,10 @@ class Mapping:
             )
         else:
             if not config.adapter_r1:
-                self.analysis.logger.warning("cutadapt needs the R1 adapter to perform "
-                                             "a single end trimming. Skipping cutadapt")
+                self.analysis.logger.warning(
+                    "cutadapt needs the R1 adapter to perform "
+                    "a single end trimming. Skipping cutadapt"
+                )
                 return
 
             executor(
