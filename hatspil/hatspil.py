@@ -4,7 +4,6 @@ import logging
 import os
 import re
 import shutil
-import smtplib
 import sys
 import traceback
 from email.mime.text import MIMEText
@@ -741,12 +740,17 @@ def main() -> None:
                 msg["Subject"] = "Pipeline error"
 
     if args.mail and len(config.mails) > 0:
-        msg["From"] = "UV2000 Pipeline <pipeline@uv2000.hugef>"
+        msg["From"] = "HaTSPiL <info@hatspil>"
         msg["To"] = config.mails
 
-        smtp = smtplib.SMTP("localhost")
-        smtp.send_message(msg)
-        smtp.quit()
+        try:
+            import smtplib
+
+            smtp = smtplib.SMTP("localhost")
+            smtp.send_message(msg)
+            smtp.quit()
+        except Exception:
+            print("Cannot send the emails", file=sys.stderr)
 
     if error_raised:
         exit(-1)
