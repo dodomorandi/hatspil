@@ -15,5 +15,5 @@ setup(
     author="Edoardo Morandi",
     author_email="morandidodo@gmail.com",
     description="HTS pipeline for different purposes",
-    license="GPL3",
+    license="MIT",
 )
