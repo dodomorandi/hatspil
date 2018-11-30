@@ -1,5 +1,6 @@
 from multiprocessing.managers import SyncManager
-from typing import Any, Dict, List, Optional
+from threading import Thread
+from typing import Any, Dict, Iterable, List, Optional
 
 from .analysis import Analysis
 from .barcoded_filename import Analyte, BarcodedFilename
@@ -7,12 +8,11 @@ from .config import Config
 from .db import Db
 from .mapping import Mapping
 from .mutect import Mutect
+from .reports_generator import ReportsGenerator
 from .starter import Starter
 from .strelka import Strelka
 from .variant_calling import VariantCalling
 from .varscan import VarScan
-
-from threading import Thread
 
 
 class Runner:
@@ -89,6 +89,18 @@ class Runner:
         else:
             analysis.last_operation_filenames = {"sample": [tumor], "control": [normal]}
             self._run_mutation_analysis(analysis, True)
+
+    def generate_reports(self, filenames: Iterable[str]) -> None:
+        barcoded_filenames = [BarcodedFilename(filename) for filename in filenames]
+        reports_generator = ReportsGenerator(
+            self.root, self.config, self.parameters, barcoded_filenames
+        )
+
+        if self.parameters["generate_report"]:
+            reports_generator.generate_analysis_reports()
+
+        if self.parameters["generate_global_report"]:
+            reports_generator.generate_global_reports()
 
     def _run_mutation_analysis(self, analysis: Analysis, use_strelka: bool) -> None:
         mutect = Mutect(analysis)

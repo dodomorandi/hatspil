@@ -9,18 +9,8 @@ import traceback
 from email.mime.text import MIMEText
 from enum import Enum
 from multiprocessing import Manager, Pool
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    MutableMapping,
-    Optional,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import (Any, Callable, Dict, Iterable, List, MutableMapping,
+                    Optional, Tuple, Union, cast)
 
 from . import utils
 from .aligner import GenericAligner, RnaSeqAligner
@@ -83,6 +73,18 @@ def get_parser() -> argparse.ArgumentParser:
         "called 'config.ini' in the current working "
         "directory. If it is not available, an error will be "
         "raised.",
+    )
+    parser.add_argument(
+        "--no-report",
+        dest="generate_report",
+        action="store_false",
+        help="Do not create a report for the current run. The creation of reports requires a valid MongoDB configuration."
+    )
+    parser.add_argument(
+        "--no-global-report",
+        dest="generate_global_report",
+        action="store_false",
+        help="Do not create a global report for all the data in the database. The creation of reports requires a valid MongoDB configuration."
     )
     parser.add_argument(
         "--no-mail", dest="mail", action="store_false", help="Do not send emails."
@@ -485,6 +487,8 @@ def main() -> None:
         "skip_mapping": args.skip_mapping,
         "only_mapping": args.only_mapping,
         "use_tdf": args.use_tdf,
+        "generate_report": args.generate_report,
+        "generate_global_report": args.generate_global_report,
     }
 
     logging.basicConfig(format="%(asctime)-15s %(message)s")
@@ -738,6 +742,9 @@ def main() -> None:
                     "Raised exception:\n%s" % (args.list_file, traceback.format_exc())
                 )
                 msg["Subject"] = "Pipeline error"
+
+    if not args.only_mapping and config.use_mongodb:
+        runner.generate_reports(input_samples)
 
     if args.mail and len(config.mails) > 0:
         msg["From"] = "HaTSPiL <info@hatspil>"

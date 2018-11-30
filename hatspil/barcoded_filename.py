@@ -181,9 +181,9 @@ class BarcodedFilename:
     project: str
     patient: str
     tissue: Tissue
-    molecule: Molecule
-    analyte: Analyte
-    kit: int
+    molecule: Optional[Molecule]
+    analyte: Optional[Analyte]
+    kit: Optional[int]
     biopsy: Optional[int]
     xenograft: Optional[Xenograft]
     sample: Optional[int]
@@ -361,13 +361,34 @@ class BarcodedFilename:
         else:
             sample = str(sample_index)
 
-        return "%s-%s-%02s-%d%d%d-%s%s%s" % (
+        tissue = self.get_tissue_str_optional()
+        if tissue is None:
+            tissue_string = "□"
+        else:
+            tissue_string = tissue
+
+        if self.molecule is None:
+            molecule = "□"
+        else:
+            molecule = str(int(self.molecule))
+
+        if self.analyte is None:
+            analyte = "□"
+        else:
+            analyte = str(int(self.analyte))
+
+        if self.kit is None:
+            kit = "□"
+        else:
+            kit = str(int(self.kit))
+
+        return "%s-%s-%02s-%s%s%s-%s%s%s" % (
             self.project,
             self.patient,
-            self.get_tissue_str(),
-            self.molecule,
-            self.analyte,
-            self.kit,
+            tissue_string,
+            molecule,
+            analyte,
+            kit,
             biopsy,
             sample,
             sequencing,
@@ -472,6 +493,23 @@ class BarcodedFilename:
             return "6" + chr(ord("a") + self.xenograft.generation)
         else:
             return "%02d" % self.tissue
+
+    def get_tissue_str_optional(self) -> Optional[str]:
+        if self.tissue == Tissue.PRIMARY_XENOGRAFT_TISSUE:
+            if self.xenograft is None:
+                return None
+            else:
+                return "6" + chr(ord("A") + self.xenograft.generation)
+        elif self.tissue == Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE:
+            if self.xenograft is None:
+                return None
+            else:
+                return "6" + chr(ord("a") + self.xenograft.generation)
+        else:
+            if self.tissue is None:
+                return None
+            else:
+                return "%02d" % self.tissue
 
     def get_sample_index(self) -> Optional[int]:
         if self.xenograft is None:

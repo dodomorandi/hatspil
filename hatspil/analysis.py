@@ -14,10 +14,7 @@ class Analysis:
     ) -> None:
         self.sample = sample
         self.root = root
-        if parameters["use_date"] is None:
-            self.current = utils.get_current()
-        else:
-            self.current = parameters["use_date"]
+        self.current = utils.get_overridable_current_date(parameters)
         self.parameters = parameters
         self.basename = "%s.%s" % (self.sample, self.current)
         self.bam_dir = os.path.join(self.root, "BAM")

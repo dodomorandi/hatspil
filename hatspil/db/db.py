@@ -80,6 +80,9 @@ class Db:
         if not sample:
             return None
 
+        if not barcoded.molecule or not barcoded.analyte:
+            return None
+
         sequencing = self.sequencings.find_or_insert(
             {"sample": sample["_id"], "index": barcoded.sequencing},
             {
@@ -134,6 +137,9 @@ class Db:
             sample_data["xenograft"] = barcoded.xenograft.to_dict()
         sample = self.samples.find(sample_data)
         if not sample:
+            return None
+
+        if not barcoded.molecule or not barcoded.analyte:
             return None
 
         sequencing = self.sequencings.find(

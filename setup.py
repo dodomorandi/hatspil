@@ -1,13 +1,23 @@
 #!/bin/env python3
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 setup(
     name="HatsPil",
     version="0.5rc0",
     packages=find_packages(),
     python_requires=">=3.6",
-    install_requires=["cutadapt", "rpy2", "pandas", "tables", "numpy", "PyVCF"],
+    install_requires=[
+        "cutadapt",
+        "rpy2",
+        "pandas",
+        "tables",
+        "numpy",
+        "PyVCF",
+        "plotly",
+        "colorlover",
+        "spectra",
+    ],
     extras_require={"MongoDB": ["pymongo"]},
     package_data={"": ["data.hdf"]},
     include_package_data=True,

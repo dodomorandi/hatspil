@@ -8,20 +8,9 @@ import subprocess
 from argparse import ArgumentTypeError
 from copy import deepcopy
 from logging import Logger
-from typing import (
-    Any,
-    Dict,
-    Generator,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-    ValuesView,
-    cast,
-)
+from typing import (Any, Callable, Dict, Generator, Iterable, List, Mapping,
+                    Optional, Sequence, Tuple, TypeVar, Union, ValuesView,
+                    cast)
 
 from .barcoded_filename import BarcodedFilename
 from .config import Config
@@ -31,6 +20,15 @@ from .exceptions import AnnotationError, DataError
 def get_current() -> str:
     today = datetime.date.today()
     return "%04d_%02d_%02d" % (today.year, today.month, today.day)
+
+
+def get_overridable_current_date(parameters: Dict[str, Any]) -> str:
+    if parameters["use_date"] is None:
+        return get_current()
+    else:
+        current_date = parameters["use_date"]
+        assert isinstance(current_date, str)
+        return current_date
 
 
 def run_and_log(command: str, logger: Logger) -> int:
@@ -260,3 +258,24 @@ def parse_as_number(s: str) -> Union[int, float, str]:
         return int(s)
     else:
         return s
+
+
+T = TypeVar("T")
+
+
+def rfind_if(iterable: Sequence[T], fun: Callable[[T], bool]) -> Optional[int]:
+    for index, element in enumerate(reversed(iterable)):
+        if fun(element):
+            return len(iterable) - index
+    return None
+
+
+def argmin(iterable: Iterable[T]) -> Optional[int]:
+    best = min(
+        ((index, element) for (index, element) in enumerate(iterable)),
+        key=lambda x: x[1],
+    )
+    if best is not None:
+        return best[0]
+    else:
+        return None
