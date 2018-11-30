@@ -42,8 +42,9 @@ class Strelka:
 
     def make(self) -> None:
         self.analysis.logger.info("Running make for strelka")
-        self.chdir()
-        os.chdir(self.strelka_dir)
+        if not self.analysis.run_fake:
+            self.chdir()
+            os.chdir(self.strelka_dir)
 
         executor = Executor(self.analysis)
         executor(
