@@ -696,7 +696,7 @@ class VariantCalling:
         self.analysis.logger.info("Finished collecting annotated variants from ANNOVAR")
 
     def run(self) -> None:
-        if (
+        if not self.analysis.run_fake and (
             len(self.mutect_filenames)
             + sum([len(values) for values in self.varscan_filenames.values()])
             > 0
