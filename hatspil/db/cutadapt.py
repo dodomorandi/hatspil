@@ -28,7 +28,7 @@ class Cutadapt:
     def store_from_file(
         self, analysis: Analysis, cutadapt_report_filename: str
     ) -> None:
-        if not analysis.config.use_mongodb:
+        if not analysis.config.use_mongodb or analysis.run_fake:
             return
 
         data = Cutadapt.from_file_to_dict(cutadapt_report_filename)

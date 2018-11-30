@@ -27,7 +27,7 @@ class PicardMetrics:
     def store_from_file(
         self, analysis: Analysis, filename: str, metrics_type: PicardMetricsType
     ) -> None:
-        if not analysis.config.use_mongodb:
+        if not analysis.config.use_mongodb or analysis.run_fake:
             return
 
         data = cast(
