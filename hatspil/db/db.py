@@ -66,7 +66,7 @@ class Db:
                 "tissue": int(barcoded.tissue),
             }
         )
-        if not biopsy:
+        if biopsy is None:
             return None
 
         sample_data = {"biopsy": biopsy["_id"]}
@@ -77,10 +77,10 @@ class Db:
             assert barcoded.tissue.is_xenograft()
             sample_data["xenograft"] = barcoded.xenograft.to_dict()
         sample = self.samples.find_or_insert(sample_data)
-        if not sample:
+        if sample is None:
             return None
 
-        if not barcoded.molecule or not barcoded.analyte:
+        if barcoded.molecule is None or barcoded.analyte is None:
             return None
 
         sequencing = self.sequencings.find_or_insert(
@@ -91,7 +91,7 @@ class Db:
                 "kit": barcoded.kit,
             },
         )
-        if not sequencing:
+        if sequencing is None:
             return None
 
         return {
@@ -125,7 +125,7 @@ class Db:
                 "tissue": int(barcoded.tissue),
             }
         )
-        if not biopsy:
+        if biopsy is None:
             return None
 
         sample_data = {"biopsy": biopsy["_id"]}
@@ -136,10 +136,10 @@ class Db:
             assert barcoded.tissue.is_xenograft()
             sample_data["xenograft"] = barcoded.xenograft.to_dict()
         sample = self.samples.find(sample_data)
-        if not sample:
+        if sample is None:
             return None
 
-        if not barcoded.molecule or not barcoded.analyte:
+        if barcoded.molecule is None or barcoded.analyte is None:
             return None
 
         sequencing = self.sequencings.find(
@@ -150,7 +150,7 @@ class Db:
                 "molecule": int(barcoded.molecule),
             }
         )
-        if not sequencing:
+        if sequencing is None:
             return None
 
         return {
