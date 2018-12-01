@@ -368,7 +368,7 @@ def main() -> None:
         )
 
         all_filenames = os.listdir(args.fastq_dir)
-        filenames_set = set()
+        input_samples_set = set()
         with open(args.list_file) as fd:
             for line_index, line in enumerate(fd):
                 match = re_pattern.match(line.strip())
@@ -444,13 +444,13 @@ def main() -> None:
                             and barcoded_filename.tissue
                             != Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE
                         ) or barcoded_filename.organism is None:
-                            filenames_set.add(match.group(1))
+                            input_samples_set.add(match.group(1))
                             added_files += 1
 
                 if added_files == 0:
                     print("ERROR: cannot find any file for sample %s" % line.strip())
                     exit(-1)
-        filenames = list(filenames_set)
+        input_samples = list(input_samples_set)
 
     elif args.scan_samples:
         fastq_files = [
@@ -458,7 +458,7 @@ def main() -> None:
             for filename in os.listdir(args.fastq_dir)
             if re.search(r"\.fastq$", filename, re.I)
         ]
-        filenames = list(
+        input_samples = list(
             set(
                 [
                     re.sub(r"(\.R[12])?\.fastq$", "", filename, flags=re.I)
@@ -492,7 +492,7 @@ def main() -> None:
     aligner_is_needed = False
     rnaseq_aligner_is_needed = False
     xenograft_classifier_is_needed = False
-    for sample in filenames:
+    for sample in input_samples:
         barcoded_filename = BarcodedFilename.from_sample(sample)
         if barcoded_filename.analyte == Analyte.RNASEQ:
             rnaseq_aligner_is_needed = True
@@ -582,7 +582,7 @@ def main() -> None:
     error_raised = False
     try:
         with Pool(5) as pool:
-            pool.map(runner, filenames)
+            pool.map(runner, input_samples)
 
         if args.mail:
             msg = MIMEText(
@@ -632,9 +632,9 @@ def main() -> None:
                     )
 
         samples_with_no_normal = {
-            sample: filenames["sample"][0][0]
-            for sample, filenames in samples.items()
-            if "control" not in filenames and len(filenames["sample"]) > 0
+            sample: sample_filenames["sample"][0][0]
+            for sample, sample_filenames in samples.items()
+            if "control" not in sample_filenames and len(sample_filenames["sample"]) > 0
         }
 
         for sample, filename in samples_with_no_normal.items():
