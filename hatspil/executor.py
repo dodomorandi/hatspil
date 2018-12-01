@@ -1,19 +1,8 @@
 import os
 import re
 from enum import Enum
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import (Any, Callable, Dict, Iterable, List, Mapping, Optional,
+                    Sequence, Tuple, Union, cast)
 
 from . import utils
 from .analysis import Analysis
@@ -496,13 +485,13 @@ class Executor:
 
     def _get_commands(
         self, all_params: Mapping[str, Any]
-    ) -> List[Union[str, Callable]]:
+    ) -> List[Union[str, Callable[..., None]]]:
         assert self.data
         assert self.data.command
 
         locals().update(all_params)
 
-        commands = []
+        commands: List[Union[str, Callable[..., None]]] = []
         if isinstance(self.data.command, list):
             for s in self.data.command:
                 if isinstance(s, str):
