@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from enum import Enum
-from typing import (Any, Callable, Iterable, List, Optional, Sequence,
-                    Union)
+from typing import (Any, Callable, Iterable, List, MutableMapping, Optional,
+                    Sequence, Union)
 
 
 class ReportTableSortingType(Enum):
@@ -15,29 +15,32 @@ class ReportTableColumnOrdering:
         self.sorting_type = sorting_type
 
     def html(self) -> str:
-        return "[{}, {}]".format(self.column_index, str(self.sorting_type))
+        return '[{}, "{}"]'.format(self.column_index, self.sorting_type.value)
 
 
 class ReportTable:
-    Entry = Union[str, int, float]
-    columns: OrderedDict[str, List[Entry]]
+    Entry = Union[str, int, float, bool]
+    # This is an OrderedDict, but the annotation is not accepted in Python 3.6
+    columns: MutableMapping[str, List[Entry]]
 
     def __init__(self, html_id: str, *column_names: str) -> None:
         self.html_id = html_id
         self._order: Optional[List[ReportTableColumnOrdering]] = None
-        self._row_modifier: Optional[Callable[[OrderedDict], str]] = None
+        self._row_modifier: Optional[
+            Callable[[MutableMapping[str, ReportTable.Entry]], str]
+        ] = None
         self._table_class: Optional[str] = None
         self.style: Optional[str] = None
 
-        self.set_columns(*column_names)
+        self.set_columns(column_names)
 
     def set_columns(self, column_names: Iterable[str]) -> None:
-        self.columns = OrderedDict()
+        self.columns: MutableMapping[str, ReportTable.Entry] = OrderedDict()
         for column_name in column_names:
             self.columns[column_name] = []
 
     def add_row(self, row: Sequence[Entry]) -> None:
-        assert all(map(lambda column: not column, self.columns.values()))
+        assert all(map(lambda column: column is not None, self.columns.values()))
         assert len(row) == len(self.columns)
 
         for column, entry in zip(self.columns.values(), row):
@@ -45,10 +48,9 @@ class ReportTable:
 
     @property
     def order(self) -> Optional[List[ReportTableColumnOrdering]]:
-        return self.order
+        return self._order
 
-    @order.setter
-    def order(
+    def set_order(
         self,
         order: Union[Iterable[ReportTableColumnOrdering], ReportTableColumnOrdering],
     ) -> None:
@@ -57,16 +59,16 @@ class ReportTable:
         else:
             self._order = list(order)
 
-            if not self.order:
+            if not self._order:
                 self._order = None
 
     @property
-    def row_modifier(self) -> Optional[Callable[[OrderedDict[str, Entry]], str]]:
+    def row_modifier(self) -> Optional[Callable[[MutableMapping[str, Entry]], str]]:
         return self._row_modifier
 
     @row_modifier.setter
     def row_modifier(
-        self, modifier: Optional[Callable[[OrderedDict[str, Entry]], str]]
+        self, modifier: Optional[Callable[[MutableMapping[str, Entry]], str]]
     ) -> None:
         self._row_modifier = modifier
 
@@ -91,7 +93,16 @@ class ReportTable:
             row_modifier = default_row_modifier
 
         html_rows: List[str] = []
-        for row_index in range(len(next(iter(self.columns)))):
+        if self.columns:
+            first_column_len = len(next(iter(self.columns.values())))
+            assert all(
+                map(
+                    lambda column: len(column) == first_column_len,
+                    self.columns.values(),
+                )
+            )
+
+        for row_index in range(len(next(iter(self.columns.values())))):
             row = self._get_row(row_index)
             html_rows.append(
                 "<tr{}>{}</tr>".format(
@@ -116,15 +127,17 @@ class ReportTable:
             self.html_id,
             "{{'order': [{}]}}".format(
                 ",".join([order.html() for order in self._order])
-            ) if self._order else "",
+            )
+            if self._order
+            else "",
         )
 
-    def _get_row(self, row_index: int) -> OrderedDict[str, Entry]:
+    def _get_row(self, row_index: int) -> MutableMapping[str, Entry]:
         assert self.columns
         assert row_index >= 0
-        assert row_index < len(next(iter(self.columns)))
+        assert row_index < len(next(iter(self.columns.values())))
 
-        row_content: OrderedDict[str, ReportTable.Entry] = OrderedDict()
+        row_content: MutableMapping[str, ReportTable.Entry] = OrderedDict()
         for col_name, entries in self.columns.items():
             row_content[col_name] = entries[row_index]
         return row_content

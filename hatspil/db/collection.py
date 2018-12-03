@@ -45,4 +45,4 @@ class Collection:
             return None
 
         assert self.collection is not None
-        return cast(List[Dict[str, Any]], self.collection.find(data))
+        return [cast(Dict[str, Any], element) for element in self.collection.find(data)]

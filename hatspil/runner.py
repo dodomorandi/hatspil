@@ -90,10 +90,10 @@ class Runner:
             analysis.last_operation_filenames = {"sample": [tumor], "control": [normal]}
             self._run_mutation_analysis(analysis, True)
 
-    def generate_reports(self, filenames: Iterable[str]) -> None:
-        barcoded_filenames = [BarcodedFilename(filename) for filename in filenames]
+    def generate_reports(self, samples: Iterable[str]) -> None:
+        barcoded_samples = [BarcodedFilename.from_sample(sample) for sample in samples]
         reports_generator = ReportsGenerator(
-            self.root, self.config, self.parameters, barcoded_filenames
+            self.root, self.config, self.parameters, barcoded_samples
         )
 
         if self.parameters["generate_report"]:
