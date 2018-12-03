@@ -132,14 +132,11 @@ class ReportsGenerator:
         sequencing = sample_data["sequencing"]
         assert isinstance(sequencing, dict)
         assert "_id" in sequencing
-
         sequencing_id = sequencing["_id"]
-        analyses_dates = self._get_analyses_dates(sample_data)
-        assert sequencing_id is not None
-        assert analyses_dates
 
-        # TODO: take an appropriate date instead of the first one
-        analysis_date = analyses_dates[0].strftime("%Y_%m_%d")
+        analysis_date_obj = self._get_best_analysis_date_for_sample(sample_data)
+        assert analysis_date_obj
+        analysis_date = analysis_date_obj.strftime("%Y_%m_%d")
 
         picard_hs_metrics = self.db.picard_metrics.find(
             {"sequencing": sequencing_id, "date": analysis_date, "type": "hs"}
@@ -239,13 +236,16 @@ class ReportsGenerator:
     def _add_plots_for_multiple_samples(
         self, samples: Iterable[Dict[str, Any]], figures: List[FigureData]
     ) -> None:
-        # TODO: get a proper analysis instead of taking the first one
-        analyses_dates = [
-            self._get_analyses_dates(sample)[0].strftime("%Y_%m_%d")
-            if "sequencing" in sample
-            else None
-            for sample in samples
-        ]
+        analyses_dates: List[Optional[str]] = []
+        for sample in samples:
+            if "sequencing" in sample:
+                analysis_date = self._get_best_analysis_date_for_sample(sample)
+                if not analysis_date:
+                    analyses_dates.append(None)
+                else:
+                    analyses_dates.append(analysis_date.strftime("%Y_%m_%d"))
+            else:
+                analyses_dates.append(None)
 
         hs_metrics = [
             self.db.picard_metrics.find(
@@ -972,8 +972,38 @@ class ReportsGenerator:
 
             best_samples = self._get_best_matching_samples(sample, matchable_samples)
             if best_samples:
-                # TODO: take an appropriate sample instead of the first one
-                best_sample = best_samples[0]
+                sample_analysis_date = self._get_best_analysis_date_for_sample(sample)
+                if sample_analysis_date:
+                    matchable_samples_dates = [
+                        self._get_best_analysis_date_for_sample(matchable_sample)
+                        for matchable_sample in matchable_samples
+                    ]
+
+                    def get_date_distance(
+                        matchable_sample_date: Optional[datetime.date]
+                    ) -> datetime.timedelta:
+                        assert sample_analysis_date
+                        if matchable_sample_date:
+                            return abs(sample_analysis_date - matchable_sample_date)
+                        else:
+                            return datetime.timedelta(days=999999999)
+
+                    best_sample_index = utils.argmin(
+                        matchable_samples_dates, get_date_distance
+                    )
+                    assert best_sample_index is not None
+                    best_sample = best_samples[best_sample_index]
+                else:
+                    # At this point I don't have any other choice to pick one.
+                    # I take the first sample in lexicographic order just to
+                    # have consistent outputs
+                    def get_sample_barcode(sample_data: Dict[str, Any]) -> str:
+                        sample_barcoded = Db.to_barcoded(sample_data)
+                        assert sample_barcoded
+                        return sample_barcoded.get_barcode()
+
+                    best_samples.sort(key=get_sample_barcode)
+                    best_sample = best_samples[0]
                 return Db.to_barcoded(best_sample)
             else:
                 return None
@@ -1349,3 +1379,20 @@ class ReportsGenerator:
                 "</script>".format(figure_type)
             )
         return include_plotlyjs
+
+    def _get_best_analysis_date_for_sample(
+        self, sample: Dict[str, Any]
+    ) -> Optional[datetime.date]:
+        analyses_dates = self._get_analyses_dates(sample)
+        if not analyses_dates:
+            return None
+
+        current_date = datetime.datetime.strptime(
+            utils.get_overridable_current_date(self.parameters), "%Y_%m_%d"
+        ).date()
+        analyses_dates.sort(key=lambda date: abs(current_date - date))
+        analysis_date = next(
+            (date for date in analyses_dates if date <= current_date), analyses_dates[0]
+        )
+
+        return analysis_date
