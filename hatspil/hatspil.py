@@ -78,13 +78,13 @@ def get_parser() -> argparse.ArgumentParser:
         "--no-report",
         dest="generate_report",
         action="store_false",
-        help="Do not create a report for the current run. The creation of reports requires a valid MongoDB configuration."
+        help="Do not create a report for the current run. The creation of reports requires a valid MongoDB configuration.",
     )
     parser.add_argument(
         "--no-global-report",
         dest="generate_global_report",
         action="store_false",
-        help="Do not create a global report for all the data in the database. The creation of reports requires a valid MongoDB configuration."
+        help="Do not create a global report for all the data in the database. The creation of reports requires a valid MongoDB configuration.",
     )
     parser.add_argument(
         "--no-mail", dest="mail", action="store_false", help="Do not send emails."
