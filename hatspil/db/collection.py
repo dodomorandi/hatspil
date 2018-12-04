@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional, cast
 
 import hatspil.db
 from pymongo import ReturnDocument
+from pymongo.cursor import Cursor
 
 
 class Collection:
@@ -46,3 +47,10 @@ class Collection:
 
         assert self.collection is not None
         return [cast(Dict[str, Any], element) for element in self.collection.find(data)]
+
+    def iter(self, data: Optional[Dict] = None) -> Optional[Cursor]:
+        if not self.db or not self.db.config.use_mongodb:
+            return None
+
+        assert self.collection is not None
+        return self.collection.find(data)

@@ -3,7 +3,7 @@ import os
 import re
 from itertools import accumulate
 from typing import (Any, Dict, Iterable, List, Optional, Sequence, Set, TextIO,
-                    Union, cast)
+                    Tuple, Union, cast)
 
 import colorlover as cl
 import plotly.graph_objs as go
@@ -32,6 +32,11 @@ class FigureData:
 class ReportsGenerator:
     FiguresType = Dict[str, List[FigureData]]
     RE_INVALID_CHAR = re.compile(r"[^A-Za-z0-9._-]")
+    cached_annotations: Dict[str, Dict[str, Any]] = {}
+    cached_annotations_ids: Dict[ObjectId, str] = {}
+    cached_sequencing_analysis_dates: Dict[ObjectId, List[datetime.date]] = {}
+    cached_sequencings_to_analyses: Dict[ObjectId, List[Tuple[ObjectId, str]]] = {}
+    cached_sequencing_has_metrics_data: Dict[ObjectId, bool] = {}
 
     def __init__(
         self,
@@ -52,8 +57,36 @@ class ReportsGenerator:
         if self.barcoded_samples is None:
             return
 
+        self._generate_reports("report", self.barcoded_samples)
+
+    def generate_global_reports(self) -> None:
+        barcoded_samples: List[BarcodedFilename] = []
+        db_data: List[Dict[str, Any]] = []
+
+        sequencings = self.db.sequencings.find_all()
+        assert sequencings is not None
+        for sequencing in sequencings:
+            sample_data = self.db.from_sequencing_id(sequencing["_id"])
+            assert sample_data
+            try:
+                barcoded_sample = Db.to_barcoded(sample_data)
+            except Exception:
+                continue
+
+            if barcoded_sample:
+                db_data.append(sample_data)
+                barcoded_samples.append(barcoded_sample)
+
+        self._generate_reports("global_report", barcoded_samples, db_data)
+
+    def _generate_reports(
+        self,
+        filename_prefix: str,
+        barcoded_samples: Iterable[BarcodedFilename],
+        db_data: Optional[List[Dict[str, Any]]] = None,
+    ) -> None:
         samples_per_directory: Dict[str, List[BarcodedFilename]] = {}
-        for barcoded_sample in self.barcoded_samples:
+        for barcoded_sample in barcoded_samples:
             report_directory = barcoded_sample.get_directory(self.out_dir)
             samples_per_directory.setdefault(report_directory, []).append(
                 barcoded_sample
@@ -63,28 +96,32 @@ class ReportsGenerator:
         for report_directory, barcoded_samples in samples_per_directory.items():
             os.makedirs(report_directory, exist_ok=True)
             report_filename = os.path.join(
-                report_directory, "report_{}.html".format(current_date)
+                report_directory, "{}_{}.html".format(filename_prefix, current_date)
             )
             if os.path.exists(report_filename):
                 counter = 1
                 while os.path.exists(report_filename):
                     report_filename = os.path.join(
                         report_directory,
-                        "report_{}_{:02}.html".format(current_date, counter),
+                        "{}_{}_{:02}.html".format(
+                            filename_prefix, current_date, counter
+                        ),
                     )
                     counter += 1
 
-            self.create_report_for_barcoded_samples(barcoded_samples, report_filename)
+            self._create_report_for_barcoded_samples(
+                barcoded_samples, report_filename, db_data
+            )
 
-    def generate_global_reports(self) -> None:
-        # TODO
-        pass
-
-    def create_report_for_barcoded_samples(
-        self, barcoded_samples: Iterable[BarcodedFilename], report_filename: str
+    def _create_report_for_barcoded_samples(
+        self,
+        barcoded_samples: Iterable[BarcodedFilename],
+        report_filename: str,
+        db_data: Optional[List[Dict[str, Any]]],
     ) -> None:
         self.is_plotlyjs_included = False
-        db_data = self._get_db_data_from_barcoded_samples(barcoded_samples)
+        if not db_data:
+            db_data = self._get_db_data_from_barcoded_samples(barcoded_samples)
 
         figures_by_sequencing: ReportsGenerator.FiguresType = {}
         figures_by_sample: ReportsGenerator.FiguresType = {}
@@ -135,7 +172,8 @@ class ReportsGenerator:
         sequencing_id = sequencing["_id"]
 
         analysis_date_obj = self._get_best_analysis_date_for_sample(sample_data)
-        assert analysis_date_obj
+        if not analysis_date_obj:
+            return
         analysis_date = analysis_date_obj.strftime("%Y_%m_%d")
 
         picard_hs_metrics = self.db.picard_metrics.find(
@@ -167,6 +205,9 @@ class ReportsGenerator:
                 )
                 assert before_zero is not None
                 coverage_count = coverage_count[:before_zero]
+                if not coverage_count:
+                    continue
+
                 max_n_reads = max(coverage_count[1:])
                 max_n_reads_coverage = sum(coverage_count[1:]) * 0.99
                 cum_n_reads = list(accumulate(coverage_count[1:]))
@@ -247,33 +288,35 @@ class ReportsGenerator:
             else:
                 analyses_dates.append(None)
 
-        hs_metrics = [
-            self.db.picard_metrics.find(
-                {
-                    "sequencing": sample["sequencing"]["_id"],
-                    "type": PicardMetricsType.hs.name,
-                    "date": analysis_date,
-                }
-            )
-            for (sample, analysis_date) in zip(samples, analyses_dates)
-            if "sequencing" in sample
-        ]
-        assert all(hs_metrics)
+        hs_metrics: List[Dict[str, Any]] = []
+        marked_dup_metrics: List[Dict[str, Any]] = []
+        barcoded_samples = []
+        for sample, sample_analysis_date in zip(samples, analyses_dates):
+            if "sequencing" in sample and sample_analysis_date:
+                hs = self.db.picard_metrics.find(
+                    {
+                        "sequencing": sample["sequencing"]["_id"],
+                        "type": PicardMetricsType.hs.name,
+                        "date": sample_analysis_date,
+                    }
+                )
 
-        marked_dup_metrics = [
-            self.db.picard_metrics.find(
-                {
-                    "sequencing": sample["sequencing"]["_id"],
-                    "type": PicardMetricsType.marked_duplicates.name,
-                    "date": analysis_date,
-                }
-            )
-            for (sample, analysis_date) in zip(samples, analyses_dates)
-            if "sequencing" in sample
-        ]
-        assert all(marked_dup_metrics)
+                if hs:
+                    hs_metrics.append(hs)
 
-        barcoded_samples = [self.db.to_barcoded(sample) for sample in samples]
+                mark_dup = self.db.picard_metrics.find(
+                    {
+                        "sequencing": sample["sequencing"]["_id"],
+                        "type": PicardMetricsType.marked_duplicates.name,
+                        "date": sample_analysis_date,
+                    }
+                )
+                if mark_dup:
+                    marked_dup_metrics.append(mark_dup)
+
+                barcoded_sample = self.db.to_barcoded(sample)
+                assert barcoded_sample
+                barcoded_samples.append(barcoded_sample)
 
         raw_barcodes = [
             barcoded_sample.get_barcode()
@@ -391,6 +434,7 @@ class ReportsGenerator:
             figure = go.Figure(
                 data=figure_data,
                 layout=go.Layout(
+                    title="Reads statistics",
                     barmode="stack",
                     xaxis={"tickangle": -30, "automargin": True},
                     margin={"l": 150},
@@ -431,24 +475,25 @@ class ReportsGenerator:
             for sample_coverages in fractional_coverages_per_sample
         ]
 
-        coverage_bars = [
-            go.Bar(
-                x=[
-                    sample_coverages[multiplier_index]
-                    for sample_coverages in reversed(relative_coverages_per_sample)
-                ],
-                y=list(reversed(raw_barcodes)),
-                name=multiplier,
-                orientation="h",
-                marker={"color": coverage_colors[multiplier_index]},
-            )
-            for (multiplier_index, multiplier) in enumerate(multipliers)
-        ]
+        if relative_coverages_per_sample:
+            coverage_bars = [
+                go.Bar(
+                    x=[
+                        sample_coverages[multiplier_index]
+                        for sample_coverages in reversed(relative_coverages_per_sample)
+                    ],
+                    y=list(reversed(raw_barcodes)),
+                    name=multiplier,
+                    orientation="h",
+                    marker={"color": coverage_colors[multiplier_index]},
+                )
+                for (multiplier_index, multiplier) in enumerate(multipliers)
+            ]
 
-        if coverage_bars:
             figure = go.Figure(
                 data=coverage_bars,
                 layout=go.Layout(
+                    title="Samples coverages",
                     barmode="stack",
                     yaxis={"tickangle": -30, "automargin": True, "ticksuffix": "  "},
                     xaxis={"automargin": True},
@@ -691,7 +736,13 @@ class ReportsGenerator:
                 )
 
     def _has_metrics_data(self, sequencing_id: ObjectId) -> bool:
-        return (
+        cached_result = ReportsGenerator.cached_sequencing_has_metrics_data.get(
+            sequencing_id
+        )
+        if cached_result is not None:
+            return cached_result
+
+        result = (
             self.db.picard_metrics.find(
                 {"sequencing": sequencing_id, "type": PicardMetricsType.hs.name}
             )
@@ -704,6 +755,8 @@ class ReportsGenerator:
             )
             is not None
         )
+        ReportsGenerator.cached_sequencing_has_metrics_data[sequencing_id] = result
+        return result
 
     def _get_best_control(
         self, sample: Dict[str, Any], control_samples: Sequence[Dict[str, Any]]
@@ -1018,12 +1071,22 @@ class ReportsGenerator:
             return None
 
     def _get_analyses_dates(self, sample_data: Dict[str, Any]) -> List[datetime.date]:
-        dates: List[datetime.date] = []
         sequencing = sample_data["sequencing"]
+        sequencing_id = sequencing["_id"]
+        assert sequencing_id
+        cached_date = ReportsGenerator.cached_sequencing_analysis_dates.get(
+            sequencing_id
+        )
+        if cached_date is not None:
+            return list(cached_date)
 
-        analyses = self.db.analyses.find_all({"sequencing": sequencing["_id"]})
-        assert analyses is not None
-        if not analyses:
+        dates: List[datetime.date] = []
+        self._populate_sequencing_to_analyses_cache()
+        analyses_id_with_date = ReportsGenerator.cached_sequencings_to_analyses[
+            sequencing_id
+        ]
+        assert analyses_id_with_date is not None
+        if not analyses_id_with_date:
             barcoded_sample = Db.to_barcoded(sample_data)
             assert barcoded_sample
             assert barcoded_sample.tissue
@@ -1068,29 +1131,29 @@ class ReportsGenerator:
                 best_related_samples_data = self._get_best_matching_samples(
                     sample_data, related_samples_data
                 )
-                analyses = []
+                analyses_id_with_date = []
                 for best_related_sample_data in best_related_samples_data:
-                    current_analyses = self.db.analyses.find_all(
-                        {"sequencing": best_related_sample_data["sequencing"]["_id"]}
-                    )
-                    assert current_analyses is not None
-                    analyses += current_analyses
+                    current_analyses = ReportsGenerator.cached_sequencings_to_analyses[
+                        best_related_sample_data["sequencing"]["_id"]
+                    ]
+                    analyses_id_with_date += current_analyses
 
-        for analysis in analyses:
-            splitted_date = [int(value) for value in analysis["date"].split("_")]
+        for analysis_id, analysis_date in analyses_id_with_date:
+            splitted_date = [int(value) for value in analysis_date.split("_")]
             dates.append(
                 datetime.date(splitted_date[0], splitted_date[1], splitted_date[2])
             )
+
+        ReportsGenerator.cached_sequencing_analysis_dates[sequencing_id] = list(dates)
         return dates
 
     def _add_variants_tables(
         self, samples: Iterable[Dict[str, Any]], figures: FiguresType
     ) -> None:
-        annotations = {}
-
+        self._populate_sequencing_to_analyses_cache()
         for sample in samples:
-            analyses = self.db.analyses.find_all(
-                {"sequencing": sample["sequencing"]["_id"]}
+            analyses = self._get_cached_analyses_from_sequencing(
+                sample["sequencing"]["_id"]
             )
 
             if not analyses:
@@ -1099,9 +1162,15 @@ class ReportsGenerator:
             for analysis in analyses:
                 assert analysis
                 for annotation_id in analysis["annotations"]:
-                    annotation = self.db.annotations.find({"_id": annotation_id})
-                    assert annotation
-                    annotations[annotation["id"]] = annotation
+                    if annotation_id not in ReportsGenerator.cached_annotations_ids:
+                        annotation = self.db.annotations.find({"_id": annotation_id})
+                        assert annotation
+                        ReportsGenerator.cached_annotations[
+                            annotation["id"]
+                        ] = annotation
+                        ReportsGenerator.cached_annotations_ids[
+                            annotation_id
+                        ] = annotation["id"]
 
             variants = []
             for analysis in analyses:
@@ -1110,7 +1179,7 @@ class ReportsGenerator:
                     if not variant_key:
                         continue
 
-                    annotation = annotations.get(variant_key)
+                    annotation = ReportsGenerator.cached_annotations.get(variant_key)
                     if not annotation:
                         continue
 
@@ -1120,7 +1189,10 @@ class ReportsGenerator:
             if not variants:
                 continue
 
-            variants_annotations = [annotations[variant["key"]] for variant in variants]
+            variants_annotations = [
+                ReportsGenerator.cached_annotations[variant["key"]]
+                for variant in variants
+            ]
             cosmic_ids = []
             for annotation in variants_annotations:
                 cosmic_id = annotation.get("cosmic70")
@@ -1165,6 +1237,7 @@ class ReportsGenerator:
             for (variant, annotation, cosmic_id) in zip(
                 variants, variants_annotations, cosmic_ids
             ):
+                depth = variant.get("DP")
                 report_table.add_row(
                     [
                         annotation["Chr"],
@@ -1185,7 +1258,7 @@ class ReportsGenerator:
                         if "hgnc_canonical_refseq" in annotation
                         else "",
                         annotation["druggable"],
-                        variant["DP"],
+                        depth if depth is not None else "",
                     ]
                 )
 
@@ -1199,10 +1272,9 @@ class ReportsGenerator:
                 "{ background-color: #80e780; }"
             )
 
-            analyses_dates = self._get_analyses_dates(sample)
-            assert analyses_dates
-            # TODO: take an appropriate sample instead of the first one
-            analysis_date = analyses_dates[0].strftime("%Y_%m_%d")
+            analysis_date_obj = self._get_best_analysis_date_for_sample(sample)
+            assert analysis_date_obj
+            analysis_date = analysis_date_obj.strftime("%Y_%m_%d")
             figures.setdefault(sample_barcode, []).append(
                 FigureData(report_table, analysis_date)
             )
@@ -1396,3 +1468,38 @@ class ReportsGenerator:
         )
 
         return analysis_date
+
+    def _populate_sequencing_to_analyses_cache(self) -> None:
+        if ReportsGenerator.cached_sequencings_to_analyses:
+            return
+
+        analyses_iter = self.db.analyses.iter()
+        assert analyses_iter
+        for analysis in analyses_iter:
+            ReportsGenerator.cached_sequencings_to_analyses.setdefault(
+                analysis["sequencing"], []
+            ).append((analysis["_id"], analysis["date"]))
+
+        sequencings_iter = self.db.sequencings.iter()
+        assert sequencings_iter
+        for sequencing in sequencings_iter:
+            ReportsGenerator.cached_sequencings_to_analyses.setdefault(
+                sequencing["_id"], []
+            )
+
+    def _get_cached_analyses_from_sequencing(
+        self, sequencing_id: ObjectId
+    ) -> List[Dict[str, Any]]:
+        self._populate_sequencing_to_analyses_cache()
+        analyses_ids_and_dates = ReportsGenerator.cached_sequencings_to_analyses[
+            sequencing_id
+        ]
+        current_analysis_ids = [
+            analysis_id for analysis_id, analysis_date in analyses_ids_and_dates
+        ]
+        if current_analysis_ids:
+            out = self.db.analyses.find_all({"_id": {"$in": current_analysis_ids}})
+        else:
+            out = []
+        assert out is not None
+        return out

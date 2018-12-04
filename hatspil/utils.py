@@ -261,6 +261,7 @@ def parse_as_number(s: str) -> Union[int, float, str]:
 
 
 T = TypeVar("T")
+U = TypeVar("U")
 
 
 def rfind_if(iterable: Sequence[T], fun: Callable[[T], bool]) -> Optional[int]:
@@ -270,10 +271,12 @@ def rfind_if(iterable: Sequence[T], fun: Callable[[T], bool]) -> Optional[int]:
     return None
 
 
-def argmin(iterable: Iterable[T]) -> Optional[int]:
+def argmin(
+    iterable: Iterable[T], key: Optional[Callable[[T], U]] = None
+) -> Optional[int]:
     best = min(
         ((index, element) for (index, element) in enumerate(iterable)),
-        key=lambda x: x[1],
+        key=lambda x: key(x[1]) if key else x[1],
     )
     if best is not None:
         return best[0]
