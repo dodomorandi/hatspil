@@ -34,13 +34,11 @@ class Analysis:
 
         os.makedirs(logs_dir, exist_ok=True)
 
-        self.logger = logging.getLogger(self.basename)
         self.log_handler = logging.FileHandler(
             os.path.join(logs_dir, self.basename + ".steps.txt")
         )
         self.log_handler.setFormatter(logging.Formatter("%(asctime)s-15 %(message)s"))
-        self.logger.addHandler(self.log_handler)
-        self.logger.setLevel(logging.INFO)
+        self.logger = utils.create_logger(self.basename, self.log_handler)
 
     def _get_first_filename(self) -> Optional[str]:
         filename = self.last_operation_filenames

@@ -1,6 +1,7 @@
 import collections
 import datetime
 import gzip as gz
+import logging
 import os
 import re
 import shutil
@@ -282,3 +283,14 @@ def argmin(
         return best[0]
     else:
         return None
+
+
+def create_logger(
+    logger_name: str, handler: Optional[logging.FileHandler] = None
+) -> Logger:
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(logging.INFO)
+    if handler:
+        logger.addHandler(handler)
+
+    return logger

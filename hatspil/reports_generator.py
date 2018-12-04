@@ -12,7 +12,7 @@ import spectra
 from bson import ObjectId
 
 from . import utils
-from .barcoded_filename import BarcodedFilename, Tissue
+from .barcoded_filename import BarcodedFilename
 from .config import Config
 from .db import Db
 from .db.picard_metrics import PicardMetricsType
@@ -52,14 +52,19 @@ class ReportsGenerator:
         self.out_dir = os.path.join(self.root, "reports")
         self.is_plotlyjs_included = False
         self.db = Db(self.config)
+        self.logger = utils.create_logger("reports")
 
     def generate_analysis_reports(self) -> None:
         if self.barcoded_samples is None:
             return
 
+        self.logger.info("Started the creation of the report for the current analysis")
         self._generate_reports("report", self.barcoded_samples)
+        self.logger.info("Finished the creation of the report for the current analysis")
 
     def generate_global_reports(self) -> None:
+        self.logger.info("Started the creation of the global report")
+
         barcoded_samples: List[BarcodedFilename] = []
         db_data: List[Dict[str, Any]] = []
 
@@ -78,6 +83,7 @@ class ReportsGenerator:
                 barcoded_samples.append(barcoded_sample)
 
         self._generate_reports("global_report", barcoded_samples, db_data)
+        self.logger.info("Finished the creation of the global report")
 
     def _generate_reports(
         self,
