@@ -52,7 +52,7 @@ class Aligner:
                     f'-oSAM "@RG\tID:{self.analysis.basename}\t'
                     f'SM:{self.analysis.sample}\tLB:lib1\tPL:ILLUMINA" '
                     f"-d {{genome_index}} "
-                    f"-i PE {config.mean_len_library},{config.sd_len_library} "
+                    f"-i PE {{kit.mean_len_library}},{{kit.sd_len_library}} "
                     f"-t 90 -f {{input_filename}}> {{output_filename}}",
                     input_function=lambda l: " ".join(sorted(l)),
                     input_split_reads=False,

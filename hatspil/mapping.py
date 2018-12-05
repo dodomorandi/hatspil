@@ -60,8 +60,11 @@ class Mapping:
             is_paired_end = False
 
         executor = Executor(self.analysis)
+        barcoded_sample = BarcodedFilename.from_sample(self.analysis.sample)
+        kit = utils.get_kit_from_barcoded(self.analysis.config, barcoded_sample)
+        assert kit
         if is_paired_end:
-            if not config.adapter_r1 or not config.adapter_r2:
+            if not kit.adapter_r1 or not kit.adapter_r2:
                 self.analysis.logger.warning(
                     "cutadapt needs both adapter to perform "
                     "a paired-end trimming. Skipping cutadapt"
@@ -69,8 +72,8 @@ class Mapping:
                 return
 
             executor(
-                f"cutadapt -a {config.adapter_r1} "
-                "-A {config.adapter_r2} "
+                f"cutadapt -a {{kit.adapter_r1}} "
+                "-A {{kit.adapter_r2}} "
                 f'-m 20 -o "{{output_filename[0]}}" -p '
                 f'"{{output_filename[1]}}" {{input_filename}} '
                 f'> "{report_filename}"',
@@ -86,7 +89,7 @@ class Mapping:
                 ],
             )
         else:
-            if not config.adapter_r1:
+            if not kit.adapter_r1:
                 self.analysis.logger.warning(
                     "cutadapt needs the R1 adapter to perform "
                     "a single end trimming. Skipping cutadapt"
@@ -94,7 +97,7 @@ class Mapping:
                 return
 
             executor(
-                f"cutadapt -a {config.adapter_r1} "
+                f"cutadapt -a {{kit.adapter_r1}} "
                 f'-m 20 -o "{{output_filename}}" '
                 f" {{input_filename}} "
                 f'> "{report_filename}"',
@@ -270,7 +273,7 @@ class Mapping:
             f"AddOrReplaceReadGroups "
             f"I={{input_filename}} "
             f"O={{output_filename}} RGID={self.analysis.basename} "
-            f"RGLB=lib1 RGPL=ILLUMINA RGPU={config.kit} "
+            f"RGLB=lib1 RGPL=ILLUMINA RGPU={{kit.name}} "
             f"RGSM={self.analysis.basename}"
             f"{self.max_records_str}",
             output_format=f"{self.analysis.basename}.rg{{organism_str}}.bam",
@@ -435,9 +438,9 @@ class Mapping:
             f"{config.java} {config.gatk_jvm_args} -jar {config.gatk} "
             f"-T RealignerTargetCreator -R {{genome_ref}} "
             f"-I {{input_filename}} -nt {self.gatk_threads} "
-            f"-known {config.indel_1} -known {config.indel_2} "
+            f"-known {{indel_1}} -known {{indel_2}} "
             f"{rnaseq_parameter}"
-            f"-L {config.target_list} "
+            f"-L {{kit.target_list}} "
             f"-ip 50 -o {{output_filename}}",
             output_format=f"{self.output_basename}.realignment"
             f"{{organism_str}}.intervals",
@@ -451,7 +454,7 @@ class Mapping:
             f"{config.java} {config.gatk_jvm_args} -jar {config.gatk} "
             f"-T IndelRealigner -R {{genome_ref}} "
             f"-I {{input_filename}} "
-            f"-known {config.indel_1} -known {config.indel_2} "
+            f"-known {{indel_1}} -known {{indel_2}} "
             f"{rnaseq_parameter}"
             f"-targetIntervals {self.output_basename}.realignment"
             f"{{organism_str}}.intervals "
@@ -522,7 +525,7 @@ class Mapping:
             f"-T BaseRecalibrator -R {{genome_ref}} "
             f"{rnaseq_parameter}"
             f"-I {{input_filename}} -knownSites {{dbsnp}} "
-            f"-L {config.target_list} -ip 50 "
+            f"-L {{kit.target_list}} -ip 50 "
             f"-nct {self.gatk_threads} "
             f"-o {self.output_basename}.post_realignment"
             f"{{organism_str}}.table",
@@ -594,8 +597,8 @@ class Mapping:
         executor(
             f"{config.java} {config.picard_jvm_args} -jar {config.picard} "
             f"CollectHsMetrics "
-            f"I={{input_filename}} BI={config.bait_list} "
-            f"TI={config.target_list} R={{genome_ref}} "
+            f"I={{input_filename}} BI={{kit.bait_list}} "
+            f"TI={{kit.target_list}} R={{genome_ref}} "
             f"O={self.output_basename}.hs_metrics{{organism_str}}.txt "
             f"MINIMUM_MAPPING_QUALITY=0 "
             f"MINIMUM_BASE_QUALITY=0 "

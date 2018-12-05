@@ -7,6 +7,7 @@ from typing import (Any, Callable, Dict, Iterable, List, Mapping, Optional,
 from . import utils
 from .analysis import Analysis
 from .barcoded_filename import BarcodedFilename
+from .config import KitData
 from .exceptions import DataError, PipelineError
 
 
@@ -461,7 +462,9 @@ class Executor:
             self._fix_input_filenames(input_filenames)
             return (input_filenames, {})
 
-    def _get_additional_params(self, organism: Optional[str]) -> Dict[str, str]:
+    def _get_additional_params(
+        self, organism: Optional[str], kit: Optional[KitData]
+    ) -> Dict[str, str]:
         additional_params = {}
 
         if not organism:
@@ -469,6 +472,12 @@ class Executor:
             organism = utils.get_human_annotation(self.analysis.config)
         else:
             additional_params["organism_str"] = "." + organism
+
+        if kit:
+            for index in (1, 2):
+                additional_params["indel_{}".format(index)] = getattr(
+                    kit, "indel_{}_{}".format(index, organism)
+                )
 
         try:
             genome_ref, genome_index = utils.get_genome_ref_index_by_organism(
@@ -577,12 +586,13 @@ class Executor:
 
         if file_data:
             organism = file_data.barcode.organism
+            kit = utils.get_kit_from_barcoded(self.analysis.config, file_data.barcode)
         else:
             organism = None
+            kit = None
 
         if not self.data.only_human or not organism or organism.startswith("hg"):
-
-            locals().update(self._get_additional_params(organism))
+            locals().update(self._get_additional_params(organism, kit))
             if not organism:
                 organism = utils.get_human_annotation(self.analysis.config)
 

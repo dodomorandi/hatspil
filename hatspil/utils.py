@@ -14,7 +14,7 @@ from typing import (Any, Callable, Dict, Generator, Iterable, List, Mapping,
                     cast)
 
 from .barcoded_filename import BarcodedFilename
-from .config import Config
+from .config import Config, KitData
 from .exceptions import AnnotationError, DataError
 
 
@@ -294,3 +294,12 @@ def create_logger(
         logger.addHandler(handler)
 
     return logger
+
+
+def get_kit_from_barcoded(
+    config: Config, barcoded: BarcodedFilename
+) -> Optional[KitData]:
+    assert barcoded.kit is not None
+    assert barcoded.analyte
+
+    return config.kits.get((barcoded.kit, barcoded.analyte))

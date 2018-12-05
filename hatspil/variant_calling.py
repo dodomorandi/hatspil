@@ -434,6 +434,11 @@ class VariantCalling:
     def collect_annotated_variants(self) -> None:
         self.analysis.logger.info("Collecting annotated variants from ANNOVAR")
 
+        barcoded_sample = BarcodedFilename.from_sample(self.analysis.sample)
+        assert barcoded_sample
+        kit = utils.get_kit_from_barcoded(self.analysis.config, barcoded_sample)
+        assert kit
+
         annotation = pd.read_table(self.multianno_filename)
         annotation = annotation[annotation.Chr.str.match(r"chr(?:\d{1,2}|[xXyY])")]
         annotation.insert(
@@ -452,7 +457,7 @@ class VariantCalling:
         gene_info.drop_duplicates(subset="symbol", inplace=True)
 
         selected_cancer_genes = cancer_genes[
-            cancer_genes.cancer_site == self.analysis.config.cancer_site
+            cancer_genes.cancer_site == kit.cancer_site
         ]
 
         annotation.reset_index(inplace=True, drop=True)
@@ -465,7 +470,7 @@ class VariantCalling:
         selected_symbols = annotation["Gene.refGene"].isin(selected_cancer_genes.symbol)
         annotation.loc[
             selected_symbols, "cancer_gene_site"
-        ] = self.analysis.config.cancer_site
+        ] = kit.cancer_site
 
         annotation.loc[
             annotation["Func.refGene"] == "splicing", "ExonicFunc.refGene"
@@ -547,11 +552,9 @@ class VariantCalling:
         ].tolist()
         annotation.loc[empty_canonical_refseqs, "hgnc_canonical_refseq"] = float("nan")
 
-        barcoded_sample = BarcodedFilename.from_sample(self.analysis.sample)
-
         if barcoded_sample.analyte == Analyte.GENE_PANEL:
             amplicons = pd.read_table(
-                self.analysis.config.amplicons,
+                kit.amplicons,
                 header=None,
                 names=("chrom", "start", "end", "name", "length", "strand"),
                 skiprows=2,

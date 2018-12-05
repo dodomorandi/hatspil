@@ -1,8 +1,28 @@
 import os
 import subprocess
 import sys
-from configparser import ConfigParser
-from typing import Optional
+from configparser import ConfigParser, SectionProxy
+from itertools import chain
+from typing import Any, Dict, Optional, Tuple
+
+from .barcoded_filename import Analyte
+
+
+class KitData:
+    def __init__(self) -> None:
+        self.name = "Kit"
+        self.target_list = "04818-1466508813_target.interval_list"
+        self.bait_list = "04818-1466508813_amplicons.interval_list"
+        self.indel_1_hg19 = "1000G_phase1.indels.hg19.sites.vcf"
+        self.indel_2_hg19 = "Mills_and_1000G_gold_standard.indels.hg19.sites.vcf"
+        self.indel_1_hg38 = "1000G_phase1.indels.hg38.sites.vcf"
+        self.indel_2_hg38 = "Mills_and_1000G_gold_standard.indels.hg38.sites.vcf"
+        self.amplicons = "amplicons.bed"
+        self.cancer_site = "soft_tissue"
+        self.adapter_r1 = ""
+        self.adapter_r2 = ""
+        self.mean_len_library = 200
+        self.sd_len_library = 100
 
 
 class Config:
@@ -24,12 +44,7 @@ class Config:
         "cosmic_hg38",
         "dbsnp138_hg19",
         "dbsnp138_hg38",
-        "target_list",
-        "bait_list",
-        "indel_1",
-        "indel_2",
         "annovar_basedir",
-        "amplicons",
     )
     optional_files = (
         "star_index_hg19",
@@ -45,18 +60,29 @@ class Config:
         "xenome_index",
         "xenome_threads",
         "strelka_threads",
-        "mean_len_library",
-        "sd_len_library",
         "use_hg19",
         "use_hg38",
         "use_mm9",
         "use_mm10",
-        "kit",
         "mails",
         "use_mongodb",
+    )
+    kits_files = (
+        "target_list",
+        "bait_list",
+        "indel_1_hg19",
+        "indel_2_hg19",
+        "indel_1_hg38",
+        "indel_2_hg38",
+        "amplicons",
+    )
+    kits_parameters = (
+        "name",
         "cancer_site",
         "adapter_r1",
         "adapter_r2",
+        "mean_len_library",
+        "sd_len_library",
     )
     mongodb = ("database", "host", "port", "username", "password")
 
@@ -108,21 +134,11 @@ class Config:
         self.cosmic_hg38 = "Cosmic.hg38.vcf"
         self.dbsnp138_hg19 = "dbsnp_138.hg19.vcf"
         self.dbsnp138_hg38 = "dbsnp_138.hg38.vcf"
-        self.adapter_r1 = ""
-        self.adapter_r2 = ""
         self.use_hg19 = True
         self.use_hg38 = True
         self.use_mm9 = True
         self.use_mm10 = True
-        self.mean_len_library = 200
-        self.sd_len_library = 100
-        self.kit = "Kit"
-        self.target_list = "04818-1466508813_target.interval_list"
-        self.bait_list = "04818-1466508813_amplicons.interval_list"
-        self.indel_1 = "1000G_phase1.indels.hg19.sites.vcf"
-        self.indel_2 = "Mills_and_1000G_gold_standard.indels.hg19.sites.vcf"
-        self.amplicons = "amplicons.bed"
-        self.cancer_site = "soft_tissue"
+        self.kits: Dict[Tuple[int, Analyte], KitData] = {}
         self.mails = ""
         self.use_mongodb = True
         self.mongodb_database = "hatspil"
@@ -132,45 +148,102 @@ class Config:
         self.mongodb_port = 27017
 
         if filename:
-            parser = ConfigParser()
-            parser.read(filename)
-            for section_name in "EXECUTABLES", "JARS", "FILES", "PARAMETERS", "MONGODB":
-                if section_name not in parser:
-                    sys.stderr.write(
-                        "WARNING: %s section in config not "
-                        "found. Values are set to default\n" % section_name
-                    )
-                    continue
+            self._check_after_init(filename)
 
-                section = parser[section_name]
-                for key in section:
-                    if section_name == "MONGODB":
-                        setattr(self, "mongodb_" + key, section[key])
-                    else:
-                        setattr(self, key, section[key])
+    def _check_after_init(self, filename: str) -> None:
+        VALID_SECTIONS = ("EXECUTABLES", "JARS", "FILES", "PARAMETERS", "MONGODB")
 
-            if "PARAMETERS" in parser:
-                for param in (
-                    "xenome_threads",
-                    "strelka_threads",
-                    "mean_len_library",
-                    "sd_len_library",
-                ):
-                    if param in parser["PARAMETERS"]:
-                        setattr(self, param, parser["PARAMETERS"].getint(param))
-                for param in (
-                    "use_hg19",
-                    "use_hg38",
-                    "use_mm9",
-                    "use_mm10",
-                    "use_mongodb",
-                ):
-                    if param in parser["PARAMETERS"]:
-                        setattr(self, param, parser["PARAMETERS"].getboolean(param))
+        parser = ConfigParser()
+        parser.read(filename)
+        for section_name in VALID_SECTIONS:
+            if section_name not in parser:
+                sys.stderr.write(
+                    "WARNING: %s section in config not "
+                    "found. Values are set to default\n" % section_name
+                )
+                continue
 
-            if "MONGODB" in parser:
-                if "port" in parser["MONGODB"]:
-                    self.mongodb_port = parser["MONGODB"].getint("port")
+            section = parser[section_name]
+            for key in section:
+                if section_name == "MONGODB":
+                    setattr(self, "mongodb_" + key, section[key])
+                else:
+                    setattr(self, key, section[key])
+
+        if "PARAMETERS" in parser:
+            for param in (
+                "xenome_threads",
+                "strelka_threads",
+                "mean_len_library",
+                "sd_len_library",
+            ):
+                if param in parser["PARAMETERS"]:
+                    setattr(self, param, parser["PARAMETERS"].getint(param))
+            for param in ("use_hg19", "use_hg38", "use_mm9", "use_mm10", "use_mongodb"):
+                if param in parser["PARAMETERS"]:
+                    setattr(self, param, parser["PARAMETERS"].getboolean(param))
+
+        for section_name, section_params in parser.items():
+            if section_name.startswith("KIT"):
+                self._check_kit_section(section_name, section_params)
+            elif section_name not in chain(VALID_SECTIONS, ("DEFAULT",)):
+                sys.stderr.write("WARNING: '%s' section is invalid\n" % section_name)
+
+        if "MONGODB" in parser:
+            if "port" in parser["MONGODB"]:
+                self.mongodb_port = parser["MONGODB"].getint("port")
+
+    def _check_kit_section(
+        self, section_name: str, section_params: SectionProxy
+    ) -> None:
+        splitted_section_name = section_name.split(" ")
+        valid_section = True
+        if len(splitted_section_name) != 3:
+            valid_section = False
+
+        if valid_section:
+            try:
+                kit_index = int(splitted_section_name[1])
+                analyte = Analyte.__members__[splitted_section_name[2]]
+            except Exception:
+                try:
+                    kit_index = int(splitted_section_name[2])
+                    analyte = Analyte.__members__[splitted_section_name[1]]
+                except Exception:
+                    valid_section = False
+
+        if valid_section:
+            current_kit = self.kits.setdefault((kit_index, analyte), KitData())
+        else:
+            analytes_str = "|".join(Analyte.__members__.keys())
+            sys.stderr.write(
+                "WARNING: '{}' kit section is invalid. "
+                "The format is as following:\n"
+                "KIT n [{}]\nor\nKIT [{}] n\n".format(
+                    section_name, analytes_str, analytes_str
+                )
+            )
+            return
+
+        for param_name in (
+            "name",
+            "cancer_site",
+            "adapter_r1",
+            "adapter_r2",
+            "target_list",
+            "bait_list",
+            "indel_1_hg19",
+            "indel_2_hg19",
+            "indel_1_hg38",
+            "indel_2_hg38",
+            "amplicons",
+        ):
+            if param_name in section_params:
+                setattr(current_kit, param_name, section_params[param_name])
+
+        for param_name in ("mean_len_library", "sd_len_library"):
+            if param_name in section_params:
+                setattr(current_kit, param_name, section_params.getint(param_name))
 
     def save(self, filename: str) -> None:
         config = ConfigParser()
@@ -194,6 +267,17 @@ class Config:
         for parameter in Config.parameters:
             parameters[parameter] = str(getattr(self, parameter))
         config["PARAMETERS"] = parameters
+
+        available_kits = dict(self.kits)
+        if not available_kits:
+            available_kits[(0, Analyte.WHOLE_EXOME)] = KitData()
+
+        for kit_name, kit_data in available_kits.items():
+            section_name = "KIT {} {}".format(kit_name[0], kit_name[1].name)
+            kit = {}
+            for param in chain(Config.kits_files, Config.kits_parameters):
+                kit[param] = getattr(kit_data, param)
+            config[section_name] = kit
 
         mongodb_params = {}
         for mongodb_param in Config.mongodb:
@@ -249,7 +333,7 @@ class Config:
 
         return ok
 
-    def check_file_param(self, param: str) -> Optional[bool]:
+    def check_file_param(self, obj: Any, param: str) -> Optional[bool]:
         if "hg19" in param:
             if not self.use_hg19:
                 return None
@@ -263,7 +347,7 @@ class Config:
             if not self.use_mm10:
                 return None
 
-        filepath = getattr(self, param)
+        filepath = getattr(obj, param)
         if not os.access(filepath, os.R_OK):
             sys.stderr.write("ERROR: %s cannot be read. Check config.\n" % param)
             return False
@@ -273,12 +357,21 @@ class Config:
         ok = True
 
         for param in Config.files:
-            param_is_valid = self.check_file_param(param)
+            param_is_valid = self.check_file_param(self, param)
             if param_is_valid is None:
                 continue
 
             if not param_is_valid:
                 ok = False
+
+        for kit_data in self.kits.values():
+            for param in Config.kits_files:
+                param_is_valid = self.check_file_param(kit_data, param)
+                if param_is_valid is None:
+                    continue
+
+                if not param_is_valid:
+                    ok = False
 
         return ok
 
@@ -286,7 +379,7 @@ class Config:
         ok = True
         for param in ("star_index", "features"):
             for organism in ("hg19", "hg38", "mm9", "mm10"):
-                param_is_valid = self.check_file_param(f"{param}_{organism}")
+                param_is_valid = self.check_file_param(self, f"{param}_{organism}")
                 if param_is_valid is None:
                     continue
 
