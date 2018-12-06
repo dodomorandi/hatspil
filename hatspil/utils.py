@@ -300,6 +300,6 @@ def get_kit_from_barcoded(
     config: Config, barcoded: BarcodedFilename
 ) -> Optional[KitData]:
     assert barcoded.kit is not None
-    assert barcoded.analyte
+    assert barcoded.analyte is not None
 
     return config.kits.get((barcoded.kit, barcoded.analyte))

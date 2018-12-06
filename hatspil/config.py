@@ -366,6 +366,9 @@ class Config:
 
         for kit_data in self.kits.values():
             for param in Config.kits_files:
+                if not getattr(kit_data, param):
+                    continue
+
                 param_is_valid = self.check_file_param(kit_data, param)
                 if param_is_valid is None:
                     continue

@@ -73,7 +73,7 @@ class Mapping:
 
             executor(
                 f"cutadapt -a {{kit.adapter_r1}} "
-                "-A {{kit.adapter_r2}} "
+                f"-A {{kit.adapter_r2}} "
                 f'-m 20 -o "{{output_filename[0]}}" -p '
                 f'"{{output_filename[1]}}" {{input_filename}} '
                 f'> "{report_filename}"',

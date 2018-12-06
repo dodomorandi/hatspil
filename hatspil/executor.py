@@ -462,9 +462,7 @@ class Executor:
             self._fix_input_filenames(input_filenames)
             return (input_filenames, {})
 
-    def _get_additional_params(
-        self, organism: Optional[str], kit: Optional[KitData]
-    ) -> Dict[str, str]:
+    def _get_additional_params(self, organism: Optional[str]) -> Dict[str, str]:
         additional_params = {}
 
         if not organism:
@@ -472,12 +470,6 @@ class Executor:
             organism = utils.get_human_annotation(self.analysis.config)
         else:
             additional_params["organism_str"] = "." + organism
-
-        if kit:
-            for index in (1, 2):
-                additional_params["indel_{}".format(index)] = getattr(
-                    kit, "indel_{}_{}".format(index, organism)
-                )
 
         try:
             genome_ref, genome_index = utils.get_genome_ref_index_by_organism(
@@ -501,6 +493,21 @@ class Executor:
             )
         except DataError:
             pass
+
+        return additional_params
+
+    def _get_kit_additional_params(
+        self, organism: Optional[str], kit: Optional[KitData]
+    ) -> Dict[str, str]:
+        additional_params = {}
+        if not organism:
+            organism = utils.get_human_annotation(self.analysis.config)
+
+        if kit and organism.startswith("hg"):
+            for index in (1, 2):
+                additional_params["indel_{}".format(index)] = getattr(
+                    kit, "indel_{}_{}".format(index, organism)
+                )
 
         return additional_params
 
@@ -591,8 +598,10 @@ class Executor:
             organism = None
             kit = None
 
+        locals().update(self._get_kit_additional_params(organism, kit))
+
         if not self.data.only_human or not organism or organism.startswith("hg"):
-            locals().update(self._get_additional_params(organism, kit))
+            locals().update(self._get_additional_params(organism))
             if not organism:
                 organism = utils.get_human_annotation(self.analysis.config)
 
