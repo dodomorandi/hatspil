@@ -10,7 +10,7 @@ from email.mime.text import MIMEText
 from enum import Enum
 from multiprocessing import Manager, Pool
 from typing import (Any, Callable, Dict, Iterable, List, MutableMapping,
-                    Optional, Tuple, Union, cast)
+                    Optional, Set, Tuple, Union, cast)
 
 from . import utils
 from .aligner import GenericAligner, RnaSeqAligner
@@ -265,6 +265,34 @@ def set_aligner_param(
             exit(-5)
 
 
+def check_all_kits_are_available(config: Config, samples: Iterable[str]) -> None:
+    unavailable_kits: Set[Tuple[int, Analyte]] = set()
+    for sample in samples:
+        barcoded = BarcodedFilename.from_sample(sample)
+        if not barcoded or barcoded.analyte is None or barcoded.kit is None:
+            continue
+
+        kit_identifier = (barcoded.kit, barcoded.analyte)
+        if kit_identifier not in config.kits:
+            unavailable_kits.add(kit_identifier)
+
+    if unavailable_kits:
+        print(
+            "Some kits are not available in the configuration file:\n"
+            "{}\n"
+            "Fix configuration and try again.".format(
+                "\n".join(
+                    [
+                        "[KIT {} {}]".format(kit[0], kit[1].name)
+                        for kit in sorted(list(unavailable_kits))
+                    ]
+                )
+            ),
+            file=sys.stderr,
+        )
+        exit(-1)
+
+
 def main() -> None:
     parser = get_parser()
     args = parser.parse_args()
@@ -481,6 +509,8 @@ def main() -> None:
         )
     else:
         raise RuntimeError("Unhandled condition")
+
+    check_all_kits_are_available(config, input_samples)
 
     parameters = {
         "use_xenograft_classifier": args.use_xenograft_classifier,
