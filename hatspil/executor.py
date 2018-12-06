@@ -370,6 +370,7 @@ class Executor:
                 for other_analysis in analyses
                 for other_file_data in other_analysis
                 if file_data.barcode.equals_without_tissue(other_file_data.barcode)
+                and other_file_data.barcode.tissue.is_normal()
             ]
 
             if len(controls) == 1:
