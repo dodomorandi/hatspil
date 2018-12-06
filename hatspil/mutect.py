@@ -32,6 +32,7 @@ class Mutect:
                 error_string="Mutect exited with status {status}",
                 exception_string="mutect error",
                 use_normals=True,
+                split_input_files=False,
             )
         else:
             executor(

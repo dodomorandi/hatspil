@@ -36,6 +36,7 @@ class Strelka:
             f"--output-dir={self.strelka_dir}",
             override_last_files=False,
             use_normals=True,
+            split_input_files=False,
         )
 
         self.analysis.logger.info("Finished configuring strelka")
@@ -51,6 +52,7 @@ class Strelka:
             f"make -j {self.analysis.config.strelka_threads}",
             override_last_files=False,
             use_normals=True,
+            split_input_files=False,
         )
 
         self.analysis.logger.info("Finished make for strelka")

@@ -259,7 +259,10 @@ class VarScan:
         executor = Executor(self.analysis)
         if self.analysis.using_normals:
             executor(
-                self._run_varscan_normals, override_last_files=False, use_normals=True
+                self._run_varscan_normals,
+                override_last_files=False,
+                use_normals=True,
+                split_input_files=False,
             )
         else:
             executor(self._run_varscan_no_normals, override_last_files=False)
