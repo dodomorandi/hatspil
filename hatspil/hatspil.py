@@ -17,7 +17,7 @@ from .aligner import GenericAligner, RnaSeqAligner
 from .barcoded_filename import Analyte, BarcodedFilename, Tissue
 from .config import Config
 from .runner import Runner
-from .xenograft import Xenograft, XenograftClassifier
+from .xenograft import Xenograft, XenograftClassifier, Xenome
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -552,6 +552,9 @@ def main() -> None:
                 )
             exit(-1)
         parameters["xenograft_classifier"] = xenograft_classifier
+
+    if parameters["xenograft_classifier"] == XenograftClassifier.XENOME:
+        Xenome.check_correct_index_files(config)
 
     if args.r_checks and args.post_recalibration:
         try:

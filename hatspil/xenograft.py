@@ -3,6 +3,7 @@ import itertools
 import os
 import re
 import shutil
+import sys
 from copy import deepcopy
 from enum import Enum, auto
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
@@ -39,6 +40,48 @@ class Xenome:
         self.input_filenames = SingleAnalysis()
         self.human_annotation = utils.get_human_annotation(analysis.config)
         self.mouse_annotation = utils.get_mouse_annotation(analysis.config)
+
+    @staticmethod
+    def check_correct_index_files(config: Config) -> None:
+        index_base = config.xenome_index
+
+        non_existant_files: List[str] = []
+        invalid_files: List[str] = []
+
+        for suffix in ("-both", "-graft", "-host"):
+            complete_filename = "{}{}.kmers.header".format(index_base, suffix)
+
+            if not os.path.exists(complete_filename):
+                non_existant_files.append(complete_filename)
+                continue
+
+            try:
+                with open(complete_filename, "rb") as fd:
+                    date_header = fd.read(4)
+                    if date_header != b"\x25\x26\xed\x77":
+                        invalid_files.append(complete_filename)
+            except Exception:
+                invalid_files.append(complete_filename)
+
+        if not non_existant_files and not invalid_files:
+            return
+
+        if non_existant_files:
+            print(
+                "Not all Xenome index files are available.\n"
+                "The following are missing:\n{}".format("\n".join(non_existant_files)),
+                file=sys.stderr,
+            )
+
+        if invalid_files:
+            print(
+                "Some Xenome index files cannot be read or Xenome and index files are "
+                "obsolete:\n{}\nUpdate Xenome and rebuild indices.".format(
+                    "\n".join(invalid_files)
+                ),
+                file=sys.stderr,
+            )
+        exit(-1)
 
     def chdir(self) -> None:
         os.chdir(self.fastq_dir)
