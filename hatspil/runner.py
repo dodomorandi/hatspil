@@ -32,6 +32,12 @@ class Runner:
 
     def __call__(self, sample: str) -> None:
         analysis = Analysis(sample, self.root, self.config, self.parameters)
+
+        barcoded_sample = BarcodedFilename.from_sample(sample)
+        if self.config.use_mongodb:
+            db = Db(analysis.config)
+            db.store_barcoded(barcoded_sample)
+
         Starter.run(analysis, self.fastq_dir)
 
         filenames: List[str] = []
@@ -47,20 +53,13 @@ class Runner:
             else:
                 filenames = analysis.last_operation_filenames
 
-        if self.config.use_mongodb:
-            db = Db(analysis.config)
-
-            for filename in filenames:
-                barcoded_filename = BarcodedFilename(filename)
-                db.store_barcoded(barcoded_filename)
-
         mapping = Mapping(analysis, self.fastq_dir)
         mapping.run()
 
         if (
             not self.parameters["use_normals"]
             and not self.parameters["only_mapping"]
-            and barcoded_filename.analyte != Analyte.RNASEQ
+            and barcoded_sample.analyte != Analyte.RNASEQ
         ):
             self._run_mutation_analysis(analysis, False)
 
