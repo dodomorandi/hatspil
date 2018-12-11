@@ -359,6 +359,16 @@ def main() -> None:
             )
             exit(-4)
 
+    try:
+        import bson
+    except Exception:
+        print(
+            "ERROR: bson module cannot be found. \n"
+            "If you intend to use MongoDB, just install pymongo which includes a "
+            "bundled bson module. Otherwise, directly install the 'bson' package."
+        )
+        exit(-4)
+
     args.fastq_dir = os.path.abspath(args.fastq_dir)
     args.root_dir = os.path.abspath(args.root_dir)
 
