@@ -3,7 +3,6 @@ from typing import Any, Dict, Optional
 from bson import ObjectId
 from hatspil.barcoded_filename import BarcodedFilename, Xenograft
 from hatspil.config import Config
-from pymongo import MongoClient
 
 from .collection import Collection
 
@@ -36,6 +35,7 @@ class Db:
         self.config = config
 
         if config.use_mongodb:
+            from pymongo import MongoClient
             mongo = MongoClient(config.mongodb_host, config.mongodb_port)
             self.db = mongo[config.mongodb_database]
             self.db.authenticate(config.mongodb_username, config.mongodb_password)

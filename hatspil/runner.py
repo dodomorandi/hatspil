@@ -34,7 +34,6 @@ class Runner:
         analysis = Analysis(sample, self.root, self.config, self.parameters)
         Starter.run(analysis, self.fastq_dir)
 
-        db = Db(analysis.config)
         filenames: List[str] = []
         if analysis.last_operation_filenames is not None:
             if isinstance(analysis.last_operation_filenames, str):
@@ -48,9 +47,12 @@ class Runner:
             else:
                 filenames = analysis.last_operation_filenames
 
-        for filename in filenames:
-            barcoded_filename = BarcodedFilename(filename)
-            db.store_barcoded(barcoded_filename)
+        if self.config.use_mongodb:
+            db = Db(analysis.config)
+
+            for filename in filenames:
+                barcoded_filename = BarcodedFilename(filename)
+                db.store_barcoded(barcoded_filename)
 
         mapping = Mapping(analysis, self.fastq_dir)
         mapping.run()
