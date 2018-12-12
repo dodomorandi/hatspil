@@ -6,7 +6,7 @@ import shutil
 import sys
 from copy import deepcopy
 from enum import Enum, auto
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, Iterable, List, Optional, Union, cast
 
 from . import utils
 from .aligner import Aligner, GenericAligner, RnaSeqAligner
@@ -22,11 +22,71 @@ class XenograftClassifier(Enum):
     DISAMBIGUATE = auto()
 
 
+class SampleFileAvailability:
+    def __init__(self) -> None:
+        self.compressed = False
+        self.uncompressed = False
+        self.host = False
+        self.graft = False
+
+    def __repr__(self) -> str:
+        out = []
+        if self.compressed:
+            out.append("compressed")
+        if self.uncompressed:
+            out.append("uncompressed")
+        if self.host:
+            out.append("host")
+        if self.graft:
+            out.append("graft")
+
+        return "[{}]".format(" ".join(out))
+
+
+class XenomePreChecker:
+    def __init__(
+        self, analysis: Analysis, human_annotation: str, mouse_annotation: str
+    ) -> None:
+        self.analysis = analysis
+        self.human_annotation = human_annotation
+        self.mouse_annotation = mouse_annotation
+        self.availability_for_sample_read: Dict[int, SampleFileAvailability] = {}
+
+    def __call__(self, **kwargs: Any) -> None:
+        input_filenames: SingleAnalysis = kwargs["input_filenames"]
+
+        for filename in input_filenames:
+            barcoded = filename.barcode
+            assert barcoded.read_index is not None
+
+            availability = self.availability_for_sample_read.setdefault(
+                barcoded.read_index, SampleFileAvailability()
+            )
+            if barcoded.gzipped:
+                assert not availability.uncompressed
+                availability.compressed = True
+            elif barcoded.organism:
+                if barcoded.organism == self.human_annotation:
+                    availability.graft = True
+                elif barcoded.organism == self.mouse_annotation:
+                    availability.host = True
+                else:
+                    raise AssertionError("invalid organism")
+            else:
+                assert not availability.compressed
+                availability.uncompressed = True
+
+
 class Xenome:
+    RE_XENOME_OUTPUT_FORMAT = re.compile(
+        r"^([^-]+-[^-]+-\d[0-9A-Za-z]-\d{3}-\d{3}(?:\.[^.]+)*?)_(\w{2}\d{1,2})_(\d)"
+        r"\.fastq"
+    )
+
     def __init__(self, analysis: Analysis, fastq_dir: str) -> None:
         self.analysis = analysis
         self.fastq_dir = fastq_dir
-        self.xenome_command = "{} classify -T {} -P {} --pairs".format(
+        self.xenome_command = "{} classify -T {} -P {}".format(
             analysis.config.xenome,
             analysis.config.xenome_threads,
             analysis.config.xenome_index,
@@ -35,11 +95,11 @@ class Xenome:
         os.makedirs(reports_dir, exist_ok=True)
 
         self.sample_base_out = os.path.join(reports_dir, self.analysis.sample)
-        self.skip_filenames: Dict[str, List[str]] = {}
         self.already_done: Dict[str, List[str]] = {}
-        self.input_filenames = SingleAnalysis()
         self.human_annotation = utils.get_human_annotation(analysis.config)
         self.mouse_annotation = utils.get_mouse_annotation(analysis.config)
+        self.availability_for_sample_read: Dict[int, SampleFileAvailability] = {}
+        self.analyzed_files: List[str] = []
 
     @staticmethod
     def check_correct_index_files(config: Config) -> None:
@@ -86,243 +146,248 @@ class Xenome:
     def chdir(self) -> None:
         os.chdir(self.fastq_dir)
 
-    def _check_lambda(self, **kwargs: SingleAnalysis) -> None:
-        self.input_filenames = SingleAnalysis(
-            [
-                cast(AnalysisFileData, filename)
-                for filename in utils.flatten(kwargs["input_filenames"])
-            ]
-        )
-        valid_filenames = SingleAnalysis()
-        for file_data in self.input_filenames:
-            if file_data.barcode.is_xenograft():
-                valid_filenames.append(file_data)
-            else:
-                organism = file_data.barcode.organism
-                if not organism:
-                    organism = utils.get_human_annotation(self.analysis.config)
-                if organism not in self.skip_filenames:
-                    self.skip_filenames[organism] = []
-                self.skip_filenames[organism].append(
-                    os.path.join(os.getcwd(), file_data.filename)
-                )
-
-        self.input_filenames = valid_filenames
-        self.input_filenames.sort(key=lambda file_data: file_data.filename)
-
-        compressed = [
-            file_data
-            for file_data in self.input_filenames
-            if file_data.filename.endswith(".gz")
-        ]
-
-        self.input_filenames = SingleAnalysis(
-            [
-                file_data
-                for file_data in self.input_filenames
-                if not file_data.filename.endswith(".gz")
-            ]
-        )
-
-        for fastqgz_data in compressed:
-            can_skip = True
-            removed: Dict[str, List[str]] = {}
-            barcoded_filename = BarcodedFilename(fastqgz_data.filename)
-            for organism in (self.human_annotation, self.mouse_annotation):
-                obtained_name = "%s.%s" % (barcoded_filename.get_barcode(), organism)
-
-                if barcoded_filename.read_index:
-                    obtained_name += ".R%s" % barcoded_filename.read_index
-                obtained_name += ".fastq"
-
-                removed[organism] = [os.path.join(os.getcwd(), obtained_name)]
-                obtained_file_data = next(
-                    (
-                        file_data
-                        for file_data in self.input_filenames
-                        if file_data.filename == obtained_name
-                    ),
-                    None,
-                )
-                if not obtained_file_data:
-                    can_skip = False
-                else:
-                    self.input_filenames.remove(obtained_file_data)
-
-            if can_skip:
-                self.already_done.update(removed)
-            else:
-                if not utils.check_gz(fastqgz_data.filename):
-                    raise PipelineError(
-                        "%s is corrupted. Fix the problem and retry"
-                        % fastqgz_data.filename
-                    )
-                utils.gunzip(fastqgz_data.filename)
-                self.input_filenames.append(
-                    AnalysisFileData(fastqgz_data.filename[:-3])
-                )
-
-    def check(self) -> bool:
+    def check(self) -> None:
         self.analysis.logger.info("Checking if xenome must be performed")
         self.chdir()
-        retval = True
 
-        run_fake = self.analysis.run_fake
-        self.analysis.run_fake = False
+        pre_checker = XenomePreChecker(
+            self.analysis, self.human_annotation, self.mouse_annotation
+        )
 
         executor = Executor(self.analysis)
-        executor(self._check_lambda, input_split_reads=False)
-
-        self.analysis.run_fake = run_fake
-
-        if len(self.input_filenames) == 0:
-            retval = False
+        executor(pre_checker, input_split_reads=False, override_last_files=False)
+        self.availability_for_sample_read = pre_checker.availability_for_sample_read
 
         self.analysis.logger.info("Checking complete")
-        return retval
 
-    def xenome(self) -> None:
-        self.analysis.logger.info("Running xenome")
+    def xenome_must_run(self) -> bool:
+        return bool(self.availability_for_sample_read) and any(
+            filter(
+                lambda availability: not cast(SampleFileAvailability, availability).host
+                or not cast(SampleFileAvailability, availability).graft,
+                self.availability_for_sample_read.values(),
+            )
+        )
+
+    def decompress(self) -> None:
+        if not self.xenome_must_run():
+            return
+
+        if not any(
+            filter(
+                lambda availability: not cast(
+                    SampleFileAvailability, availability
+                ).uncompressed,
+                self.availability_for_sample_read.values(),
+            )
+        ):
+            return
+
+        self.analysis.logger.info("Decompressing original files")
         self.chdir()
 
-        temp_dir = os.path.join(os.path.sep, "tmp", "%s.xenome" % self.analysis.sample)
-        if not os.path.exists(temp_dir):
-            os.mkdir(temp_dir)
+        def decompress_input_function(
+            input_filename: Union[str, List[str]]
+        ) -> Optional[str]:
+            if not isinstance(input_filename, str):
+                return None
+
+            barcoded = BarcodedFilename(input_filename)
+            if not barcoded.organism:
+                return input_filename
+            else:
+                return None
+
+        def decompress_output_function(input_filename: str) -> Iterable[str]:
+            barcoded = BarcodedFilename(input_filename)
+            if barcoded.gzipped:
+                return [input_filename[:-3]]
+            else:
+                return [input_filename]
+
+        def decompress_if_needed(**kwargs: SingleAnalysis) -> None:
+            input_analyses = kwargs["input_filenames"]
+            for input_analysis in input_analyses:
+                input_filename = input_analysis.filename
+                barcoded = BarcodedFilename(input_filename)
+                if barcoded.gzipped:
+                    try:
+                        utils.gunzip(input_filename)
+                    except Exception:
+                        print(
+                            "ERROR: cannot decompress file '{}'. "
+                            "Please remove this file and try again.".format(
+                                input_filename
+                            ),
+                            file=sys.stderr,
+                        )
+                        exit(-1)
 
         executor = Executor(self.analysis)
         executor(
-            f"{self.xenome_command} "
+            decompress_if_needed,
+            input_function=decompress_input_function,
+            output_function=decompress_output_function,
+            split_by_organism=True,
+            input_split_reads=True,
+        )
+
+        self.analysis.logger.info("Finished decompressing original files")
+
+    def remove_gzipped_from_files(self) -> None:
+        operations_filenames: Dict[str, List[str]] = {}
+        assert isinstance(self.analysis.last_operation_filenames, dict)
+        for organism, filenames in self.analysis.last_operation_filenames.items():
+            assert filenames
+            organism_filenames = operations_filenames.setdefault(organism, [])
+            for filename in filenames:
+                try:
+                    barcoded = BarcodedFilename(filename)
+                except Exception:
+                    continue
+
+                if barcoded and not barcoded.gzipped:
+                    organism_filenames.append(filename)
+        self.analysis.last_operation_filenames = operations_filenames
+
+    def xenome(self) -> None:
+        if not self.xenome_must_run():
+            self.remove_gzipped_from_files()
+            return
+
+        self.analysis.logger.info("Running xenome")
+        self.chdir()
+
+        assert len(self.availability_for_sample_read) <= 2
+        if len(self.availability_for_sample_read.keys()) == 2:
+            pairing_parameter = "--pairs "
+        else:
+            pairing_parameter = ""
+
+        temp_dir = os.path.join(os.path.sep, "tmp", "%s.xenome" % self.analysis.sample)
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir, exist_ok=True)
+
+        def xenome_filtered_files(filenames: List[str]) -> List[str]:
+            barcoded_filenames = [BarcodedFilename(filename) for filename in filenames]
+            assert all(barcoded_filenames)
+            return [
+                filename
+                for (filename, barcoded) in zip(filenames, barcoded_filenames)
+                if not barcoded.gzipped and not barcoded.organism
+            ]
+
+        def xenome_input_function(filenames: Union[str, List[str]]) -> Optional[str]:
+            assert isinstance(filenames, list)
+            return " ".join(
+                ["-i %s" % filename for filename in xenome_filtered_files(filenames)]
+            )
+
+        assert isinstance(self.analysis.last_operation_filenames, dict)
+        for filenames in self.analysis.last_operation_filenames.values():
+            self.analyzed_files += xenome_filtered_files(filenames)
+
+        executor = Executor(self.analysis)
+        executor(
+            f"{self.xenome_command} {pairing_parameter}"
             f"--graft-name {self.human_annotation} "
             f"--host-name {self.mouse_annotation} "
             f"--output-filename-prefix {self.analysis.sample} "
             f"{{input_filename}} "
             f"--tmp-dir {temp_dir} "
             f'> "{self.sample_base_out}.xenome_summary.txt"',
-            input_filenames=[file_data.filename for file_data in self.input_filenames],
-            input_function=lambda filenames: " ".join(
-                ["-i %s" % filename for filename in filenames]
-            ),
-            output_format=f"{self.analysis.sample}_%s_%d.fastq",
+            input_function=xenome_input_function,
+            output_format=f"{self.analysis.sample}_{{}}_{{}}.fastq",
             output_function=lambda filename: [
-                filename % (organism, index)
+                filename.format(organism, index)
                 for organism, index in itertools.product(
-                    [self.human_annotation, self.mouse_annotation], [1, 2]
+                    [
+                        self.human_annotation,
+                        self.mouse_annotation,
+                        "ambiguous",
+                        "both",
+                        "neither",
+                    ],
+                    [1, 2],
                 )
             ],
             input_split_reads=False,
         )
-        shutil.rmtree(temp_dir)
 
-        if self.analysis.run_fake:
-            if self.analysis.last_operation_filenames is None:
-                pass
-            elif isinstance(self.analysis.last_operation_filenames, str):
-                with open(self.analysis.last_operation_filenames, "a"):
-                    pass
-            elif isinstance(self.analysis.last_operation_filenames, list):
-                for filename in self.analysis.last_operation_filenames:
-                    with open(filename, "a"):
-                        pass
+        executor(
+            lambda **kwargs: shutil.rmtree(temp_dir),
+            output_format="",
+            input_split_reads=False,
+            override_last_files=False,
+            allow_raw_filenames=True,
+        )
+
+        def get_fixed_filename(filename: str) -> str:
+            basename = os.path.basename(filename)
+            dirname = os.path.dirname(filename)
+            new_basename = Xenome.RE_XENOME_OUTPUT_FORMAT.sub(
+                r"\1.\2.R\3.fastq", basename
+            )
+            return os.path.join(dirname, new_basename)
+
+        def rename_or_delete(**kwargs: SingleAnalysis) -> None:
+            input_analyses = kwargs["input_filenames"]
+            for input_analysis in input_analyses:
+                input_filename = input_analysis.filename
+                if (
+                    "ambiguous" in input_filename
+                    or "both" in input_filename
+                    or "neither" in input_filename
+                ):
+                    os.unlink(input_filename)
+                else:
+                    os.rename(input_filename, get_fixed_filename(input_filename))
+
+        def get_only_unambiguous(input_filename: str) -> Iterable[str]:
+            if (
+                "ambiguous" in input_filename
+                or "both" in input_filename
+                or "neither" in input_filename
+            ):
+                return []
             else:
-                for filenames in self.analysis.last_operation_filenames.values():
-                    for filename in filenames:
-                        with open(filename, "a"):
-                            pass
+                return [get_fixed_filename(input_filename)]
+
+        executor(
+            rename_or_delete,
+            output_function=get_only_unambiguous,
+            input_split_reads=False,
+            split_by_organism=True,
+            allow_raw_filenames=True,
+        )
 
         self.analysis.logger.info("Finished xenome")
 
-    def fix_fastq(self) -> None:
-        match = re.match(r"^[^-]+-[^-]+-(\d)", self.analysis.sample)
-        if not match or match.group(1) != "6":
-            self.analysis.last_operation_filenames = self.skip_filenames
-            return
-
-        self.analysis.logger.info("Fixing xenome fastq")
-        self.chdir()
-        self.analysis.last_operation_filenames = {}
-        re_fastq_filename = re.compile(
-            r"^%s_((?:hg|mm)\d+)_([12])\.fastq$" % self.analysis.sample, re.I
-        )
-        fastq_files = [
-            filename for filename in os.listdir() if re_fastq_filename.match(filename)
-        ]
-        for filename in fastq_files:
-            match = re_fastq_filename.match(filename)
-            assert match is not None
-
-            organism = match.group(1)
-            read_index = int(match.group(2))
-            out_filename = "%s.%s.R%d.fastq" % (
-                self.analysis.sample,
-                organism,
-                read_index,
-            )
-
-            if not self.analysis.run_fake:
-                with open(filename, "r") as in_fd, open(out_filename, "w") as out_fd:
-                    for line_index, line in enumerate(in_fd):
-                        if line_index % 4 == 0:
-                            line = line.strip()
-                            space_pos = line.find(" ")
-                            if space_pos != -1:
-                                space_pos = line.find(" ", space_pos + 1)
-
-                            out_fd.write("@%s\n" % line[:space_pos])
-                        elif line_index % 4 == 2:
-                            out_fd.write("+\n")
-                        else:
-                            out_fd.write("%s\n" % line.strip())
-
-            if organism not in self.analysis.last_operation_filenames:
-                self.analysis.last_operation_filenames[organism] = []
-            self.analysis.last_operation_filenames[organism].append(
-                os.path.join(os.getcwd(), out_filename)
-            )
-
-        other_fastq = [
-            "%s_%s_%d.fastq"
-            % cast(Tuple[str, str, int], ((self.analysis.sample,) + combo))
-            for combo in itertools.product(
-                ["ambiguous", "both", "neither"], range(1, 3)
-            )
-        ]
-        for filename in fastq_files + other_fastq:
-            if os.path.exists(filename):
-                os.unlink(filename)
-
-        self.analysis.logger.info("Finished fixing xenome fastq")
-
     def compress(self) -> None:
-        if self.analysis.run_fake:
+        if self.analysis.run_fake or not self.analyzed_files:
             return
 
         self.analysis.logger.info("Compressing fastq files")
         self.chdir()
-        fastq_files = [
-            "%s.R%d.fastq" % (self.analysis.sample, index + 1) for index in range(2)
-        ]
-        for filename in fastq_files:
-            utils.gzip(filename)
+
+        executor = Executor(self.analysis)
+        executor(
+            lambda **kwargs: utils.gzip(kwargs["input_filename"].filename),
+            input_filenames=self.analyzed_files,
+            input_split_reads=True,
+            override_last_files=False,
+        )
 
         self.analysis.logger.info("Finished compressing fastq files")
-
-    def update_last_filenames(self) -> None:
-        if self.analysis.last_operation_filenames is None:
-            self.analysis.last_operation_filenames = {}
-
-        assert isinstance(self.analysis.last_operation_filenames, dict)
-        self.analysis.last_operation_filenames.update(self.skip_filenames)
-        self.analysis.last_operation_filenames.update(self.already_done)
 
     def cannot_unlink_results(self) -> None:
         self.analysis.can_unlink = False
 
     def run(self) -> None:
-        if self.check():
-            self.xenome()
-            self.fix_fastq()
-            self.compress()
-        self.update_last_filenames()
+        self.check()
+        self.decompress()
+        self.xenome()
+        self.compress()
         self.cannot_unlink_results()
 
 

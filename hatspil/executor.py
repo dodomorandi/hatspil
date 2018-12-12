@@ -75,6 +75,7 @@ class ExecutorData:
         split_by_organism: bool,
         only_human: bool,
         split_input_files: bool,
+        allow_raw_filenames: bool,
     ) -> None:
 
         self.command = command
@@ -94,6 +95,7 @@ class ExecutorData:
         self.split_by_organism = split_by_organism
         self.only_human = only_human
         self.split_input_files = split_input_files
+        self.allow_raw_filenames = allow_raw_filenames
 
 
 class Executor:
@@ -195,6 +197,22 @@ class Executor:
                 return output_filename[0]
             else:
                 return output_filename
+
+        elif self.data.output_function is not None:
+            input_filenames = all_params["input_filenames"]
+            output_filenames = [
+                filename
+                for filenames in map(
+                    self.data.output_function,
+                    [filename.filename for filename in input_filenames],
+                )
+                for filename in filenames
+            ]
+
+            if len(output_filenames) == 1:
+                return output_filenames[0]
+            else:
+                return output_filenames
         else:
             return None
 
@@ -224,7 +242,9 @@ class Executor:
                         os.unlink(bai_file)
 
     def _handle_command(
-        self, current_command: Union[str, Callable], all_params: Mapping[str, Any]
+        self,
+        current_command: Union[str, Callable[..., None]],
+        all_params: Mapping[str, Any],
     ) -> None:
         assert self.data
 
@@ -323,25 +343,16 @@ class Executor:
                     )
                     mod_analyses.append(SingleAnalysis([AnalysisFileData(result)]))
 
-        if mod_input_filenames is None or len(mod_input_filenames) == 0:
-            raise PipelineError("empty input list")
-
-        first_mod_input_filenames = next(iter(mod_input_filenames.values()))
-        if not first_mod_input_filenames:
+        if not mod_input_filenames:
             raise PipelineError("empty input list")
 
         self._fix_input_filenames(mod_input_filenames)
-
         return mod_input_filenames
 
     def _fix_input_filenames(self, input_filenames: AnalysesPerOrganism) -> None:
         assert self.data
 
         if not input_filenames:
-            raise PipelineError("empty input list")
-
-        first_input_filenames = next(iter(input_filenames.values()))
-        if not first_input_filenames:
             raise PipelineError("empty input list")
 
         if not self.data.input_split_reads:
@@ -560,9 +571,15 @@ class Executor:
         file_data = analysis_input.sample
         if not file_data:
             file_data = analysis_input.control
-        assert file_data
 
-        organism = file_data.barcode.organism
+        if not self.data.allow_raw_filenames:
+            assert file_data
+
+        if file_data:
+            organism = file_data.barcode.organism
+        else:
+            organism = None
+
         if not self.data.only_human or not organism or organism.startswith("hg"):
 
             locals().update(self._get_additional_params(organism))
@@ -620,6 +637,7 @@ class Executor:
         split_by_organism: bool = False,
         only_human: bool = False,
         split_input_files: bool = True,
+        allow_raw_filenames: bool = False,
     ) -> None:
 
         self.data = ExecutorData(
@@ -640,6 +658,7 @@ class Executor:
             split_by_organism,
             only_human,
             split_input_files,
+            allow_raw_filenames,
         )
 
         _input_filenames, mod_input_filenames = self._get_input_filenames()
