@@ -1,4 +1,5 @@
-from typing import Iterable, List, Optional, Sequence, Tuple, TypeVar, Union, cast
+from typing import (Iterable, List, Optional, Sequence, Tuple, TypeVar, Union,
+                    cast)
 
 RangeType = TypeVar("RangeType", bound="Range")
 RangesType = TypeVar("RangesType", bound="Ranges")

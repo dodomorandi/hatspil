@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional, cast
 
 import hatspil.db
+
 try:
     from pymongo import ReturnDocument
     from pymongo.cursor import Cursor
@@ -21,7 +22,7 @@ class Collection:
             self.collection = None
 
     def find_or_insert(
-        self, data: Dict, new_data: Optional[Dict] = None
+        self, data: Dict[Any, Any], new_data: Optional[Dict[Any, Any]] = None
     ) -> Optional[Dict[str, Any]]:
         if not self.db or not self.db.config.use_mongodb:
             return None
@@ -36,7 +37,7 @@ class Collection:
         )
         return cast(Optional[Dict[str, Any]], retval)
 
-    def find(self, data: Dict) -> Optional[Dict[str, Any]]:
+    def find(self, data: Dict[Any, Any]) -> Optional[Dict[str, Any]]:
         if not self.db or not self.db.config.use_mongodb:
             return None
 
@@ -44,14 +45,16 @@ class Collection:
         retval = self.collection.find_one(data)
         return cast(Optional[Dict[str, Any]], retval)
 
-    def find_all(self, data: Optional[Dict] = None) -> Optional[List[Dict[str, Any]]]:
+    def find_all(
+        self, data: Optional[Dict[Any, Any]] = None
+    ) -> Optional[List[Dict[str, Any]]]:
         if not self.db or not self.db.config.use_mongodb:
             return None
 
         assert self.collection is not None
         return [cast(Dict[str, Any], element) for element in self.collection.find(data)]
 
-    def iter(self, data: Optional[Dict] = None) -> Optional["Cursor"]:
+    def iter(self, data: Optional[Dict[Any, Any]] = None) -> Optional["Cursor"]:
         if not self.db or not self.db.config.use_mongodb:
             return None
 

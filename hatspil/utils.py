@@ -214,14 +214,6 @@ def check_gz(filename: str) -> bool:
             return False
 
 
-def flatten(iterable: Iterable[Union[Iterable, Any]]) -> Generator[Any, None, None]:
-    for element in iterable:
-        if isinstance(element, collections.Iterable) and not isinstance(element, str):
-            yield from flatten(element)
-        else:
-            yield element
-
-
 def parsed_date(raw_date: str) -> str:
     try:
         date = datetime.datetime.strptime(raw_date, "%Y_%m_%d")
@@ -263,6 +255,14 @@ def parse_as_number(s: str) -> Union[int, float, str]:
 
 T = TypeVar("T")
 U = TypeVar("U")
+
+
+def flatten(iterable: Iterable[Union[Iterable[T], Any]]) -> Generator[Any, None, None]:
+    for element in iterable:
+        if isinstance(element, collections.Iterable) and not isinstance(element, str):
+            yield from flatten(element)
+        else:
+            yield element
 
 
 def rfind_if(iterable: Sequence[T], fun: Callable[[T], bool]) -> Optional[int]:

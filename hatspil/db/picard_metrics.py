@@ -1,7 +1,6 @@
-import re
 from collections import OrderedDict
 from enum import Enum, auto
-from typing import Any, Dict, List, Mapping, Optional, Union, cast
+from typing import Any, Dict, Union, cast
 
 import hatspil.db
 
