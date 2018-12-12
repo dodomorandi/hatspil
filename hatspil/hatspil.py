@@ -583,7 +583,7 @@ def main() -> None:
             exit(-1)
         parameters["xenograft_classifier"] = xenograft_classifier
 
-    if parameters["xenograft_classifier"] == XenograftClassifier.XENOME:
+    if parameters.get("xenograft_classifier") == XenograftClassifier.XENOME:
         Xenome.check_correct_index_files(config)
 
     if args.r_checks and args.post_recalibration:
