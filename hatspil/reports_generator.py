@@ -5,14 +5,15 @@ from itertools import accumulate
 from typing import (Any, Dict, Iterable, List, Optional, Sequence, Set, TextIO,
                     Tuple, Union, cast)
 
-import colorlover as cl
 import plotly.graph_objs as go
 import plotly.offline as plt
 import spectra
 from bson import ObjectId
 
+import colorlover as cl
+
 from . import utils
-from .barcoded_filename import BarcodedFilename
+from .barcoded_filename import Analyte, BarcodedFilename
 from .config import Config
 from .db import Db
 from .db.picard_metrics import PicardMetricsType
@@ -58,8 +59,16 @@ class ReportsGenerator:
         if self.barcoded_samples is None:
             return
 
+        barcoded_samples = [
+            barcoded_sample
+            for barcoded_sample in self.barcoded_samples
+            if barcoded_sample.analyte != Analyte.RNASEQ
+        ]
+        if not barcoded_samples:
+            return
+
         self.logger.info("Started the creation of the report for the current analysis")
-        self._generate_reports("report", self.barcoded_samples)
+        self._generate_reports("report", barcoded_samples)
         self.logger.info("Finished the creation of the report for the current analysis")
 
     def generate_global_reports(self) -> None:
@@ -78,7 +87,7 @@ class ReportsGenerator:
             except Exception:
                 continue
 
-            if barcoded_sample:
+            if barcoded_sample and barcoded_sample.analyte != Analyte.RNASEQ:
                 db_data.append(sample_data)
                 barcoded_samples.append(barcoded_sample)
 
