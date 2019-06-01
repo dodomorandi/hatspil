@@ -1,3 +1,8 @@
+"""The module containing the Analysis class.
+
+See the documentation of the class for more information.
+"""
+
 import logging
 import os
 from typing import Any, Dict, List, Optional, Union
@@ -9,9 +14,29 @@ from .exceptions import PipelineError
 
 
 class Analysis:
+    """The status for a sample across the whole analysis process.
+
+    The class contains all the data that needs to be stored for each
+    sample during various steps of the analysis process. Most of the
+    parts of HaTSPiL need an 'Analysis' instance to perform meaningful
+    operations.
+    """
+
     def __init__(
         self, sample: str, root: str, config: Config, parameters: Dict[str, Any]
     ) -> None:
+        """Create a new analysis with basic elements.
+
+        Args:
+            sample: the sample name. It should be a valid barcode.
+            root: the base directory in which output directories are
+                  placed. These directories will contain the output
+                  files.
+            config: a valid configuration.
+            parameters: a set of additional parameters, used for many
+                        purposes. These should be taken from the command
+                        line.
+        """
         self.sample = sample
         self.root = root
         self.current = utils.get_overridable_current_date(parameters)
@@ -73,13 +98,21 @@ class Analysis:
         return BarcodedFilename(filename).get_directory(directory)
 
     def get_bam_dir(self) -> str:
+        """Get the BAM directory for the analysis."""
         return self._get_custom_dir("bam_dir")
 
     def get_out_dir(self) -> str:
+        """Get the variant calling output directory for the analysis."""
         return self._get_custom_dir("out_dir")
 
     @property
     def using_normals(self) -> bool:
+        """Return whether the analysis is using normal tissues.
+
+        If the "use_normals" parameter is set to true and the last
+        operation produced a file referring to a normal tissue, true is
+        returned, false otherwise.
+        """
         return (
             self.parameters["use_normals"]
             and self.last_operation_filenames is not None
