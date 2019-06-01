@@ -37,11 +37,18 @@ from .exceptions import BarcodeError
 
 
 class Molecule(IntEnum):
+    """The molecule used in the NGS assay.
+
+    It specifies if the NGS library preparation started from DNA or RNA.
+    """
+
     DNA = 0
     RNA = 1
 
 
 class Analyte(IntEnum):
+    """The type of NGS assay."""
+
     WHOLE_EXOME = 0
     GENE_PANEL = 1
     FUSION_PANEL = 2
@@ -49,6 +56,12 @@ class Analyte(IntEnum):
 
 
 class Tissue(IntEnum):
+    """The type of tissue.
+
+    The values are taken from the specifications of TCGA, in order to
+    provide some sort of compatibility.
+    """
+
     PRIMARY_SOLID_TUMOR = 1
     RECURRENT_SOLID_TUMOR = 2
     PRIMARY_BLOOD_DERIVED_CANCER_PERIPHERAL_BLOOD = 3
@@ -74,6 +87,13 @@ class Tissue(IntEnum):
 
     @staticmethod
     def create(value: Union[int, str]) -> "Tissue":
+        """Create an instance from a raw value.
+
+        When the tissue derives from a xenograft, some information about
+        the animal is encoded in the tissue parameter. This function can
+        be used to ease the conversion from any kind of partially-
+        encoded tissue raw values to a valid 'Tissue' instance.
+        """
         if isinstance(value, int):
             return Tissue(value)
         elif isinstance(value, str):
@@ -88,6 +108,7 @@ class Tissue(IntEnum):
             raise BarcodeError("Unexpected value type for tissue")
 
     def is_normal(self) -> bool:
+        """Check if the tissue is normal."""
         return self in (
             Tissue.BLOOD_DERIVED_NORMAL,
             Tissue.SOLID_TISSUE_NORMAL,
@@ -97,6 +118,7 @@ class Tissue(IntEnum):
         )
 
     def is_tumor(self) -> bool:
+        """Check if the tissue is a tumor or tumor-related."""
         return self in (
             Tissue.PRIMARY_SOLID_TUMOR,
             Tissue.RECURRENT_SOLID_TUMOR,
@@ -114,6 +136,7 @@ class Tissue(IntEnum):
         )
 
     def is_xenograft(self) -> bool:
+        """Check if the tissue derives from a xenograft."""
         return self in (
             Tissue.PRIMARY_XENOGRAFT_TISSUE,
             Tissue.CELL_LINE_DERIVED_XENOGRAFT_TISSUE,
@@ -121,7 +144,26 @@ class Tissue(IntEnum):
 
 
 class Xenograft:
+    """A class to handle the encoded data of a xenograft sample.
+
+    In case a tissue derives from a xenograft, additional information is
+    encoded in the barcoded filename. This class allows the storage of
+    this information and it provides helper functions to ease the
+    encoding and the decoding.
+    """
+
     def __init__(self, generation: int, parent: int, child: int) -> None:
+        """Create a Xenograft from the generation, parent and child parameters.
+
+        Args:
+            generation: the index of the host generation, 0-based. If
+                        the value is zero, then also ``parent`` must be
+                        zero.
+            parent: the index of the parent host, 0-based. It must be
+                    less then 3.
+            child: the index of host animal, 0-based. It must be less
+                   then 3.
+        """
         self.generation = generation
         self.parent = parent
         self.child = child
@@ -139,6 +181,22 @@ class Xenograft:
 
     @staticmethod
     def create(raw_tissue: str, raw_sample: Union[str, int]) -> Optional["Xenograft"]:
+        """Create a Xenograft from the raw tissue and sample values.
+
+        When a sample is a xenograft, additional information is encoded
+        in the tissue and sample fields of the barcoded filename. This
+        function decodes these information and eventually returns a
+        Xenograft instance.
+
+        Args:
+            raw_tissue: the raw tissue field of a barcoded filename.
+            raw_sample: the raw sample field of a barcoded filename.
+
+        Returns:
+            In case the tissue is a xenograft and the encoding is valid,
+            a Xenograft instance is returned. None otherwise.
+
+        """
         if raw_tissue[0] != "6":
             return None
 
@@ -162,12 +220,18 @@ class Xenograft:
         return Xenograft(generation, parent, child)
 
     def get_sample_index(self) -> Optional[int]:
+        """Get the encoded sample index."""
         if self.parent is not None and self.child is not None:
             return self.parent * 3 + self.child
         else:
             return None
 
     def to_dict(self) -> Dict[str, int]:
+        """Transform the Xenograft instance into a dictionary.
+
+        Transform the Xenograft instance into a dictionary with
+        generation, parent and child properties.
+        """
         return {
             "generation": self.generation,
             "parent": self.parent,
@@ -176,6 +240,11 @@ class Xenograft:
 
     @staticmethod
     def from_dict(dictionary: Dict[str, Union[int, str]]) -> "Xenograft":
+        """Create a Xenograft instance from a dictionary.
+
+        Create a Xenograft instance from a dictionary containing the
+        generation, parent and child properties.
+        """
         assert "generation" in dictionary
         assert "parent" in dictionary
         assert "child" in dictionary
@@ -187,6 +256,22 @@ class Xenograft:
         )
 
     def to_human(self) -> str:
+        """Create a human-readable identification string.
+
+        The human-readable format represents the host information with
+        one number and two letter. In details, the first character is a
+        number representing the generation, and it is 1-based. The
+        second character is a lowercase letter, representing the index
+        of the parent host. The third character is an uppercase letter
+        and it represents the index of the host.
+
+        Example:
+            generation = 5
+            parent = 2
+            child = 0
+
+            Human readable format = 6cA
+        """
         if self.generation == 0:
             return "%d%s" % (self.generation + 1, chr(ord("A") + self.child))
         else:
@@ -198,6 +283,12 @@ class Xenograft:
 
 
 class BarcodedFilename:
+    """The way to handle barcoded filenames.
+
+    This class is responsible for handling the barcoded samples and
+    filenames.
+    """
+
     re_filename = re.compile(
         r"^([^-]+)-([^-]+)-(\d[0-9A-Za-z])-(\d)(\d)(\d)-"
         r"(\d)(\d)(\d)(?:\.[^.]+)*?(?:\.((?:hg|mm)\d+))?"
@@ -224,6 +315,15 @@ class BarcodedFilename:
     gzipped: Optional[bool]
 
     def __init__(self, filename: Optional[str] = None) -> None:
+        """Create an instance from an optional filename
+
+        An instance is created and, if a filename is provided, the
+        properties are set according to the name of the file.
+
+        Args:
+            filename: a barcoded filename
+
+        """
         if filename is None:
             return
 
@@ -263,6 +363,18 @@ class BarcodedFilename:
 
     @staticmethod
     def from_sample(sample: str) -> "BarcodedFilename":
+        """Create an instance from a barcoded sample.
+
+        Create a BarcodedFilename using the string of a sample instead
+        of a filename. Some fields are allowed to be invalid.
+
+        Args:
+            sample: the barcoded sample
+
+        Returns:
+            An instance of BarcodedFilename.
+
+        """
         match = BarcodedFilename.re_sample.match(sample)
         if not match:
             raise RuntimeError("Error parsing barcoded sampling '%s'" % sample)
@@ -325,6 +437,30 @@ class BarcodedFilename:
         analyte: Union[int, str],
         kit: Union[int, str],
     ) -> "BarcodedFilename":
+        """Create a BarcodedFilename specifying each parameter.
+
+        Create a instance, passing the value for each field.
+
+        Args:
+            project: the project field.
+            patient: the patient field.
+            tissue: the raw tissue string.
+            biopsy: the index of the biopsy.
+            sample: the raw sample string or None.
+            xenograft_generation: the index of the generation of the
+                                  host, or None.
+            xenograft_parent: the index of the parent of the host, or
+                              None.
+            xenograft_child: the index of the host, or None.
+            sequencing: the index of the sequencing.
+            molecule: the raw value of the molecule.
+            analyte: the raw value of the analyte.
+            kit: the value of the kit.
+
+        Returns:
+            An instance of BarcodedFilename
+
+        """
         barcoded = BarcodedFilename()
         barcoded.project = project
         barcoded.patient = patient
@@ -375,6 +511,15 @@ class BarcodedFilename:
         return barcoded
 
     def get_barcode(self) -> str:
+        """Get the barcode.
+
+        Transform the instance into a barcode string. Invalid fields are
+        represented with square chars.
+
+        Returns:
+            A string with the encoded barcode.
+
+        """
         if self.biopsy is None:
             biopsy = "□"
         else:
@@ -425,6 +570,15 @@ class BarcodedFilename:
         )
 
     def get_barcoded_filename(self) -> Optional[str]:
+        """Create a barcoded filename.
+
+        Create a valid barcoded filename if all the fields are valid.
+
+        Returns:
+            A string representing a barcoded filename, or None if some
+            required fields are None.
+
+        """
         if self.biopsy is None or self.sequencing is None or self.extension is None:
             return None
 
@@ -459,6 +613,19 @@ class BarcodedFilename:
         )
 
     def get_directory(self, analysis_dir: Optional[str] = None) -> str:
+        """Return the directory for the analysis.
+
+        Evaluate the output directory depending on the type of the
+        analysis.
+
+        Args:
+            analysis_dir: the root directory for the analysis. If it is
+                          None, a relative path is returned.
+
+        Returns:
+            The output directory depending on the type of analysis.
+
+        """
         if analysis_dir is None:
             analysis_dir = ""
 
@@ -474,6 +641,7 @@ class BarcodedFilename:
         return os.path.join(analysis_dir, barcode_dir)
 
     def __repr__(self) -> str:
+        """Get a human readable representation of the instance."""
         repr = (
             "{project="
             + str(self.project)
@@ -515,6 +683,12 @@ class BarcodedFilename:
         return repr
 
     def get_tissue_str(self) -> str:
+        """Get the raw tissue string.
+
+        The raw tissue string is created, including the xenograft data
+        when appropriate. In case of invalid xenograft data combination,
+        an exception is raised.
+        """
         if self.tissue == Tissue.PRIMARY_XENOGRAFT_TISSUE:
             assert self.xenograft is not None
             return "6" + chr(ord("A") + self.xenograft.generation)
@@ -525,6 +699,11 @@ class BarcodedFilename:
             return "%02d" % self.tissue
 
     def get_tissue_str_optional(self) -> Optional[str]:
+        """Get the raw tissue string.
+
+        Similar to 'get_tissue_str', but in case of invalid data None is
+        returned instead of raising an exception.
+        """
         if self.tissue == Tissue.PRIMARY_XENOGRAFT_TISSUE:
             if self.xenograft is None:
                 return None
@@ -542,6 +721,11 @@ class BarcodedFilename:
                 return "%02d" % self.tissue
 
     def get_sample_index(self) -> Optional[int]:
+        """Get the raw sample index.
+
+        Return the index of the sample, evaluating whether this is a
+        xenograft or not.
+        """
         if self.xenograft is None:
             return self.sample
         else:
