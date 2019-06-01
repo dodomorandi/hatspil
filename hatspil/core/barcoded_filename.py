@@ -732,9 +732,15 @@ class BarcodedFilename:
             return self.xenograft.get_sample_index()
 
     def is_xenograft(self) -> bool:
+        """Check whether the sample is a xenograft."""
         return self.xenograft is not None
 
     def equals_without_tissue(self, other: "BarcodedFilename") -> bool:
+        """Compare two barcodes ignoring the tissue.
+
+        Return true if two barcodes has the same project, patient,
+        molecule, analyte, biopsy and kit.
+        """
         return (
             self.project == other.project
             and self.patient == other.patient
