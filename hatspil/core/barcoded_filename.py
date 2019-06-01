@@ -1,21 +1,31 @@
-"""
-A module to handle HaTSPiL filename barcoding.
+"""A module to handle HaTSPiL filename barcoding.
 
-HaTSPiL highly relies on a filename barcoding in order to perform the correct type of analysis. The barcode is heavily inspired from the one used by TCGA, and it has been developed with the idea of being scalable to a high variety of cases.
+HaTSPiL highly relies on a filename barcoding in order to perform the
+correct type of analysis. The barcode is heavily inspired from the one
+used by TCGA, and it has been developed with the idea of being scalable
+to a high variety of cases.
 
 Here a brief example of a barcode:
 lung-lc001-02-011-201.R1.fastq
 
-lung - The name of the project. In this example, the project involves the analysis of lung cancer tissues.
+lung - The name of the project. In this example, the project involves
+       the analysis of lung cancer tissues.
 lc001 - The name of the sample.
-02 - The type of the tissue, in this case a recurrent solid tumor. See 'Tissue' for more information.
-0 - The molecule analysed, in this case DNA. See 'Molecule' for more information.
-1 - The type of NGS experiment, in this case a gene panel assay. See 'Analyte' for more information.
-2 - The index of the biopsy, in this case the third (indices are 0-based).
-0 - The index of the sample, in this case the first (indices are 0-based).
-1 - The index of the sequencing, in this case the second (indices are 0-based).
+02 - The type of the tissue, in this case a recurrent solid tumor. See
+     'Tissue' for more information.
+0 - The molecule analysed, in this case DNA. See 'Molecule' for more
+    information.
+1 - The type of NGS experiment, in this case a gene panel assay. See
+    'Analyte' for more information.
+2 - The index of the biopsy, in this case the third (indices are
+    0-based).
+0 - The index of the sample, in this case the first (indices are
+    0-based).
+1 - The index of the sequencing, in this case the second (indices are
+    0-based).
 
-The R1 parameter is the standard way to annotate the index of the paired index for paired-end analyses.
+The R1 parameter is the standard way to annotate the index of the paired
+index for paired-end analyses.
 """
 
 import os
