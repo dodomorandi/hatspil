@@ -958,6 +958,14 @@ class Executor:
             self.analysis.bamfiles = output_bamfiles
 
     def override_last_operation_filename(self, new_filename: str) -> None:
+        """Override the last operation filenames. DEPRECATED.
+        
+        Please use the executor capabilities to avoid the situations in
+        which it is necessary to use this function or to manually modify
+        the `analysis.last_operation_filenames` parameter. It is
+        extremely dangerous and it can lead to many strange-behaving
+        edge cases.
+        """
         if not self.analysis.last_operation_filenames:
             raise PipelineError("last operation did not leave an output file")
 
