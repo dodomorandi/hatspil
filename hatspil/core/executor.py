@@ -96,7 +96,7 @@ class SingleAnalysis(List[AnalysisFileData]):
 AnalysesPerOrganism = Dict[str, List[SingleAnalysis]]
 
 
-class ExecutorData:
+class _ExecutorData:
     def __init__(
         self,
         command: Union[str, List[str], Callable[..., None]],
@@ -146,7 +146,7 @@ class Executor:
 
     def __init__(self, analysis: Analysis) -> None:
         self.analysis = analysis
-        self.data: Optional[ExecutorData] = None
+        self.data: Optional[_ExecutorData] = None
 
     def _handle_output_filename(
         self,
@@ -701,7 +701,7 @@ class Executor:
         allow_raw_filenames: bool = False,
     ) -> None:
 
-        self.data = ExecutorData(
+        self.data = _ExecutorData(
             command,
             output_format,
             input_filenames,
