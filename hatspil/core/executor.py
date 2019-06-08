@@ -770,7 +770,7 @@ class Executor:
                             used to distinguish a file from another.
                             If the organism string is available from the
                             sample barcode, it is used with a '.' at the
-                            beginning (ie: '.hg19'). Otherwise, when
+                            beginning (i.e.: '.hg19'). Otherwise, when
                             the organism cannot be detected from the
                             barcode, the default human annotation is
                             used for the `organism` variable, and
@@ -860,12 +860,41 @@ class Executor:
             unlink_inputs: determines if the input files must be deleted
                            from hard disk or not. Note that this
                            parameter will not have any effects if
-                           `analysis.can_unlink` is set (ie the
+                           `analysis.can_unlink` is set (i.e. the
                            Starter.run method avoid the deletion of the
                            input files using this method).
             save_only_last: determines if only the last output filename
                             must be saved for the following execution
                             tasks.
+            use_normals: when set, the control files are handled
+                         together with sample file within the same
+                         execution unit. If the parameter is `False` or
+                         the use of normals is disabled from command
+                         line, the control files are handled separately
+                         from the relative sample files.
+            split_by_organism: specifies if the input files must be
+                               split by organism or not. See
+                               `utils.get_sample_filenames` for more
+                               information.
+            only_human: ignore all the samples that are not classified
+                        as human. It is worth noting that a sample that
+                        does not have an organism field is classified
+                        as human sample.
+            split_input_files: specifies if, for each organism, each set
+                               of input files must be handled among
+                               different execution units or not. In
+                               detail, if `split_input_files` is `True`,
+                               many `SingleAnalysis` with one input
+                               filename are created. Otherwise, one
+                               single analysis is created with all the
+                               relative input filenames.
+            allow_raw_filenames: if this parameter is set, it is
+                                 possible to use input filenames with
+                                 invalid barcodes. In edge cases, it is
+                                 useful to use the `Executor` to perform
+                                 simple tasks that involve filenames
+                                 that cannot be barcoded by design.
+
         """
         self.data = _ExecutorData(
             command,
