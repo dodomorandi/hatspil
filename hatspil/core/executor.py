@@ -1,3 +1,13 @@
+"""The module responsible for tasks execution.
+
+This module contains the core mechanics of HaTSPiL. The execution of
+each single operation is handled through the classes defined here, which
+choose the correct sets of operations depending on the previous state
+of the analysis and a set of customizable parameters.
+
+For more information, see the `Execution` class.
+"""
+
 import os
 import re
 from enum import Enum
@@ -12,13 +22,34 @@ from .exceptions import DataError, PipelineError
 
 
 class AnalysisType(Enum):
+    """The type of sample for a single file.
+
+    Describe whether a file contains the data of a sample, a control or
+    if it is unspecified.
+    """
+
     Unspecified = 0
     Sample = 1
     Control = 2
 
 
 class AnalysisFileData:
+    """A helper class to cache some file information.
+
+    This class stores some information that can be really useful when
+    writing the code (or the command line) for an execution task. Each
+    input file is an instance of an `AnalysisFileData` and it can be
+    used to retrieve the following properties:
+     * filename -- the actual file name.
+     * barcode -- the associated barcode.
+     * type -- the type, as instance of `AnalysisType`.
+
+    This instance returns the filename when converted to `str`, in order
+    to ease the creation of a command line string.
+    """
+
     def __init__(self, filename: str) -> None:
+        """Create an `AnalysisFileData`."""
         self.filename = filename
         try:
             self.barcode = BarcodedFilename(filename)
@@ -32,6 +63,7 @@ class AnalysisFileData:
             self.type = AnalysisType.Unspecified
 
     def __repr__(self) -> str:
+        """Return the `filename` property."""
         return self.filename
 
 
