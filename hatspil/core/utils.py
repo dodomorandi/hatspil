@@ -1,3 +1,6 @@
+"""
+A collection of utility function, shared across modules.
+"""
 import collections
 import datetime
 import gzip as gz
@@ -19,11 +22,17 @@ from .exceptions import AnnotationError, DataError
 
 
 def get_current() -> str:
+    """Get the current date in standard HaTSPiL format."""
     today = datetime.date.today()
     return "%04d_%02d_%02d" % (today.year, today.month, today.day)
 
 
 def get_overridable_current_date(parameters: Dict[str, Any]) -> str:
+    """Get an eventual overridden date.
+
+    If the `parameters` dict contains a `use_date` value, return it.
+    Otherwise return the result of `get_current`.
+    """
     if parameters["use_date"] is None:
         return get_current()
     else:
@@ -33,6 +42,19 @@ def get_overridable_current_date(parameters: Dict[str, Any]) -> str:
 
 
 def run_and_log(command: str, logger: Logger) -> int:
+    """Run a command and log everything.
+
+    Use `subprocess.Popen` to run a command. The standard output and the
+    standard error are piped into the logger.
+
+    Args:
+        command: the command to run.
+        logger: the logger.
+
+    Returns:
+        int: the exit status of the process.
+
+    """
     logger.info("Running command: %s", command)
     with subprocess.Popen(
         command,
@@ -59,6 +81,46 @@ def get_sample_filenames(
     obj: Union[Sequence[str], Mapping[str, List[str]], str],
     split_by_organism: bool = False,
 ) -> Union[List[str], Mapping[str, List[str]]]:
+    """Return the filenames organised in a different way.
+
+    Take a set of filenames in different possible shapes and reorganize
+    them depending on the content and the value of `split_by_organism`.
+
+    Args:
+        obj: the filenames. It can be a string for one single filename,
+             a list of filenames or a dict where each key is an organism
+             code (i.e.: hg19) and the relative value is a list of
+             filenames.
+        split_by_organism: whether the filenames must be split by
+                           organism or they must be returned all
+                           together.
+    Returns:
+        The input filenames with the desired shape. There are different
+        cases:
+         * If `obj` is a list and its length is greater than 1 and
+           `split_by_organism` is `True`, the organism for each file
+           is obtained using `get_organism_from_filename`. A dict is
+           created, where each organism maps to a list of filenames.
+           If the dict contains more than one organism, it is returned,
+           otherwise a list of the filenames is returned.
+        * If `obj` is a list but its length is not greater than 1 or
+          `split_by_organism` is `False`, a **copy** of `obj` is
+          returned.
+        * If `obj` is a dict and it contains more than one entry and
+          `split_by_organism` is `True`, a **deep copy** of `obj` is
+          returned.
+        * If `obj` is a dict but it contains less than two entries or
+          `split_by_organism` is `False`, a list of all the filenames
+          in `obj` is returned.
+        * If `obj` is a string and `split_by_organism` is `True`, the
+          organism is obtained using `get_organism_from_filename`. If
+          the organism is valid, a dict with the organism mapped to
+          a list of one element, `obj`, is returned. Otherwise, if the
+          organism is invalid (`None` or empty), a list of one element,
+          `obj`, is returned.
+        * If `obj` is a string but `split_by_organism` is `False`, a
+          list of one element, `obj`, is returned.
+    """
     if isinstance(obj, list):
         if split_by_organism and len(obj) > 1:
             filenames: Dict[str, List[str]] = {}
@@ -99,6 +161,11 @@ def get_sample_filenames(
 
 
 def get_organism_from_filename(filename: str) -> Optional[str]:
+    """Get the organism from a filename.
+
+    Try to analyse the barcode of a filename, and return the organism
+    if available. Otherwise return `None`.
+    """
     try:
         barcoded = BarcodedFilename(os.path.basename(filename))
         return barcoded.organism
