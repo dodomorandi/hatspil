@@ -68,8 +68,17 @@ class AnalysisFileData:
 
 
 class SingleAnalysis(List[AnalysisFileData]):
+    """A helper class to get control and sample for an analysis.
+
+    In case of an analysis with a sample and a control, it is desirable
+    to get the one or the other without parsing a list of two files.
+    This class extends a list of `AnalysisFileData` in order to easily
+    get the sample and the control for an analysis.
+    """
+
     @property
     def sample(self) -> Optional[AnalysisFileData]:
+        """Get the sample file."""
         return next(
             (file_data for file_data in self if file_data.type == AnalysisType.Sample),
             None,
@@ -77,6 +86,7 @@ class SingleAnalysis(List[AnalysisFileData]):
 
     @property
     def control(self) -> Optional[AnalysisFileData]:
+        """Get the control file."""
         return next(
             (file_data for file_data in self if file_data.type == AnalysisType.Control),
             None,
