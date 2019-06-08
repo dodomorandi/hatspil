@@ -142,9 +142,21 @@ class _ExecutorData:
 
 
 class Executor:
+    """The class responsible for executing tasks.
+
+    The execution core of HaTSPiL. The `Executor` class changes its
+    behaviour depending on many aspects, for instance the files obtained
+    from the last execution task and the parameters specified from the
+    user.
+
+    To use `Executor`, just create an instance and then call it with the
+    desired parameters. For more information, see the `__call__` method.
+    """
+
     RE_REPLACER = re.compile(r"\{([^}]+)\}")
 
     def __init__(self, analysis: Analysis) -> None:
+        """Create a new instance."""
         self.analysis = analysis
         self.data: Optional[_ExecutorData] = None
 
@@ -700,7 +712,161 @@ class Executor:
         split_input_files: bool = True,
         allow_raw_filenames: bool = False,
     ) -> None:
+        """Use the Executor to perform a task.
 
+        When you need to use an Executor, just call it.
+        Executor is able to handle both strings, handled as command line
+        arguments, and python functions.
+
+        Except for `command`, all of the arguments are optional, but
+        they allow a fine grained control of the execution behaviour.
+
+        Args:
+            command: the command that is executed. If it is a `str`, a
+                     new process is created, using the value of
+                     `command` as command line argument. Moreover, the
+                     can contain "evaluable arguments", which is
+                     replaced with the actual evaluation before calling
+                     the command. The format to specify these evaluable
+                     arguments are the same as the string format
+                     literals, a pair of curly braces with the
+                     evaluation string inside. For instance,
+                     "Hello {world_str}" has a pair of curly braces
+                     which are replaced with the value of the variable
+                     `world_str`. If the current value of `world_str` is
+                     "World!", the whole string becomes "Hello World!".
+                     There are many variables that can be evaluated
+                     by Executor:
+                        input_filenames: an instance of `SingleAnalysis`
+                        input_filename: in case `input_filenames` is a
+                            list of a single element, `input_filename`
+                            can be used to refer to that single element.
+                            WARNING: if the list contains a number of
+                            elements different than 1, `input_filename`
+                            is undefined. Use with care!
+                        real_analysis_input: when the `input_function`
+                            parameter (see below) is not None, the
+                            `input_filenames` can be different from the
+                            output filename of the last execution task.
+                            `real_analysis_input` contains the values
+                            before `input_function` is called.
+                        output_filename: a `str`, a list of `str` or
+                            None. If both `output_function` and
+                            `output_format` parameters are `None`,
+                            `output_filename` is `None`. Otherwise, if
+                            `output_format` and/or `output_filename`
+                            return a list of strings with more than one
+                            element, `output_filename` is a `str`,
+                            otherwise a list of `str`. See
+                            `output_function` and `output_format`
+                            parameter's documentation for more
+                            information.
+                        organism: the organism (and genome annotation
+                            version) for the current sample. Possible
+                            values are 'hg19' and 'hg38'. The value is
+                            obtained from the barcode of the sample. See
+                            `organism_str` for more information.
+                        organism_str: the organism string that can be
+                            used to distinguish a file from another.
+                            If the organism string is available from the
+                            sample barcode, it is used with a '.' at the
+                            beginning (ie: '.hg19'). Otherwise, when
+                            the organism cannot be detected from the
+                            barcode, the default human annotation is
+                            used for the `organism` variable, and
+                            `organism_str` is empty.
+                        kit: a `config.KitData` instance (or None if
+                            not available) for the current sample. See
+                            `utils.get_kit_from_barcoded` and
+                            `config.KitData` for more information.
+                        indel_1, indel_2: two helper variables obtained
+                            from the `kit` using the current `organism`.
+                            For instance, if the current organism is
+                            'hg19', `indel_1` and `indel_2` will contain
+                            the same value as `kit.indel_1_hg19` and
+                            `kit.indel_2_hg19`, respectively.
+                        genome_ref: the genome reference file for the
+                            current organism. For instance, if the
+                            current organism is 'hg19', `genome_ref` has
+                            the same value as `config.hg19_ref`.
+                        genome_index: the genome index file prefix for
+                            the current organism. For instance, if the
+                            current organism is 'hg19', `genome_index`
+                            has the same value as `config.hg19_index`.
+                        dbsnp: the `dbsnp138` for the current organism,
+                            obtained from `config`.
+                        cosmic: the `cosmic` for the current organism,
+                            obtined from `config`.
+                        config: the current `config` instance.
+                    If `command` is a python function, the variables are
+                    passed to the function as kwargs.
+            output_format: specifies the format for the output
+                           filename(s). It uses the same system of
+                           evaluable arguments as documented for
+                           `command`. If `output_format` is a python
+                           function, the variables documented for the
+                           `command` parameter are passed as kwargs.
+                           If `output_format` is a list of `str` or
+                           a list of python functions, a list of
+                           output files will be available for the
+                           `output_filename` variable instead of a
+                           `str`. This parameter combines with the
+                           `output_function` parameter (see below).
+            input_filenames: override the last execution task with a
+                             list of input files.
+            input_function: a python function that is applied to the
+                            input filenames before creating the command.
+                            In case the parameter `input_split_reads` is
+                            `True`, the argument of the function can be
+                            a `str` or a list of `str`. Otherwise it
+                            will always be a list of `str`. See
+                            `input_split_reads` arguments for more
+                            information.
+            input_split_reads: determines if multiple commands must be
+                               run or not when multiple read indices are
+                               available from the input files. For
+                               instance, in some situations a command
+                               must be run separately for both
+                               ".R1.fastq" and ".R2.fastq". For this
+                               purpose the `input_split_reads` parameter
+                               must be set to `True`.
+            output_path: helper parameter to automatically prepend a
+                         path to the results of the evaluation of the
+                         `output_format` parameter. In case
+                         `output_format` is `None`, this parameter does
+                         not have any effect.
+            output_function: a python function to create the output
+                             filename procedurally. In case
+                             `output_format` is set, the function will
+                             be called for each result from the format
+                             output. Otherwise, the function will be
+                             called for each input filename.
+            error_string: a custom string that will be outputted in case
+                          the exit status of a command is not zero.
+            exception_string: a custom string that will be embedded in
+                              the exception thrown in case the exit
+                              status of a command is not zero.
+            override_last_files: if the execution task output filename
+                                 must be updated or not. When this value
+                                 is `True`, the next execution step will
+                                 have the current output files as input
+                                 files. Otherwise, the next execution
+                                 task will have the same input files as
+                                 the current execution.
+            write_bam_files: in case BAM files are available in the
+                             output filenames, this parameter determines
+                             if the analysis bamfiles must be updated
+                             accordingly or not.
+            unlink_inputs: determines if the input files must be deleted
+                           from hard disk or not. Note that this
+                           parameter will not have any effects if
+                           `analysis.can_unlink` is set (ie the
+                           Starter.run method avoid the deletion of the
+                           input files using this method).
+            save_only_last: determines if only the last output filename
+                            must be saved for the following execution
+                            tasks.
+        """
         self.data = _ExecutorData(
             command,
             output_format,
