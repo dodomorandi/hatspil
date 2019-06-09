@@ -1,3 +1,5 @@
+"""The configuration module of HaTSPiL."""
+
 import os
 import subprocess
 import sys
@@ -9,7 +11,19 @@ from .barcoded_filename import Analyte
 
 
 class KitData:
+    """The information available for each kit.
+
+    A configuration file must include at least one kit, which defines a
+    set of properties for a subset of possible barcode values. This
+    class stores all the information for a kit.
+    """
+
     def __init__(self) -> None:
+        """Create a default kit.
+
+        The values are just placeholder and they should be overridden
+        by the content of a `config.ini` file.
+        """
         self.name = "Kit"
         self.target_list = "04818-1466508813_target.interval_list"
         self.bait_list = "04818-1466508813_amplicons.interval_list"
@@ -26,6 +40,14 @@ class KitData:
 
 
 class Config:
+    """The configuration of HaTSPiL.
+
+    This class is responsible for reading the configuration ini file and
+    check for missing parameters. A plausible default value is available
+    for most of the fields, in order to create a template config file
+    and ease the process of creating a brand new ini file.
+    """
+
     executables = ("java", "java7", "perl", "seqtk", "fastqc", "samtools")
     optional_executables = ("novoalign", "bwa", "star", "xenome", "disambiguate")
     jars = ("picard", "varscan", "gatk", "mutect", "bam2tdf")
@@ -87,6 +109,12 @@ class Config:
     mongodb = ("database", "host", "port", "username", "password")
 
     def __init__(self, filename: Optional[str] = None) -> None:
+        """Create a template config and fill it from a file content.
+
+        A config file is created with a set of plausible default values.
+        If a `filename` is specified, the parameters are filled with the
+        content of the specified config file.
+        """
         self.java = "java"
         self.java7 = "java"
         self.perl = "perl"
@@ -246,6 +274,7 @@ class Config:
                 setattr(current_kit, param_name, section_params.getint(param_name))
 
     def save(self, filename: str) -> None:
+        """Save the object into a config file."""
         config = ConfigParser()
 
         executables = {}
@@ -290,6 +319,7 @@ class Config:
             config.write(fd)
 
     def check_programs(self) -> bool:
+        """Check if the mandatory software are available."""
         ok = True
 
         for param in Config.jars:
@@ -354,6 +384,7 @@ class Config:
         return True
 
     def check_files(self) -> bool:
+        """Check if all files are available."""
         ok = True
 
         for param in Config.files:
@@ -379,6 +410,11 @@ class Config:
         return ok
 
     def check_star_files(self) -> bool:
+        """Check if all files needed by start are available.
+
+        This check is separated from `check_files` because the
+        availability of STAR is not mandatory.
+        """
         ok = True
         for param in ("star_index", "features"):
             for organism in ("hg19", "hg38", "mm9", "mm10"):
