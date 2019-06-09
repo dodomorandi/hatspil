@@ -1,6 +1,4 @@
-"""
-A collection of utility function, shared across modules.
-"""
+"""A collection of utility function, shared across modules."""
 import collections
 import datetime
 import gzip as gz
@@ -120,6 +118,7 @@ def get_sample_filenames(
           `obj`, is returned.
         * If `obj` is a string but `split_by_organism` is `False`, a
           list of one element, `obj`, is returned.
+
     """
     if isinstance(obj, list):
         if split_by_organism and len(obj) > 1:
@@ -176,7 +175,22 @@ def get_organism_from_filename(filename: str) -> Optional[str]:
 def get_samples_by_organism(
     obj: Union[List[str], Dict[str, List[str]], str], default_organism: str
 ) -> Dict[str, List[str]]:
+    """Return the samples in a dict.
 
+    Create a organism-samples dict.
+
+    Args:
+        obj: the samples that are collected.
+        default_organism: when `obj` is not a dict, `default_organism`
+                          is used as key for the output dict.
+    Returns:
+        A dictionary that maps organisms to lists of samples. If `obj`
+        is a dict, a copy of `obj` is returned. If `obj` is a list,
+        a dict with `default_organism` that maps to `obj` is returned.
+        If `obj` is a string, a dict with `default_organism` that maps
+        to a list of one element, `obj`, is returned.
+
+    """
     if isinstance(obj, list):
         return {default_organism: obj}
     elif isinstance(obj, dict):
@@ -186,6 +200,11 @@ def get_samples_by_organism(
 
 
 def get_genome_ref_index_by_organism(config: Config, organism: str) -> Tuple[str, str]:
+    """Return the reference file and the index file.
+
+    Select the `config.*_ref` and `config.*_index` depending on
+    `organism`.
+    """
     if organism == "hg19":
         return (config.hg19_ref, config.hg19_index)
     elif organism == "hg38":
@@ -199,6 +218,10 @@ def get_genome_ref_index_by_organism(config: Config, organism: str) -> Tuple[str
 
 
 def get_dbsnp_by_organism(config: Config, organism: str) -> str:
+    """Return the dbSNP filename.
+
+    Select the `config.dbsnp138_*` depending on `organism`.
+    """
     if organism == "hg19":
         return config.dbsnp138_hg19
     elif organism == "hg38":
@@ -208,6 +231,10 @@ def get_dbsnp_by_organism(config: Config, organism: str) -> str:
 
 
 def get_cosmic_by_organism(config: Config, organism: str) -> str:
+    """Return the cosmic DB filename.
+
+    Select the `config.cosmic_*` depending on `organism`.
+    """
     if organism == "hg19":
         return config.cosmic_hg19
     elif organism == "hg38":
@@ -217,6 +244,11 @@ def get_cosmic_by_organism(config: Config, organism: str) -> str:
 
 
 def get_picard_max_records_string(max_records: str) -> str:
+    """Get the max records string for Picard.
+
+    Create the 'MAX_RECORDS_IN_RAM' parameter using `max_records`. If
+    `max_records` is empty, an empty string is returned.
+    """
     if max_records is None or max_records == "":
         return ""
     else:
@@ -226,7 +258,20 @@ def get_picard_max_records_string(max_records: str) -> str:
 def find_fastqs_by_organism(
     sample: str, fastq_dir: str, default_organism: str
 ) -> Dict[str, List[Tuple[str, int]]]:
+    """Search for FASTQ files and group them by organism.
 
+    Find all the .fastq files inside `fastq_dir` that start with
+    `sample` and have a valid suffix. Group all the files by organism.
+
+    Args:
+        sample: the barcoded sample as string.
+        fastq_dir: the directory where the fastq files must be searched.
+        default_organism: the organism to use in case the organism field
+                          in a filename is absent.
+    Returns:
+        A dict that maps an organism to a list of fastq files.
+
+    """
     re_fastq_filename = re.compile(
         r"^%s(?:\.((?:hg|mm)\d+))?\.R([12])\.fastq(?:\.gz)?$" % sample, re.I
     )
@@ -254,6 +299,7 @@ def find_fastqs_by_organism(
 
 
 def gzip(filename: str) -> None:
+    """Compress a file with GZ compression."""
     compressed_filename = filename + ".gz"
     with open(filename, "rb") as in_fd, gz.open(
         compressed_filename, "wb", compresslevel=6
@@ -263,6 +309,7 @@ def gzip(filename: str) -> None:
 
 
 def gunzip(filename: str) -> None:
+    """Decompress a GZ file."""
     decompressed_filename = filename[:-3]
     with open(decompressed_filename, "wb") as out_fd, gz.open(filename, "rb") as in_fd:
         shutil.copyfileobj(in_fd, out_fd)
@@ -270,6 +317,7 @@ def gunzip(filename: str) -> None:
 
 
 def check_gz(filename: str) -> bool:
+    """Check if a GZ file is valid."""
     chunk_size = 2 ** 20
     with gz.open(filename, "rb") as fd:
         try:
@@ -282,6 +330,7 @@ def check_gz(filename: str) -> bool:
 
 
 def parsed_date(raw_date: str) -> str:
+    """Parse a date in 'Y_M_D' format and return a std HaTSPiL date."""
     try:
         date = datetime.datetime.strptime(raw_date, "%Y_%m_%d")
     except ValueError:
@@ -290,6 +339,7 @@ def parsed_date(raw_date: str) -> str:
 
 
 def get_human_annotation(config: Config) -> str:
+    """Get the best human genome annotation available in config."""
     if config.use_hg38:
         return "hg38"
     elif config.use_hg19:
@@ -299,6 +349,7 @@ def get_human_annotation(config: Config) -> str:
 
 
 def get_mouse_annotation(config: Config) -> str:
+    """Get the best murine genome annotation available in config."""
     if config.use_mm10:
         return "mm10"
     elif config.use_mm9:
@@ -312,6 +363,11 @@ reInt = re.compile(r"^(\d+)$")
 
 
 def parse_as_number(s: str) -> Union[int, float, str]:
+    """Try to parse a string as number.
+
+    If `s` matches a float format, a parsed float is returned. If `s`
+    matches an int, a parset int is returned. Otherwise `s` is returned.
+    """
     if reFloat.match(s):
         return float(s)
     elif reInt.match(s):
@@ -325,6 +381,7 @@ U = TypeVar("U")
 
 
 def flatten(iterable: Iterable[Union[Iterable[T], Any]]) -> Generator[Any, None, None]:
+    """Return a generator, flattening recusively an iterable object."""
     for element in iterable:
         if isinstance(element, collections.Iterable) and not isinstance(element, str):
             yield from flatten(element)
@@ -333,6 +390,16 @@ def flatten(iterable: Iterable[Union[Iterable[T], Any]]) -> Generator[Any, None,
 
 
 def rfind_if(iterable: Sequence[T], fun: Callable[[T], bool]) -> Optional[int]:
+    """Reverse find an object in an iterable that satisfies `fun`.
+
+    Args:
+        iterable: an iterable object.
+        fun: a function that returns `True` when the item is found.
+    Returns:
+        The index of the first element for which `fun` returns `True`,
+        performing the operation on the reversed iterable.
+
+    """
     for index, element in enumerate(reversed(iterable)):
         if fun(element):
             return len(iterable) - index
@@ -342,6 +409,7 @@ def rfind_if(iterable: Sequence[T], fun: Callable[[T], bool]) -> Optional[int]:
 def argmin(
     iterable: Iterable[T], key: Optional[Callable[[T], U]] = None
 ) -> Optional[int]:
+    """Like `min`, but return the index of the element found."""
     best = min(
         ((index, element) for (index, element) in enumerate(iterable)),
         key=lambda x: key(x[1]) if key else x[1],
@@ -355,6 +423,7 @@ def argmin(
 def create_logger(
     logger_name: str, handler: Optional[logging.FileHandler] = None
 ) -> Logger:
+    """Create a named logger and add a handler to this."""
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.INFO)
     if handler:
@@ -366,6 +435,7 @@ def create_logger(
 def get_kit_from_barcoded(
     config: Config, barcoded: BarcodedFilename
 ) -> Optional[KitData]:
+    """Get a kit from the config given a barcoded filename."""
     assert barcoded.kit is not None
     assert barcoded.analyte is not None
 
