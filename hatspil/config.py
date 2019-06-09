@@ -333,7 +333,7 @@ class Config:
 
         return ok
 
-    def check_file_param(self, obj: Any, param: str) -> Optional[bool]:
+    def _check_file_param(self, obj: Any, param: str) -> Optional[bool]:
         if "hg19" in param:
             if not self.use_hg19:
                 return None
@@ -357,7 +357,7 @@ class Config:
         ok = True
 
         for param in Config.files:
-            param_is_valid = self.check_file_param(self, param)
+            param_is_valid = self._check_file_param(self, param)
             if param_is_valid is None:
                 continue
 
@@ -369,7 +369,7 @@ class Config:
                 if not getattr(kit_data, param):
                     continue
 
-                param_is_valid = self.check_file_param(kit_data, param)
+                param_is_valid = self._check_file_param(kit_data, param)
                 if param_is_valid is None:
                     continue
 
@@ -382,7 +382,7 @@ class Config:
         ok = True
         for param in ("star_index", "features"):
             for organism in ("hg19", "hg38", "mm9", "mm10"):
-                param_is_valid = self.check_file_param(self, f"{param}_{organism}")
+                param_is_valid = self._check_file_param(self, f"{param}_{organism}")
                 if param_is_valid is None:
                     continue
 
