@@ -1,3 +1,12 @@
+"""The module to handle xenograft NGS data.
+
+Xenograft tissues result in mixed information of host and graft. There
+are a few tools to handle these cases, and their approach are pretty
+different.
+
+The purpose of this module is to abstract away some parts and ease the
+integration with other modules.
+"""
 import argparse
 import itertools
 import os
@@ -8,7 +17,7 @@ from copy import deepcopy
 from enum import Enum, auto
 from typing import Any, Dict, Iterable, List, Optional, Union, cast
 
-from . import utils
+from .core import utils
 from .aligner import Aligner, GenericAligner, RnaSeqAligner
 from .analysis import Analysis
 from .barcoded_filename import Analyte, BarcodedFilename
@@ -18,18 +27,24 @@ from .executor import AnalysisFileData, Executor, SingleAnalysis
 
 
 class XenograftClassifier(Enum):
+    """The Xenograft classifier software."""
+
     XENOME = auto()
     DISAMBIGUATE = auto()
 
 
 class SampleFileAvailability:
+    """A class to track the status of the files for a Xenograft."""
+
     def __init__(self) -> None:
+        """Create a default instance of the class."""
         self.compressed = False
         self.uncompressed = False
         self.host = False
         self.graft = False
 
     def __repr__(self) -> str:
+        """Return a human readable format of the data."""
         out = []
         if self.compressed:
             out.append("compressed")
@@ -44,15 +59,31 @@ class SampleFileAvailability:
 
 
 class XenomePreChecker:
+    """A helper class to avoid unnecessary data processing.
+
+    Performing Xenograft data analysis is time consuming. This class
+    helps avoiding unnecessary steps, analysing the current availability
+    and populating the `availability_for_sample_read` dict.
+    """
+
     def __init__(
         self, analysis: Analysis, human_annotation: str, mouse_annotation: str
     ) -> None:
+        """Create an instance of the class.
+
+        The `availability_for_sample_read` is left empty. In order to
+        populate it, the instance must be called using an executor.
+        """
         self.analysis = analysis
         self.human_annotation = human_annotation
         self.mouse_annotation = mouse_annotation
         self.availability_for_sample_read: Dict[int, SampleFileAvailability] = {}
 
     def __call__(self, **kwargs: Any) -> None:
+        """Populate the data analysing the available files.
+
+        This function should be called using an executor.
+        """
         input_filenames: SingleAnalysis = kwargs["input_filenames"]
 
         for filename in input_filenames:
@@ -78,12 +109,22 @@ class XenomePreChecker:
 
 
 class Xenome:
+    """A class to handle the Xenome software.
+
+    Xenome is able to analyse the original FASTQ files and to produce
+    new ones with data split for host and graft.
+    """
+
     RE_XENOME_OUTPUT_FORMAT = re.compile(
         r"^([^-]+-[^-]+-\d[0-9A-Za-z]-\d{3}-\d{3}(?:\.[^.]+)*?)_(\w{2}\d{1,2})_(\d)"
         r"\.fastq"
     )
 
     def __init__(self, analysis: Analysis, fastq_dir: str) -> None:
+        """Create the instance of the class.
+
+        The BAM REPORTS directory is created if needed.
+        """
         self.analysis = analysis
         self.fastq_dir = fastq_dir
         self.xenome_command = "{} classify -T {} -P {}".format(
@@ -103,6 +144,12 @@ class Xenome:
 
     @staticmethod
     def check_correct_index_files(config: Config) -> None:
+        """Check for needed files.
+
+        Xenome needs some auxiliary files that must be created before
+        running HaTSPiL. If some of these are missing, an error is
+        printed and the process exists.
+        """
         index_base = config.xenome_index
 
         non_existant_files: List[str] = []
@@ -144,9 +191,16 @@ class Xenome:
         exit(-1)
 
     def chdir(self) -> None:
+        """Change current directory to the FASTQ folder."""
         os.chdir(self.fastq_dir)
 
     def check(self) -> None:
+        """Check if Xenome must be run for the input file.
+
+        It uses the `XenomePreChecker` with the `Executor`, and it
+        updates the `availability_for_sample_read` according to the
+        pre-checker.
+        """
         self.analysis.logger.info("Checking if xenome must be performed")
         self.chdir()
 
@@ -161,6 +215,12 @@ class Xenome:
         self.analysis.logger.info("Checking complete")
 
     def xenome_must_run(self) -> bool:
+        """Evaluate if Xenome must be run.
+
+        It uses the content of `availability_for_sample_read` to
+        determine if Xenome must be run or if all the files for host and
+        graft are already available.
+        """
         return bool(self.availability_for_sample_read) and any(
             filter(
                 lambda availability: not cast(SampleFileAvailability, availability).host
@@ -170,6 +230,15 @@ class Xenome:
         )
 
     def decompress(self) -> None:
+        """Decompress original file, if needed.
+
+        The original files are generally compressed after Xenome is run.
+        Therefore, if the analysis must be run again, they must be
+        decompressed before being utilised.
+
+        If `self.xenome_must_run()` is False no decompression is
+        performed.
+        """
         if not self.xenome_must_run():
             return
 
@@ -235,6 +304,12 @@ class Xenome:
         self.analysis.logger.info("Finished decompressing original files")
 
     def remove_gzipped_from_files(self) -> None:
+        """Remove gzip files from the Analysis input files.
+
+        If it is not necessary to run Xenome, the original fastq.gz
+        files must not be used in the next step of the analysis. This
+        helper function removes the original files from the `Analysis`.
+        """
         operations_filenames: Dict[str, List[str]] = {}
         assert isinstance(self.analysis.last_operation_filenames, dict)
         for organism, filenames in self.analysis.last_operation_filenames.items():
@@ -251,6 +326,15 @@ class Xenome:
         self.analysis.last_operation_filenames = operations_filenames
 
     def xenome(self) -> None:
+        """Run Xenome, if needed.
+
+        Run Xenome, removing all the ambiguous and uninformative
+        results. The parameters are sets automatically according to the
+        type of type of NGS analysis (if single- or paired-end).
+
+        In case all the output file are already available, Xenome is not
+        run.
+        """
         if not self.xenome_must_run():
             self.remove_gzipped_from_files()
             return
@@ -364,6 +448,11 @@ class Xenome:
         self.analysis.logger.info("Finished xenome")
 
     def compress(self) -> None:
+        """Compress the initial file.
+
+        If Xenome is performed, the initial files can be compressed in
+        order to save some disk space.
+        """
         if self.analysis.run_fake or not self.analyzed_files:
             return
 
@@ -381,9 +470,17 @@ class Xenome:
         self.analysis.logger.info("Finished compressing fastq files")
 
     def cannot_unlink_results(self) -> None:
+        """Set that the last files cannot be unlink."""
         self.analysis.can_unlink = False
 
     def run(self) -> None:
+        """Perform all the steps to correctly handle Xenome.
+        
+        A preliminary check is performed in order to evaluate if Xenome
+        must be run. In this case the run is performed and the
+        original files are compressed. Moreover, the resulting FASTQ
+        files are set to be not deletable.
+        """
         self.check()
         self.decompress()
         self.xenome()
