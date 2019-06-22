@@ -1,3 +1,8 @@
+"""The module dedicated to NGS data alignment.
+
+There are many software able to perform reads alignment. Each of them
+has different purposes, strategies, parameters and behaviours.
+"""
 import csv
 import logging
 import os
@@ -5,23 +10,36 @@ import shutil
 import tempfile
 from enum import Enum, auto
 
-from . import utils
+from .core import utils
 from .analysis import Analysis
 from .barcoded_filename import Analyte, BarcodedFilename
 from .executor import Executor
 
 
 class GenericAligner(Enum):
+    """Aligners that can be used for generic purposes."""
+
     NOVOALIGN = auto()
     BWA = auto()
 
 
 class RnaSeqAligner(Enum):
+    """Aligners that can be used for RNA-seq data."""
+
     STAR = auto()
 
 
 class Aligner:
+    """The class responsible for the alignment with various software.
+
+    Each aligner is handled as a different function, and the `run`
+    function is responsible for choosing the correct aligner. The
+    functions to run the different aligners are public so they can be
+    also used freely.
+    """
+
     def __init__(self, analysis: Analysis) -> None:
+        """Create an instance of the Aligner."""
         self.analysis = analysis
         self.output_basename = os.path.join("REPORTS", self.analysis.basename)
         self.only_human = True
@@ -34,9 +52,17 @@ class Aligner:
         )
 
     def chdir(self) -> None:
+        """Change current directory to the BAM folder."""
         os.chdir(self.analysis.get_bam_dir())
 
     def novoalign(self) -> None:
+        """Run Novoalign aligner.
+
+        The output statistics are collected into two CSVs.
+
+        At to date, Novoalign can be used to run whole exome and gene
+        panel data alignment.
+        """
         self.analysis.logger.info("Running alignment with NovoAlign")
         self.chdir()
         config = self.analysis.config
@@ -121,6 +147,7 @@ class Aligner:
         self.analysis.logger.info("Alignment finished. Aligner used: NovoAlign")
 
     def bwa(self) -> None:
+        """Run the BWA aligner."""
         self.analysis.logger.info("Running alignment with BWA")
         self.chdir()
         config = self.analysis.config
@@ -138,6 +165,12 @@ class Aligner:
         self.analysis.logger.info("Alignment finished. Aligner used: BWA")
 
     def star(self) -> None:
+        """Run STAR to perform alignment of RNA-seq data.
+
+        STAR uses a multi-step procedure to perform the alignment.
+        Indeed, this function is more complex than the other aligner
+        functions.
+        """
         self.analysis.logger.info("Running alignment with STAR")
         config = self.analysis.config
         executor = Executor(self.analysis)
@@ -279,6 +312,12 @@ class Aligner:
         self.analysis.logger.info("Alignment finished. Aligner used: STAR")
 
     def sort_bam(self) -> None:
+        """Sort BAM files using Picard.
+
+        Picard SortSam and Picard ReorderSam are used. A temporary
+        directory is used during the process, and it is cleaned up at
+        the end.
+        """
         self.analysis.logger.info("Sorting BAM(s)")
         self.chdir()
         config = self.analysis.config
@@ -322,6 +361,12 @@ class Aligner:
         self.analysis.logger.info("Finished sorting")
 
     def run(self) -> None:
+        """Start the alignment, using the appropriate aligner.
+
+        It uses STAR for RNA-seq samples, otherwise it uses the
+        Novoalign or BWA depending on the availability, the
+        configuration and the command line parameters.
+        """
         barcoded = BarcodedFilename.from_sample(self.analysis.sample)
 
         if barcoded.analyte == Analyte.RNASEQ:
