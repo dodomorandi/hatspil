@@ -1,3 +1,9 @@
+"""Module to perform sequences mapping.
+
+NGS data evaluation is not just about alignment, there are many steps
+that are necessary or extremely informative and that have to be handled
+carefully. This module is about all these steps.
+"""
 import math
 import os
 import re
@@ -16,7 +22,19 @@ from .xenograft import Xenograft, XenograftClassifier
 
 
 class Mapping:
+    """Handle NGS to produce meaningful results.
+
+    This class does not strictly handle sequence alignment, but all the
+    steps that should be performed to produce meaningful results. There
+    are both pre-alignment and post-alignment steps, and some of them
+    depends on the sample type and/or command-line parameters.
+    """
+
     def __init__(self, analysis: Analysis, fastq_dir: str) -> None:
+        """Create a new instance.
+
+        The reports directories are also created if needed.
+        """
         self.analysis = analysis
         self.fastq_dir = fastq_dir
 
@@ -35,9 +53,20 @@ class Mapping:
         )
 
     def chdir(self) -> None:
+        """Change current directory to the BAM folder."""
         os.chdir(self.analysis.get_bam_dir())
 
     def cutadapt(self) -> None:
+        """Run cutadapt software on the current sample data.
+
+        Cutadapt software is run depending on the fact the NGS data is
+        single-end or paired-end.
+
+        The process uses the adapter information specified in
+        configuration under the kit needed for the sample.
+
+        Results are saved in the database if available.
+        """
         self.analysis.logger.info("Cutting adapters")
         self.chdir()
         config = self.analysis.config
@@ -116,6 +145,10 @@ class Mapping:
         self.analysis.logger.info("Finished cutting adapters")
 
     def fastqc(self) -> None:
+        """Run FastQC tool on the input files.
+
+        Results are placed inside BAM reports directory.
+        """
         self.analysis.logger.info("Running fastqc")
         self.chdir()
 
@@ -128,6 +161,11 @@ class Mapping:
         self.analysis.logger.info("Finished fastqc")
 
     def trim(self) -> None:
+        """Trim the 5' and 3' ends of the reads.
+
+        Uses SeqTK TrimFQ tool to perform a trimming operation depending
+        on the command line parameters.
+        """
         trim_end = False
         if self.analysis.parameters["use_xenograft_classifier"]:
             trim_end = True
@@ -167,10 +205,11 @@ class Mapping:
 
         self.analysis.logger.info("Finished trimming")
 
-    def filter_alignment(*args, **kwargs: Sequence[AnalysisFileData]) -> None:
-        """
-        keep only aligned reads with maximum of N mismatches and without
-        Ns, hard clipping and padding
+    def _filter_alignment(*args, **kwargs: Sequence[AnalysisFileData]) -> None:
+        """Perform some SAM filtering.
+
+        Keep only aligned reads with maximum of N mismatches and without
+        Ns, hard clipping and padding.
         """
         if len(kwargs["input_filenames"]) != 1:
             raise PipelineError("Expected a list with only one file")
@@ -204,11 +243,19 @@ class Mapping:
         os.rename(tmp_filename, input_filename)
 
     def convert_to_bam(self) -> None:
+        """Filter the SAM file and convert the content to BAM.
+
+        The filtering process discards all the reads with a number of
+        mutations above 4% of the length of the read and in case of Ns,
+        hard clipping or padding.
+
+        The conversion to BAM is performed by Picard SamFormatConverter.
+        """
         self.chdir()
         config = self.analysis.config
         executor = Executor(self.analysis)
         executor(
-            self.filter_alignment,
+            self._filter_alignment,
             input_split_reads=False,
             split_by_organism=True,
             only_human=True,
@@ -231,6 +278,10 @@ class Mapping:
         self.analysis.logger.info("Finished alignment SAM->BAM")
 
     def create_bam_index(self) -> None:
+        """Sort BAM and create BAI.
+
+        Both processes are performed by Samtools.
+        """
         self.chdir()
         config = self.analysis.config
         executor = Executor(self.analysis)
@@ -264,6 +315,12 @@ class Mapping:
         self.analysis.logger.info("Finished sorting and creating BAI file")
 
     def add_bam_groups(self) -> None:
+        """Add/replace read groups to BAM.
+
+        It uses Picard AddOrReplaceReadGroups to correctly handle the
+        groups for the analysis. At the end of the process
+        `Mapping.create_bam_index` is run.
+        """
         self.chdir()
         config = self.analysis.config
         executor = Executor(self.analysis)
@@ -295,6 +352,19 @@ class Mapping:
         self.analysis.logger.info("Finished adding/replacing read groups to BAM")
 
     def mark_duplicates(self) -> None:
+        """Mark duplicates depending on the analyte.
+
+        In case the sample is a whole exome, Picard MarkDuplicates is
+        used. Otherwise, when the sample is a gene panel, there are more
+        steps involved. Picard FixMateInformation is used to perform the
+        mate-pair information, then the reads with the mate-pair tag are
+        given to Picard UmiAwareMarkDuplicatesWithMateCigar.
+
+        In both cases the results are stored in the database if
+        possible.
+
+        At to date only these two type of analyte are handled.
+        """
         self.analysis.logger.info("Marking duplicates")
         self.chdir()
         config = self.analysis.config
@@ -426,6 +496,13 @@ class Mapping:
         self.analysis.logger.info("Finished marking duplicates")
 
     def indel_realign(self) -> None:
+        """Perform an indel realignment.
+
+        A realigner target is created using GATK RealignerTargetCreator
+        and the realigned is peformed using GATK IndelRealigner.
+        The parameters are extracted from the configuration in
+        relationship of the kit and the analyte for the current sample.
+        """
         barcoded = BarcodedFilename.from_sample(self.analysis.sample)
         self.analysis.logger.info("Running indel realignment")
         self.chdir()
@@ -478,6 +555,17 @@ class Mapping:
             return None
 
     def recalibration(self) -> None:
+        """Perform a base recalibration step.
+
+        Uses GATK BaseRecalibrator to create a recalibration table, then
+        GATK PrintReads is used to obtain the recalibrated file.
+
+        In case the "run_post_recalibration" is set from command-line,
+        a further step is performed. The BaseRecalibrator is run again
+        with a target list, GATK AnalyzeCovariates is run to generate
+        useful plots and Picard MarkDuplicates is run. The metrics data
+        of this last step is collected in the database, if possible.
+        """
         self.analysis.logger.info("Running base recalibration")
         self.chdir()
         config = self.analysis.config
@@ -586,6 +674,11 @@ class Mapping:
         self.analysis.logger.info("Finished recalibration")
 
     def metrics_collection(self) -> None:
+        """Collect some metrics from the data.
+
+        Picard CollectHsMetrics and Picard CollectGcBiasMetrics are run
+        and the output is stored into the database, if possible.
+        """
         self.analysis.logger.info("Running metrics collection")
         self.chdir()
         config = self.analysis.config
@@ -654,6 +747,11 @@ class Mapping:
         self.analysis.logger.info("Finished metrics collection")
 
     def bam2tdf(self) -> None:
+        """Convert the input BAM to TDF.
+
+        This is pretty useful to allow manual inspection of the data
+        using IGV, even if the process is time consuming.
+        """
         self.analysis.logger.info("Converting BAM to TDF")
         self.chdir()
         config = self.analysis.config
@@ -668,6 +766,7 @@ class Mapping:
         )
 
     def compress_fastq(self) -> None:
+        """Compress the fastq data using gzip compression."""
         self.analysis.logger.info("Compressing fastq files")
         self.chdir()
         fastq_files = utils.find_fastqs_by_organism(
@@ -681,6 +780,16 @@ class Mapping:
         self.analysis.logger.info("Finished compressing fastq files")
 
     def run(self) -> None:
+        """Run the mapping process.
+
+        The steps that are performed depends on the characteristics of
+        the sample and the command line parameters. The whole process
+        involves reads alignment using the `Aligner` class.
+
+        At the end of the function the current `Analysis` instance is
+        has a BAM file that can be furtherly analysed with other modules
+        and tools in order to obtain valuable results.
+        """
         if self.analysis.parameters["skip_mapping"]:
             self.analysis.run_fake = True
 
