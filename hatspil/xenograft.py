@@ -489,7 +489,15 @@ class Xenome:
 
 
 class Disambiguate:
+    """A class to handle disambiguate software.
+
+    Disambiguate works on aligned files, this class helps ease the
+    process of performing host and graft alignment and performing the
+    selection of reads.
+    """
+
     def __init__(self, analysis: Analysis, fastq_dir: str) -> None:
+        """Create an instance of the class."""
         self.analysis = analysis
         self.fastq_dir = fastq_dir
         self.aligned_fastq_files: Union[
@@ -500,6 +508,11 @@ class Disambiguate:
         )
 
     def create_avatar_links(self) -> None:
+        """Create a simlink to handle data as host.
+
+        Create a link to the file with a different barcode, in order to
+        recognize it as a murine data.
+        """
         self.analysis.logger.info("Creating links for avatar organism")
 
         def get_output_format(
@@ -518,7 +531,7 @@ class Disambiguate:
                     "filename that cannot be re-barcoded"
                 )
 
-            return os.path.join(dirname, barcoded_filename)
+            return cast(str, os.path.join(dirname, barcoded_filename))
 
         def do_symlinks(*args: Any, **kwargs: Any) -> None:
             input_filename: str = kwargs["input_filename"].filename
@@ -539,6 +552,7 @@ class Disambiguate:
         self.analysis.can_unlink = False
 
     def unlink_symlinks(self) -> None:
+        """Remove symlinks created with `create_avatar_symlinks`."""
         assert self.aligned_fastq_files
         self.analysis.logger.info("Removing fastq symlinks")
         last_operation_filenames = self.analysis.last_operation_filenames
@@ -563,6 +577,10 @@ class Disambiguate:
         self.analysis.last_operation_filenames = last_operation_filenames
 
     def disambiguate(self) -> None:
+        """Run disambiguate on BAM files.
+
+        At to date, only STAR and BWA aligners are supported.
+        """
         self.analysis.logger.info("Running disambiguate")
 
         analysis = self.analysis
@@ -647,7 +665,7 @@ class Disambiguate:
             split_by_organism=False,
             split_input_files=False,
             input_function=lambda filenames: cast(List[str], filenames)[
-                cast(int, human_bam_index)
+                human_bam_index
             ],
             output_format=f"{out_prefix}.disambiguated{{organism_str}}.bam",
         )
@@ -658,6 +676,12 @@ class Disambiguate:
         self.analysis.logger.info("Finished running disambiguate")
 
     def run(self) -> None:
+        """Perform the xenograft classification with disambiguate.
+
+        The symlinks are created with `create_avatar_links`, the aligner
+        is run, the symlinks removed, the BAM sorted and, finally,
+        disambiguate is run.
+        """
         self.create_avatar_links()
 
         aligner = Aligner(self.analysis)
@@ -672,9 +696,16 @@ class Disambiguate:
 
 
 class Xenograft:
+    """Class to handle and use the best xenograft classifier available.
+    
+    Disambiguate is preferred over xenome, but the classifier can be
+    specified through command line.
+    """
+
     CLASSIFIERS = [XenograftClassifier.DISAMBIGUATE, XenograftClassifier.XENOME]
 
     def __init__(self, analysis: Analysis, fastq_dir: str) -> None:
+        """Create an instance of the class."""
         self.analysis = analysis
         self.fastq_dir = fastq_dir
         self.classifier = analysis.parameters["xenograft_classifier"]
@@ -684,7 +715,24 @@ class Xenograft:
     def get_available_classifier(
         cmdline_args: argparse.Namespace, config: Config
     ) -> Optional[XenograftClassifier]:
+        """Get the best available xenograft classifier.
 
+        The classifier can be specified using command line parameters,
+        otherwise it is automatically selected depending on the
+        availability in the system.
+
+        Args:
+            cmdline_args: the command line arguments, obtained with
+                          `ArgumentParser.parse_args()`.
+            config: an instance of `Config`.
+
+        Returns:
+            In case the classifier is specified from command-line, it
+            will be returned as `XenograftClassifier` if available.
+            Otherwise, the first available classifier is returned, None
+            if any.
+
+        """
         classifier_name = cmdline_args.xenograft_classifier
         if classifier_name == "auto" or classifier_name is None:
             for classifier in Xenograft.CLASSIFIERS:
@@ -712,6 +760,10 @@ class Xenograft:
                 return None
 
     def run(self) -> None:
+        """Run the selected xenograft classifier.
+
+        The selection is performed according to `self.classifier`. 
+        """
         classifier: Union[Xenome, Disambiguate]
 
         if self.classifier == XenograftClassifier.XENOME:
