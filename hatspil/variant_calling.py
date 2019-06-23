@@ -1,3 +1,4 @@
+"""Module to handle a custom variant calling procedure."""
 import glob
 import math
 import os
@@ -7,7 +8,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 import vcf
 
-from . import utils
+from .core import utils
 from .analysis import Analysis
 from .barcoded_filename import Analyte, BarcodedFilename
 from .db import Db
@@ -17,6 +18,16 @@ from .ranges import GenomicRange, GenomicRanges
 
 
 class VariantCalling:
+    """A class to produce meaningful variant calling results.
+
+    This is a custom approach to integrate the results from the software
+    used for the detection of the mutations and obtain a valuable set
+    of genetic variations.
+    
+    This class contains a Python port of CeredaR R package
+    (https://github.com/matteocereda/ceredaR/).
+    """
+
     min_allele_frequency = 0.01
     min_cov_position = 10
     dataset_filename = os.path.join(os.path.dirname(__file__), "data.hdf")
@@ -25,6 +36,11 @@ class VariantCalling:
     strelka_tier = 0
 
     def __init__(self, analysis: Analysis) -> None:
+        """Create an instance of the class.
+        
+        The variant calling output directory and a temporary directory
+        for ANNOVAR are created if they do not exist.
+        """
         self.analysis = analysis
 
         os.makedirs(analysis.get_out_dir(), exist_ok=True)
@@ -62,9 +78,15 @@ class VariantCalling:
         )
 
     def chdir(self) -> None:
+        """Change current directory to the variant calling folder."""
         os.chdir(self.analysis.get_out_dir())
 
     def prepare_for_annovar(self) -> None:
+        """Prepare all the data for ANNOVAR.
+
+        The data produced by MuTect, VarScan and Strelka is collected
+        and filtered in order to produce an input file for ANNOVAR.
+        """
         self.analysis.logger.info("Starting data preparation for ANNOVAR")
 
         self.variants = None
@@ -409,6 +431,10 @@ class VariantCalling:
         self.analysis.logger.info("Finished data preparation for ANNOVAR")
 
     def annovar(self) -> None:
+        """Run ANNOVAR.
+
+        This function must be run after `prepare_for_annovar`.
+        """
         self.analysis.logger.info("Running ANNOVAR")
         config = self.analysis.config
 
@@ -432,6 +458,15 @@ class VariantCalling:
         self.analysis.logger.info("Finished running ANNOVAR")
 
     def collect_annotated_variants(self) -> None:
+        """Collect and evaluate the results from ANNOVAR.
+
+        The results obtained from ANNOVAR are collected and curated
+        databases about mutations information are used in order to
+        obtain the most damaging and dangerous mutations. It is also
+        checked whether the mutations could be druggable or not.
+
+        The results are also stored in the database, if possible.
+        """
         self.analysis.logger.info("Collecting annotated variants from ANNOVAR")
 
         barcoded_sample = BarcodedFilename.from_sample(self.analysis.sample)
@@ -699,6 +734,7 @@ class VariantCalling:
         self.analysis.logger.info("Finished collecting annotated variants from ANNOVAR")
 
     def run(self) -> None:
+        """Run the variant calling algorithm."""
         if not self.analysis.run_fake and (
             len(self.mutect_filenames)
             + sum([len(values) for values in self.varscan_filenames.values()])
