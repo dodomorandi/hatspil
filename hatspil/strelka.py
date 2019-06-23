@@ -1,3 +1,4 @@
+"""Module to handle Strelka software."""
 import os
 import shutil
 
@@ -6,7 +7,16 @@ from .executor import Executor
 
 
 class Strelka:
+    """Class to help the multi-step process of running Strelka."""
+
     def __init__(self, analysis: Analysis) -> None:
+        """Create an instance of the class.
+
+        It creates the directory `Strelka` in the root directory in case
+        it does not exist. If a directory with the basename of the
+        sample already exists inside `Strelka`, it is automatically
+        deleted.
+        """
         self.analysis = analysis
         self.strelka_perl = os.path.join(
             self.analysis.config.strelka_basedir, "bin", "configureStrelkaWorkflow.pl"
@@ -20,9 +30,14 @@ class Strelka:
             shutil.rmtree(self.strelka_dir)
 
     def chdir(self) -> None:
+        """Change current directory to the root directory."""
         os.chdir(self.analysis.root)
 
     def configure_strelka(self) -> None:
+        """Run the configuration step of Strelka.
+
+        The process uses the `configureStrelkaWorkflow.pl` tool.
+        """
         self.analysis.logger.info("Configuring strelka")
         self.chdir()
 
@@ -42,6 +57,13 @@ class Strelka:
         self.analysis.logger.info("Finished configuring strelka")
 
     def make(self) -> None:
+        """Run `make` for `Strelka`.
+
+        It changes the directory inside the Strelka directory for the
+        current sample, and then it runs `make`.
+
+        This function must be run only after `configure_strelka`.
+        """
         self.analysis.logger.info("Running make for strelka")
         if not self.analysis.run_fake:
             self.chdir()
@@ -58,5 +80,13 @@ class Strelka:
         self.analysis.logger.info("Finished make for strelka")
 
     def run(self) -> None:
+        """Run the Strelka software.
+
+        It performs the configuration for Strelka, then it uses `make`
+        in order to run the analysis for the current samples.
+
+        It is important to note that Strelka needs a control sample to
+        perform the analysis.
+        """
         self.configure_strelka()
         self.make()
