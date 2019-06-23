@@ -21,14 +21,15 @@ class VarScan:
         self.min_tumor_frequency = 0.01
         self.p_value_somatic = 0.05
 
-        os.makedirs(analysis.get_out_dir(), exist_ok=True)
+        out_dir = analysis.get_out_dir()
+        os.makedirs(out_dir, exist_ok=True)
 
-        if self.analysis.using_normals:
-            self.first_fifo = "/data/scratch/matteo/%s.fifo" % self.analysis.basename
-        else:
-            self.first_fifo = "/data/scratch/matteo/%s.fifo" % self.analysis.basename
-            self.second_fifo = (
-                "/data/scratch/matteo/%s.indel.fifo" % self.analysis.basename
+        self.first_fifo = os.path.join(
+            out_dir, "{}.fifo".format(self.analysis.basename)
+        )
+        if not self.analysis.using_normals:
+            self.second_fifo = os.path.join(
+                out_dir, "{}.indel.fifo".format(self.analysis.basename)
             )
 
     def chdir(self) -> None:
