@@ -1,3 +1,12 @@
+"""The module to easily handle the HaTSPiL database.
+
+This module contains an abstraction layer between the data stored in the
+MongoDB and the collections used in HaTSPiL.
+
+More fine grained modules should be handled if possible (see `cutadapt`
+and `picard_metrics` modules), but at the same time the main class of
+this module, `Db`, can be used in powerful ways to perform simple tasks.
+"""
 from typing import Any, Dict, Optional
 
 from bson import ObjectId
@@ -8,6 +17,13 @@ from .collection import Collection
 
 
 class Db:
+    """The abstraction layer above the MongoDB for HaTSPiL.
+
+    This class can be used to easily get the collections of HaTSPiL
+    stored in the MongoDB and to perform simple tasks like storing
+    barcoded filenames.
+    """
+
     _COLLECTIONS = [
         "projects",
         "patients",
@@ -32,6 +48,14 @@ class Db:
     picard_metrics: Collection
 
     def __init__(self, config: Config) -> None:
+        """Create an instance of the class.
+
+        If the configuration specifies that the MongoDB can be used, an
+        instance of the client is also created.
+
+        The collections are also populated automatically, creating an
+        instance of a `Collection` for each of them.
+        """
         self.config = config
 
         if config.use_mongodb:
@@ -46,6 +70,17 @@ class Db:
             setattr(self, collection_name, Collection(self, collection_name))
 
     def store_barcoded(self, barcoded: BarcodedFilename) -> Optional[Dict[str, Any]]:
+        """Store a barcoded filename in the database.
+
+        Each part of the barcode is searched in the database, and it is
+        inserted automatically if not already available.
+
+        The return value is a dict containing pairs of name of the part
+        of the barcode and the content stored in the database.
+
+        In case MongoDB cannot be used from the config or an error
+        occurred, `None` is returned.
+        """
         if not self.config.use_mongodb:
             return None
 
@@ -105,6 +140,17 @@ class Db:
     def from_barcoded(
         self, barcoded: BarcodedFilename
     ) -> Optional[Dict[str, Dict[str, Any]]]:
+        """Retrieve the data stored in the database for a barcode.
+
+        Each part of the barcode is used to find the respective
+        representation in the database.
+
+        The return value is a dict containing pairs of name of the part
+        of the barcode and the content stored in the database.
+
+        In case MongoDB cannot be used from the config or an error
+        occurred, `None` is returned.
+        """
         if not self.config.use_mongodb:
             return None
 
@@ -164,6 +210,11 @@ class Db:
     def from_sequencing_id(
         self, sequencing_id: ObjectId
     ) -> Optional[Dict[str, Dict[str, Any]]]:
+        """Retrieve the data stored in the database for a sequencing.
+
+        This is similar to `Db.from_barcoded`, but only uses the id of
+        a sequencing to retrieve the data.
+        """
         if not self.config.use_mongodb:
             return None
 
@@ -197,6 +248,15 @@ class Db:
 
     @staticmethod
     def to_barcoded(data: Dict[str, Any]) -> Optional[BarcodedFilename]:
+        """Convert a db-like dict to a `BarcodedFilename`.
+
+        This function takes a dict in the form returned by functions
+        like `Db.from_barcoded` and `Db.from_sequencing_id` and creates
+        a `BarcodedFilename`.
+
+        It uses the `BarcodedFilename.from_parameters` to create the
+        return value.
+        """
         project = data["project"]
         assert project
         project_name = project["name"]
