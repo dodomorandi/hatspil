@@ -1,3 +1,4 @@
+"""Module for handling VarScan analysis."""
 import os
 import subprocess
 from typing import Union, cast
@@ -8,7 +9,19 @@ from .executor import AnalysisFileData, Executor, SingleAnalysis
 
 
 class VarScan:
+    """Class to handle VarScan software.
+
+    VarScan needs to be run in different ways depending on many
+    conditions. This class ease the process of producing meaningful
+    results from VarScan.
+    """
+
     def __init__(self, analysis: Analysis) -> None:
+        """Create an instance of the class.
+
+        The variant calling output directory is created if it does not
+        exist.
+        """
         self.analysis = analysis
 
         self.min_coverage_normal = 2
@@ -33,6 +46,7 @@ class VarScan:
             )
 
     def chdir(self) -> None:
+        """Change current directory to the variant calling folder."""
         os.chdir(self.analysis.get_out_dir())
 
     def _run_varscan_normals(self, **kwargs: Union[str, SingleAnalysis]) -> None:
@@ -190,6 +204,11 @@ class VarScan:
         self.analysis.logger.info("Finished VarScan mpileup2snp/indel")
 
     def process_somatic(self) -> None:
+        """Run VarScan processSomatic.
+        
+        This function is available but it is not currently integrated
+        with the pipeline.
+        """
         self.analysis.logger.info("Running VarScan processSomatic")
         self.chdir()
 
@@ -211,6 +230,14 @@ class VarScan:
         self.analysis.logger.info("Finished VarScan processSomatic")
 
     def cnv(self) -> None:
+        """Run VarScan copynumber.
+        
+        A CNV folder is created inside the variant calling output
+        directory if it does not exist.
+        
+        This function is available but it is not currently integrated
+        with the pipeline.
+        """
         self.analysis.logger.info("Running VarScan copynumber")
         self.chdir()
 
@@ -233,6 +260,16 @@ class VarScan:
         )
 
     def run(self) -> None:
+        """Run VarScan according to the presence of control samples.
+
+        In case no control files are available, VarScan mpileup2snp and
+        VarScan mpileup2indel are used, otherwise VarScan somatic is
+        used.
+
+        This function uses FIFO files in order to pipe data from
+        Samtools to VarScan. These files are deleted automatically at
+        the end of the analysis.
+        """
         self.analysis.logger.info("Running VarScan")
         self.chdir()
 
