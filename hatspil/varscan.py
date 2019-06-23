@@ -208,18 +208,6 @@ class VarScan:
             exception_string="varscan processSomatic error",
         )
 
-        executor(
-            f"{config.java} {config.varscan_jvm_args} -jar {config.varscan} "
-            f"processSomatic "
-            f"{{input_filename}} "
-            f"--min-tumor-freq {self.min_tumor_frequency} "
-            f"--p-value {self.p_value_somatic}",
-            override_last_files=False,
-            input_filenames=[f"{self.analysis.basename}.varscan2.snp.vcf"],
-            error_string="VarScan processSomatic exited with status {status}",
-            exception_string="varscan processSomatic error",
-        )
-
         self.analysis.logger.info("Finished VarScan processSomatic")
 
     def cnv(self) -> None:
