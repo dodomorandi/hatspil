@@ -1,3 +1,4 @@
+"""The module to handle MuTect."""
 import os
 
 from .analysis import Analysis
@@ -5,15 +6,24 @@ from .executor import Executor
 
 
 class Mutect:
+    """Helper class to run MuTect on BAM files."""
+
     def __init__(self, analysis: Analysis) -> None:
+        """Create an instance of the class."""
         self.analysis = analysis
 
         os.makedirs(analysis.get_out_dir(), exist_ok=True)
 
     def chdir(self) -> None:
+        """Change current directory to the variant calling folder."""
         os.chdir(self.analysis.get_out_dir())
 
     def run(self) -> None:
+        """Run MuTect according to the input files.
+
+        The parameters are different depending on the presence of
+        control samples.
+        """
         self.analysis.logger.info("Running mutect")
         self.chdir()
         config = self.analysis.config
