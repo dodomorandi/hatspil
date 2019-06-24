@@ -2,14 +2,14 @@ from multiprocessing.managers import SyncManager
 from threading import Thread
 from typing import Any, Dict, Iterable, List, Optional
 
-from .analysis import Analysis
-from .barcoded_filename import Analyte, BarcodedFilename
 from .config import Config
+from .core.analysis import Analysis
+from .core.barcoded_filename import Analyte, BarcodedFilename
+from .core.starter import Starter
 from .db import Db
 from .mapping import Mapping
 from .mutect import Mutect
-from .reports_generator import ReportsGenerator
-from .starter import Starter
+from .reports.reports_generator import ReportsGenerator
 from .strelka import Strelka
 from .variant_calling import VariantCalling
 from .varscan import VarScan

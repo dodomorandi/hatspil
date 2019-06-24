@@ -5,18 +5,17 @@ from itertools import accumulate
 from typing import (Any, Dict, Iterable, List, Optional, Sequence, Set, TextIO,
                     Tuple, Union, cast)
 
+import colorlover as cl
 import plotly.graph_objs as go
 import plotly.offline as plt
 import spectra
 from bson import ObjectId
 
-import colorlover as cl
-
-from . import utils
-from .barcoded_filename import Analyte, BarcodedFilename
-from .config import Config
-from .db import Db
-from .db.picard_metrics import PicardMetricsType
+from ..config import Config
+from ..core import utils
+from ..core.barcoded_filename import Analyte, BarcodedFilename
+from ..db import Db
+from ..db.picard_metrics import PicardMetricsType
 from .report_table import (ReportTable, ReportTableColumnOrdering,
                            ReportTableSortingType)
 

@@ -15,9 +15,9 @@ from typing import (Any, Callable, Dict, Iterable, List, Mapping, Optional,
                     Sequence, Tuple, Union, cast)
 
 from . import utils
+from ..config import KitData
 from .analysis import Analysis
 from .barcoded_filename import BarcodedFilename
-from .config import KitData
 from .exceptions import DataError, PipelineError
 
 

@@ -17,13 +17,13 @@ from copy import deepcopy
 from enum import Enum, auto
 from typing import Any, Dict, Iterable, List, Optional, Union, cast
 
-from .core import utils
 from .aligner import Aligner, GenericAligner, RnaSeqAligner
-from .analysis import Analysis
-from .barcoded_filename import Analyte, BarcodedFilename
 from .config import Config
-from .exceptions import PipelineError
-from .executor import AnalysisFileData, Executor, SingleAnalysis
+from .core import utils
+from .core.analysis import Analysis
+from .core.barcoded_filename import Analyte, BarcodedFilename
+from .core.exceptions import PipelineError
+from .core.executor import AnalysisFileData, Executor, SingleAnalysis
 
 
 class XenograftClassifier(Enum):
@@ -531,7 +531,7 @@ class Disambiguate:
                     "filename that cannot be re-barcoded"
                 )
 
-            return cast(str, os.path.join(dirname, barcoded_filename))
+            return os.path.join(dirname, barcoded_filename)
 
         def do_symlinks(*args: Any, **kwargs: Any) -> None:
             input_filename: str = kwargs["input_filename"].filename
@@ -665,7 +665,7 @@ class Disambiguate:
             split_by_organism=False,
             split_input_files=False,
             input_function=lambda filenames: cast(List[str], filenames)[
-                human_bam_index
+                cast(int, human_bam_index)
             ],
             output_format=f"{out_prefix}.disambiguated{{organism_str}}.bam",
         )

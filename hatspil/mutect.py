@@ -1,8 +1,8 @@
 """The module to handle MuTect."""
 import os
 
-from .analysis import Analysis
-from .executor import Executor
+from .core.analysis import Analysis
+from .core.executor import Executor
 
 
 class Mutect:

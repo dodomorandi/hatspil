@@ -7,7 +7,7 @@ from configparser import ConfigParser, SectionProxy
 from itertools import chain
 from typing import Any, Dict, Optional, Tuple
 
-from .barcoded_filename import Analyte
+from .core.barcoded_filename import Analyte
 
 
 class KitData:

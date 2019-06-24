@@ -10,9 +10,9 @@ this module, `Db`, can be used in powerful ways to perform simple tasks.
 from typing import Any, Dict, Optional
 
 from bson import ObjectId
-from hatspil.barcoded_filename import BarcodedFilename, Xenograft
-from hatspil.config import Config
 
+from ..config import Config
+from ..core.barcoded_filename import BarcodedFilename, Xenograft
 from .collection import Collection
 
 

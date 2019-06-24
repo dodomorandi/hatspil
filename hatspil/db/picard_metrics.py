@@ -5,9 +5,9 @@ from typing import Any, Dict, Union, cast
 
 import hatspil.db
 
-from ..analysis import Analysis
-from ..barcoded_filename import BarcodedFilename
-from ..utils import parse_as_number
+from ..core.analysis import Analysis
+from ..core.barcoded_filename import BarcodedFilename
+from ..core.utils import parse_as_number
 from .collection import Collection
 
 

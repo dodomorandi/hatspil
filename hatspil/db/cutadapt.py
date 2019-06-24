@@ -3,9 +3,9 @@ import re
 from typing import Any, Dict, List, TextIO
 
 import hatspil.db
-from hatspil.analysis import Analysis
-from hatspil.barcoded_filename import BarcodedFilename
 
+from ..core.analysis import Analysis
+from ..core.barcoded_filename import BarcodedFilename
 from .collection import Collection
 
 

@@ -2,8 +2,8 @@
 import os
 import shutil
 
-from .analysis import Analysis
-from .executor import Executor
+from .core.analysis import Analysis
+from .core.executor import Executor
 
 
 class Strelka:

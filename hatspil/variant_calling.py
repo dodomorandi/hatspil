@@ -9,12 +9,12 @@ import pandas as pd
 import vcf
 
 from .core import utils
-from .analysis import Analysis
-from .barcoded_filename import Analyte, BarcodedFilename
+from .core.analysis import Analysis
+from .core.barcoded_filename import Analyte, BarcodedFilename
+from .core.exceptions import PipelineError
+from .core.executor import Executor
+from .core.ranges import GenomicRange, GenomicRanges
 from .db import Db
-from .exceptions import PipelineError
-from .executor import Executor
-from .ranges import GenomicRange, GenomicRanges
 
 
 class VariantCalling:

@@ -11,9 +11,9 @@ import tempfile
 from enum import Enum, auto
 
 from .core import utils
-from .analysis import Analysis
-from .barcoded_filename import Analyte, BarcodedFilename
-from .executor import Executor
+from .core.analysis import Analysis
+from .core.barcoded_filename import Analyte, BarcodedFilename
+from .core.executor import Executor
 
 
 class GenericAligner(Enum):

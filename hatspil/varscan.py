@@ -3,9 +3,9 @@ import os
 import subprocess
 from typing import Union, cast
 
-from .analysis import Analysis
-from .exceptions import PipelineError
-from .executor import AnalysisFileData, Executor, SingleAnalysis
+from .core.analysis import Analysis
+from .core.exceptions import PipelineError
+from .core.executor import AnalysisFileData, Executor, SingleAnalysis
 
 
 class VarScan:

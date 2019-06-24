@@ -14,8 +14,8 @@ from typing import (Any, Callable, Dict, Generator, Iterable, List, Mapping,
                     Optional, Sequence, Tuple, TypeVar, Union, ValuesView,
                     cast)
 
+from ..config import Config, KitData
 from .barcoded_filename import BarcodedFilename
-from .config import Config, KitData
 from .exceptions import AnnotationError, DataError
 
 

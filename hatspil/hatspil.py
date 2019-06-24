@@ -12,10 +12,10 @@ from multiprocessing import Manager, Pool
 from typing import (Any, Callable, Dict, Iterable, List, MutableMapping,
                     Optional, Set, Tuple, Union, cast)
 
-from . import utils
 from .aligner import GenericAligner, RnaSeqAligner
-from .barcoded_filename import Analyte, BarcodedFilename, Tissue
 from .config import Config
+from .core import utils
+from .core.barcoded_filename import Analyte, BarcodedFilename, Tissue
 from .runner import Runner
 from .xenograft import Xenograft, XenograftClassifier, Xenome
 

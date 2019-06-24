@@ -9,15 +9,15 @@ import os
 import re
 from typing import Any, List, Optional, Sequence, Union
 
-from . import utils
 from .aligner import Aligner, RnaSeqAligner
-from .analysis import Analysis
-from .barcoded_filename import Analyte, BarcodedFilename
+from .core import utils
+from .core.analysis import Analysis
+from .core.barcoded_filename import Analyte, BarcodedFilename
+from .core.exceptions import PipelineError
+from .core.executor import AnalysisFileData, Executor
 from .db import Db
 from .db.cutadapt import Cutadapt
 from .db.picard_metrics import PicardMetrics, PicardMetricsType
-from .exceptions import PipelineError
-from .executor import AnalysisFileData, Executor
 from .xenograft import Xenograft, XenograftClassifier
 
 
