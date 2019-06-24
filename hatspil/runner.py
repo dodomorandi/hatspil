@@ -1,3 +1,9 @@
+"""Module to ease the process of running an analysis.
+
+Each analysis is run with a high degree of freedom, therefore it is
+useful to have an abstraction layer to easily run a single analysis.
+This module contains this layer of abstraction. 
+"""
 from multiprocessing.managers import SyncManager
 from threading import Thread
 from typing import Any, Dict, Iterable, List, Optional
@@ -16,6 +22,18 @@ from .varscan import VarScan
 
 
 class Runner:
+    """The class to ease the process of running an analysis.
+
+    An instance of the class can be called to perform the main step of
+    the analysis. Samples coupled with a control need a two-step
+    analysis (both sample and control analyses have to be finished
+    before the part that uses both) can be furtherly analysed using the
+    `with_normals` method. The `generate_reports` can be run at the end
+    of the analysis process in order to create a report file for the
+    current analysis and a global report with all the information stored
+    in the database.
+    """
+
     def __init__(
         self,
         manager: SyncManager,
@@ -24,6 +42,16 @@ class Runner:
         parameters: Dict[str, Any],
         fastq_dir: str,
     ) -> None:
+        """Create an instance of the class.
+
+        Args:
+            manager: an instance of a multiprocessing Manager.
+            root: the root directory for the analysis.
+            config: the configuration of the analysis.
+            parameters: the parameters obtained from command line.
+            fastq_dir: the directory containing the FASTQ files that are
+                       going to be analysed.
+        """
         self.last_operations: Dict[str, Any] = manager.dict()
         self.root = root
         self.config = config
@@ -31,6 +59,14 @@ class Runner:
         self.fastq_dir = fastq_dir
 
     def __call__(self, sample: str) -> None:
+        """Run the analysis for the specified sample.
+
+        If the sample has both tumor and control data, the mutations
+        detection and the variant calling are not performed
+        automatically. In this case it is necessary to call
+        `Runner.with_normals` once both tumor and control files have
+        been processed through this function.
+        """
         analysis = Analysis(sample, self.root, self.config, self.parameters)
 
         barcoded_sample = BarcodedFilename.from_sample(sample)
@@ -66,6 +102,18 @@ class Runner:
         self.last_operations[sample] = analysis.last_operation_filenames
 
     def with_normals(self, sample: str, tumor: str, normal: Optional[str]) -> None:
+        """Perform the second part of the analysis using control data.
+
+        Runs the mutation analysis and the variant calling pairing the
+        tumor data with the controls.
+
+        Args:
+            sample: the name of the sample.
+            tumor: the filename of the BAM obtained from the tumor.
+            normal: the filename of the BAM obtained from the normal,
+                    if any. In case `normal` is null, the analysis will
+                    continue without a control for the tumor.
+        """
         if not self.parameters["use_normals"] or self.parameters["only_mapping"]:
             return
 
@@ -92,6 +140,15 @@ class Runner:
             self._run_mutation_analysis(analysis, True)
 
     def generate_reports(self, samples: Iterable[str]) -> None:
+        """Generate the analysis and the global reports.
+
+        The behaviour of the function can be changed by the command line
+        parameters `generate_report` and `generate_global_report`.
+
+        Args:
+            samples: the samples that are included in the analysis
+                     report.
+        """
         barcoded_samples = [BarcodedFilename.from_sample(sample) for sample in samples]
         reports_generator = ReportsGenerator(
             self.root, self.config, self.parameters, barcoded_samples
