@@ -68,7 +68,7 @@ class Aligner:
         config = self.analysis.config
         executor = Executor(self.analysis)
         barcoded = BarcodedFilename.from_sample(self.analysis.sample)
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with tempfile.TemporaryDirectory(dir=config.temporary_dir) as tmpdir:
             filename = os.path.join(tmpdir, "align.log")
             fh = logging.FileHandler(filename)
             self.analysis.logger.addHandler(fh)

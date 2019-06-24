@@ -267,7 +267,8 @@ class Mapping:
             f"{config.java} {config.picard_jvm_args} -jar {config.picard} "
             f"SamFormatConverter "
             f"I={{input_filename}} "
-            f"O={{output_filename}}"
+            f"O={{output_filename}} "
+            f"TMP_DIR={config.temporary_dir}"
             f"{self.max_records_str}",
             output_format=f"{self.analysis.basename}{{organism_str}}.bam",
             error_string="Picard SamFormatConverter exited with status {status}",
@@ -331,7 +332,8 @@ class Mapping:
             f"I={{input_filename}} "
             f"O={{output_filename}} RGID={self.analysis.basename} "
             f"RGLB=lib1 RGPL=ILLUMINA RGPU={{kit.name}} "
-            f"RGSM={self.analysis.basename}"
+            f"RGSM={self.analysis.basename} "
+            f"TMP_DIR={config.temporary_dir}"
             f"{self.max_records_str}",
             output_format=f"{self.analysis.basename}.rg{{organism_str}}.bam",
             error_string="Picard AddOrReplaceReadGroups exited with status {status}",
@@ -380,6 +382,7 @@ class Mapping:
                 f"M={self.output_basename}.marked_dup_metrics"
                 f"{{organism_str}}.txt "
                 f"CREATE_INDEX=true "
+                f"TMP_DIR={config.temporary_dir}"
                 f"{self.max_records_str}",
                 output_format=f"{self.analysis.basename}.srt.marked.dup"
                 f"{{organism_str}}.bam",
@@ -410,6 +413,7 @@ class Mapping:
                 f"O={{output_filename}} "
                 f"ADD_MATE_CIGAR=true "
                 f"IGNORE_MISSING_MATES=true "
+                f"TMP_DIR={config.temporary_dir}"
                 f"{self.max_records_str}",
                 output_format=f"{self.analysis.basename}.srt.mc"
                 f"{{organism_str}}.bam",
@@ -454,6 +458,7 @@ class Mapping:
                 f"CREATE_INDEX=true "
                 f"TAGGING_POLICY=All "
                 f"REMOVE_DUPLICATES=true "
+                f"TMP_DIR={config.temporary_dir}"
                 f"{self.max_records_str}",
                 output_format=f"{self.analysis.basename}.srt.no_duplicates"
                 f"{{organism_str}}.bam",
@@ -646,7 +651,8 @@ class Mapping:
             f"I={{input_filename}} O={{output_filename}} "
             f"REMOVE_DUPLICATES=true "
             f"M={self.output_basename}.no_dup_metrics{{organism_str}}.txt "
-            f"CREATE_INDEX=true"
+            f"CREATE_INDEX=true "
+            f"TMP_DIR={config.temporary_dir}"
             f"{self.max_records_str}",
             output_format=f"{self.analysis.basename}"
             ".srt.realigned.recal.no_dup"
@@ -698,7 +704,8 @@ class Mapping:
             f"COVERAGE_CAP=10000 "
             f"CLIP_OVERLAPPING_READS=false "
             f"PER_BASE_COVERAGE={self.output_basename}.coverage"
-            f"{{organism_str}}.txt"
+            f"{{organism_str}}.txt "
+            f"TMP_DIR={config.temporary_dir}"
             f"{self.max_records_str}",
             error_string="Picard CollectHsMetrics exited with status {status}",
             exception_string="picard CollectHsMetrics error",
@@ -724,7 +731,8 @@ class Mapping:
             f"R={{genome_ref}} I={{input_filename}} "
             f"O={self.output_basename}.gcbias.metrics{{organism_str}}.txt "
             f"CHART={self.output_basename}.gcbias_metrics{{organism_str}}.pdf "
-            f"S={self.output_basename}.gcbias_summ_metrics{{organism_str}}.txt"
+            f"S={self.output_basename}.gcbias_summ_metrics{{organism_str}}.txt "
+            f"TMP_DIR={config.temporary_dir}"
             f"{self.max_records_str}",
             error_string="Picard CollectGcBiasMetrics exited with status {status}",
             exception_string="picard CollectGcBiasMetrics error",

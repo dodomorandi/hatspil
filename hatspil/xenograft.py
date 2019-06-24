@@ -348,7 +348,9 @@ class Xenome:
         else:
             pairing_parameter = ""
 
-        temp_dir = os.path.join(os.path.sep, "tmp", "%s.xenome" % self.analysis.sample)
+        temp_dir = os.path.join(
+            self.analysis.config.temporary_dir, "%s.xenome" % self.analysis.sample
+        )
         if not os.path.exists(temp_dir):
             os.makedirs(temp_dir, exist_ok=True)
 

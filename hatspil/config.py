@@ -67,6 +67,7 @@ class Config:
         "dbsnp138_hg19",
         "dbsnp138_hg38",
         "annovar_basedir",
+        "temporary_dir",
     )
     optional_files = (
         "star_index_hg19",
@@ -149,6 +150,7 @@ class Config:
         self.strelka_config = "/usr/share/strelka/config.ini"
         self.strelka_threads = 1
         self.annovar_basedir = "/usr/share/annovar"
+        self.temporary_dir = "/tmp"
         self.bam2tdf = "bam2tdf.jar"
         self.hg19_ref = "ucsc.hg19.fasta"
         self.hg19_index = "ucsc.hg19"
