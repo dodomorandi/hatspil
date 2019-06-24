@@ -1,3 +1,4 @@
+"""Helper module to store Cutadapt results into a MongoDB."""
 import re
 from typing import Any, Dict, List, TextIO
 
@@ -9,6 +10,13 @@ from .collection import Collection
 
 
 class Cutadapt:
+    """Helper class to store Cutadapt results into a MongoDB.
+
+    Deserialize the content of a results file from Cutadapt is not
+    trivial. This class abstracts this process, allowing an easier data
+    processing from other modules.
+    """
+
     RE_READ_WITH_ADAPTER = re.compile(r"\s*Read (\d) with adapter:\s*(.*)")
     RE_SHORT_PAIRS = re.compile(r"\s*Pairs that were too short:\s*(.*)")
     RE_PAIRS_WRITTEN = re.compile(r"\s*Pairs written (passing filters):\s*(.*)")
@@ -22,12 +30,17 @@ class Cutadapt:
     RE_ADAPTER_ERROR = re.compile(r"(\d+)(?:-(\d+))? bp: (\d+)")
 
     def __init__(self, db: "hatspil.db.Db") -> None:
+        """Create an instance of the class."""
         self.db = db
         self.collection = Collection(db, "cutadapt")
 
     def store_from_file(
         self, analysis: Analysis, cutadapt_report_filename: str
     ) -> None:
+        """Read a Cutadapt results file and store the content in the DB.
+
+        In case MongoDB cannot be used, no operation is performed.
+        """
         if not analysis.config.use_mongodb or analysis.run_fake:
             return
 
@@ -181,6 +194,7 @@ class Cutadapt:
 
     @staticmethod
     def from_file_to_dict(cutadapt_report_filename: str) -> Dict[str, Any]:
+        """Deserialize a Cutadapt results file into a dict."""
         data: Dict[str, Any] = {}
 
         with open(cutadapt_report_filename) as fd:
