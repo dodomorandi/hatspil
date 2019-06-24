@@ -1,3 +1,8 @@
+"""The execution module of HaTSPiL.
+
+This module contains the basic elements to start the execution of the
+software from command line.
+"""
 import argparse
 import itertools
 import logging
@@ -21,6 +26,7 @@ from .xenograft import Xenograft, XenograftClassifier, Xenome
 
 
 def get_parser() -> argparse.ArgumentParser:
+    """Create the command line argument parser."""
     parser = argparse.ArgumentParser(
         description="Makes your life easier when performing some HTS analysis."
     )
@@ -214,7 +220,31 @@ def set_aligner_param(
     files_checkers: Iterable[Optional[Callable[[Config], bool]]],
     config: Config,
 ) -> None:
+    """Set the aligner parameters depending on the command line args.
 
+    It evaluates the command line parameters and the software available
+    in order to choose the best aligner. It can be used dynamically in
+    order to work for generic aligners and RNA-seq aligners.
+    It is worth noting that `available_aligners` and `files_checkers`
+    are iterated together using `zip`, therefore they must have the same
+    length to produce meaningful results.
+
+    In case no valid option are found the function print an error and
+    exits the process.
+
+    Args:
+        args: the command line arguments.
+        parameters: the parameters that will be updated to set the
+                    desired aligner.
+        param_name: name of the argument that will be searched for and
+                    name of the parameter that will be set.
+        available_aligners: an iterable collection of enumerations
+                            containing the possible aligners.
+        files_checkers: an iterable collection of functions that take a
+                        config object and return a bool. Useful to
+                        perform fine-grained checks for each aligner.
+        config: the configuration object used for the analysis.
+    """
     type_aligner = getattr(args, param_name)
     if type_aligner == "auto" or type_aligner is None:
         for aligner, files_checker in zip(available_aligners, files_checkers):
@@ -266,6 +296,14 @@ def set_aligner_param(
 
 
 def check_all_kits_are_available(config: Config, samples: Iterable[str]) -> None:
+    """Perform a check to see if all the needed kits are available.
+
+    This function checks whether all the samples have a combination of
+    analyte and kit that is available in the `config` object.
+
+    In case any kit is missing, an error is printed and the process
+    exists.
+    """
     unavailable_kits: Set[Tuple[int, Analyte]] = set()
     for sample in samples:
         barcoded = BarcodedFilename.from_sample(sample)
@@ -294,6 +332,11 @@ def check_all_kits_are_available(config: Config, samples: Iterable[str]) -> None
 
 
 def main() -> None:
+    """Start HaTSPil.
+
+    This is the entry point for the execution of the tool. Preliminary
+    checks and the handling of the analysis is performed here.
+    """
     parser = get_parser()
     args = parser.parse_args()
     if args.configout is not None:
