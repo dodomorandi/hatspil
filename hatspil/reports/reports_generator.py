@@ -1,3 +1,5 @@
+"""The module to generate interactive reports."""
+
 import datetime
 import os
 import re
@@ -21,15 +23,23 @@ from .report_table import (ReportTable, ReportTableColumnOrdering,
 
 
 class FigureData:
+    """A simple abstraction to store a figure.
+
+    The figure can be a PlotLy figure or a table.
+    """
+
     figure: Union[go.Figure, ReportTable]
     date: str
 
     def __init__(self, figure: Union[go.Figure, ReportTable], date: str) -> None:
+        """Create an instance of the class."""
         self.figure = figure
         self.date = date
 
 
 class ReportsGenerator:
+    """An helper class to generate an HTML report."""
+
     FiguresType = Dict[str, List[FigureData]]
     RE_INVALID_CHAR = re.compile(r"[^A-Za-z0-9._-]")
     cached_annotations: Dict[str, Dict[str, Any]] = {}
@@ -45,6 +55,15 @@ class ReportsGenerator:
         parameters: Dict[str, Any],
         barcoded_samples: Optional[Iterable[BarcodedFilename]] = None,
     ) -> None:
+        """Create an instance of the class.
+
+        Args:
+            root: the root directory of the analysis.
+            config: the config of the analysis.
+            parameters: the parameters obtained from command line.
+            barcoded_samples: the barcoded filenames that are included
+                              in the report of the analysis.
+        """
         self.root = root
         self.config = config
         self.parameters = parameters
@@ -55,6 +74,10 @@ class ReportsGenerator:
         self.logger = utils.create_logger("reports")
 
     def generate_analysis_reports(self) -> None:
+        """Generate the report for the current analysis.
+
+        If `barcoded_samples` is None or empty, no report is generated.
+        """
         if self.barcoded_samples is None:
             return
 
@@ -71,6 +94,11 @@ class ReportsGenerator:
         self.logger.info("Finished the creation of the report for the current analysis")
 
     def generate_global_reports(self) -> None:
+        """Generate the global report.
+
+        All the available information in the database is taken into
+        account in order to create the report.
+        """
         self.logger.info("Started the creation of the global report")
 
         barcoded_samples: List[BarcodedFilename] = []
@@ -1360,19 +1388,19 @@ class ReportsGenerator:
 
             out_fd.write("</ul>")
 
-            include_plotlyjs = ReportsGenerator.write_figures_on_fd(
+            include_plotlyjs = ReportsGenerator._write_figures_on_fd(
                 out_fd, "sequencing", figures_by_sequencing, True
             )
-            include_plotlyjs = ReportsGenerator.write_figures_on_fd(
+            include_plotlyjs = ReportsGenerator._write_figures_on_fd(
                 out_fd, "sample", figures_by_sample, include_plotlyjs
             )
-            include_plotlyjs = ReportsGenerator.write_figures_on_fd(
+            include_plotlyjs = ReportsGenerator._write_figures_on_fd(
                 out_fd, "biopsy", figures_by_biopsy, include_plotlyjs
             )
-            include_plotlyjs = ReportsGenerator.write_figures_on_fd(
+            include_plotlyjs = ReportsGenerator._write_figures_on_fd(
                 out_fd, "patient", figures_by_patient, include_plotlyjs
             )
-            ReportsGenerator.write_figures_on_fd(
+            ReportsGenerator._write_figures_on_fd(
                 out_fd, "project", figures_by_project, include_plotlyjs
             )
 
@@ -1388,7 +1416,7 @@ class ReportsGenerator:
             )
 
     @staticmethod
-    def write_figures_on_fd(
+    def _write_figures_on_fd(
         fd: TextIO, figure_type: str, figures_data: FiguresType, include_plotlyjs: bool
     ) -> bool:
         if figures_data:
