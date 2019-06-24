@@ -315,7 +315,7 @@ class BarcodedFilename:
     gzipped: Optional[bool]
 
     def __init__(self, filename: Optional[str] = None) -> None:
-        """Create an instance from an optional filename
+        """Create an instance from an optional filename.
 
         An instance is created and, if a filename is provided, the
         properties are set according to the name of the file.
