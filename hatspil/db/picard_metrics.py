@@ -1,3 +1,4 @@
+"""Module to help deserializing Picard results into a MongoDB."""
 from collections import OrderedDict
 from enum import Enum, auto
 from typing import Any, Dict, Union, cast
@@ -11,6 +12,8 @@ from .collection import Collection
 
 
 class PicardMetricsType(Enum):
+    """The type of a Picard Metrics file."""
+
     hs = auto()
     gcbias = auto()
     marked_duplicates = auto()
@@ -19,13 +22,33 @@ class PicardMetricsType(Enum):
 
 
 class PicardMetrics:
+    """A class to help deserializing the Picard Metrics file into a DB.
+
+    Using this class it is possible to store the different kind of
+    Picard metrics files into the MongoDB using the same abstraction.
+    """
+
     def __init__(self, db: "hatspil.db.Db") -> None:
+        """Create an instance of the class."""
         self.db = db
         self.collection = Collection(db, "picard_metrics")
 
     def store_from_file(
         self, analysis: Analysis, filename: str, metrics_type: PicardMetricsType
     ) -> None:
+        """Deserialize the content of a Picard Metrics file into the DB.
+
+        The type of the metrics is used in the database to store
+        multiple metrics data for the same sample.
+
+        If the MongoDB cannot be used, no operation is performed.
+
+        Args:
+            analysis: the current analysis.
+            filename: the name of the Picard Metrics file.
+            metrics_type: the type of the Picard Metrics stored in the
+                          file.
+        """
         if not analysis.config.use_mongodb or analysis.run_fake:
             return
 
@@ -52,6 +75,7 @@ class PicardMetrics:
 
     @staticmethod
     def from_file_to_dict(picard_generated_filename: str) -> Dict[str, Dict[str, Any]]:
+        """Deserialize a Picard Metrics file into a dict."""
         data: Dict[str, Dict[str, Any]] = {}
 
         with open(picard_generated_filename) as fd:
