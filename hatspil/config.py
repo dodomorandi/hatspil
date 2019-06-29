@@ -89,6 +89,11 @@ class Config:
         "use_mm10",
         "mails",
         "use_mongodb",
+        "picard_jvm_args",
+        "varscan_jvm_args",
+        "gatk_jvm_args",
+        "mutect_jvm_args",
+        "mutect_args",
     )
     kits_files = (
         "target_list",
