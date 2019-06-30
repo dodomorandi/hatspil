@@ -1071,9 +1071,8 @@ class ReportsGenerator:
                 if sample_analysis_date:
                     matchable_samples_dates = [
                         self._get_best_analysis_date_for_sample(matchable_sample)
-                        for matchable_sample in matchable_samples
+                        for matchable_sample in best_samples
                     ]
-
                     def get_date_distance(
                         matchable_sample_date: Optional[datetime.date]
                     ) -> datetime.timedelta:
