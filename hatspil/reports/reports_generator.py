@@ -1073,6 +1073,7 @@ class ReportsGenerator:
                         self._get_best_analysis_date_for_sample(matchable_sample)
                         for matchable_sample in best_samples
                     ]
+
                     def get_date_distance(
                         matchable_sample_date: Optional[datetime.date]
                     ) -> datetime.timedelta:
@@ -1278,6 +1279,17 @@ class ReportsGenerator:
             for (variant, annotation, cosmic_id) in zip(
                 variants, variants_annotations, cosmic_ids
             ):
+                if (
+                    "Chr" not in annotation
+                    or "Start" not in annotation
+                    or "Ref" not in annotation
+                    or "Alt" not in annotation
+                    or "Gene refGene" not in annotation
+                    or "Func refGene" not in annotation
+                    or "druggable" not in annotation
+                ):
+                    continue
+
                 depth = variant.get("DP")
                 report_table.add_row(
                     [
