@@ -841,7 +841,9 @@ class Mapping:
             self.indel_realign()
             self.recalibration()
 
-        self.metrics_collection()
+        if barcoded.analyte != Analyte.RNASEQ:
+            self.metrics_collection()
+
         if self.analysis.parameters["use_tdf"]:
             self.bam2tdf()
         if self.analysis.parameters["compress_fastq"]:
