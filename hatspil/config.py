@@ -27,10 +27,14 @@ class KitData:
         self.name = "Kit"
         self.target_list = "04818-1466508813_target.interval_list"
         self.bait_list = "04818-1466508813_amplicons.interval_list"
-        self.indel_1_hg19 = "1000G_phase1.indels.hg19.sites.vcf"
-        self.indel_2_hg19 = "Mills_and_1000G_gold_standard.indels.hg19.sites.vcf"
-        self.indel_1_hg38 = "1000G_phase1.indels.hg38.sites.vcf"
-        self.indel_2_hg38 = "Mills_and_1000G_gold_standard.indels.hg38.sites.vcf"
+        self.indels_hg19 = [
+            "1000G_phase1.indels.hg19.sites.vcf",
+            "Mills_and_1000G_gold_standard.indels.hg19.sites.vcf",
+        ]
+        self.indels_hg38 = [
+            "1000G_phase1.indels.hg38.sites.vcf",
+            "Mills_and_1000G_gold_standard.indels.hg38.sites.vcf",
+        ]
         self.amplicons = "amplicons.bed"
         self.cancer_site = "soft_tissue"
         self.adapter_r1 = ""
@@ -95,15 +99,7 @@ class Config:
         "mutect_jvm_args",
         "mutect_args",
     )
-    kits_files = (
-        "target_list",
-        "bait_list",
-        "indel_1_hg19",
-        "indel_2_hg19",
-        "indel_1_hg38",
-        "indel_2_hg38",
-        "amplicons",
-    )
+    kits_files = ("target_list", "bait_list", "indels_hg19", "indels_hg38", "amplicons")
     kits_parameters = (
         "name",
         "cancer_site",
@@ -267,14 +263,17 @@ class Config:
             "adapter_r2",
             "target_list",
             "bait_list",
-            "indel_1_hg19",
-            "indel_2_hg19",
-            "indel_1_hg38",
-            "indel_2_hg38",
+            "indels_hg19",
+            "indels_hg38",
             "amplicons",
         ):
             if param_name in section_params:
-                setattr(current_kit, param_name, section_params[param_name])
+                param_value = section_params[param_name]
+                if param_name.startswith("indels_"):
+                    param_value = [
+                        filename.strip() for filename in param_value.split(",")
+                    ]
+                setattr(current_kit, param_name, param_value)
 
         for param_name in ("mean_len_library", "sd_len_library"):
             if param_name in section_params:
@@ -312,7 +311,10 @@ class Config:
             section_name = "KIT {} {}".format(kit_name[0], kit_name[1].name)
             kit = {}
             for param in chain(Config.kits_files, Config.kits_parameters):
-                kit[param] = getattr(kit_data, param)
+                param_value = getattr(kit_data, param)
+                if param.startswith("indel_"):
+                    param_value = ",".join(param_value)
+                kit[param] = param_value
             config[section_name] = kit
 
         mongodb_params = {}
@@ -370,25 +372,36 @@ class Config:
 
         return ok
 
-    def _check_file_param(self, obj: Any, param: str) -> Optional[bool]:
+    def _check_valid_annotation(self, param: str) -> bool:
         if "hg19" in param:
-            if not self.use_hg19:
-                return None
+            return self.use_hg19
         elif "hg38" in param:
-            if not self.use_hg38:
-                return None
+            return self.use_hg38
         elif "mm9" in param:
-            if not self.use_mm9:
-                return None
+            return self.use_mm9
         elif "mm10" in param:
-            if not self.use_mm10:
-                return None
+            return self.use_mm10
+
+        return True
+
+    @staticmethod
+    def _check_readable_filename(filename: str, param: str) -> bool:
+        if not os.access(filename, os.R_OK):
+            sys.stderr.write(
+                "ERROR: {} for param {} cannot be read. Check config.\n".format(
+                    filename, param
+                )
+            )
+            return False
+        else:
+            return True
+
+    def _check_file_param(self, obj: Any, param: str) -> Optional[bool]:
+        if not self._check_valid_annotation(param):
+            return None
 
         filepath = getattr(obj, param)
-        if not os.access(filepath, os.R_OK):
-            sys.stderr.write("ERROR: %s cannot be read. Check config.\n" % param)
-            return False
-        return True
+        return Config._check_readable_filename(filepath, param)
 
     def check_files(self) -> bool:
         """Check if all files are available."""
@@ -407,12 +420,20 @@ class Config:
                 if not getattr(kit_data, param):
                     continue
 
-                param_is_valid = self._check_file_param(kit_data, param)
-                if param_is_valid is None:
-                    continue
+                if param.startswith("indels_"):
+                    if not self._check_valid_annotation(param):
+                        continue
 
-                if not param_is_valid:
-                    ok = False
+                    for filename in getattr(kit_data, param):
+                        if not Config._check_readable_filename(filename, param):
+                            ok = False
+                else:
+                    param_is_valid = self._check_file_param(kit_data, param)
+                    if param_is_valid is None:
+                        continue
+
+                    if not param_is_valid:
+                        ok = False
 
         return ok
 

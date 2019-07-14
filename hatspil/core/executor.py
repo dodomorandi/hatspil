@@ -558,10 +558,7 @@ class Executor:
             organism = utils.get_human_annotation(self.analysis.config)
 
         if kit and organism.startswith("hg"):
-            for index in (1, 2):
-                additional_params["indel_{}".format(index)] = getattr(
-                    kit, "indel_{}_{}".format(index, organism)
-                )
+            additional_params["indels"] = getattr(kit, "indels_{}".format(organism))
 
         return additional_params
 
@@ -779,12 +776,8 @@ class Executor:
                             not available) for the current sample. See
                             `utils.get_kit_from_barcoded` and
                             `config.KitData` for more information.
-                        indel_1, indel_2: two helper variables obtained
-                            from the `kit` using the current `organism`.
-                            For instance, if the current organism is
-                            'hg19', `indel_1` and `indel_2` will contain
-                            the same value as `kit.indel_1_hg19` and
-                            `kit.indel_2_hg19`, respectively.
+                        indels: a helper variable obtained from the
+                            `kit` using the current `organism`.
                         genome_ref: the genome reference file for the
                             current organism. For instance, if the
                             current organism is 'hg19', `genome_ref` has

@@ -7,8 +7,8 @@ import logging
 import os
 from typing import Any, Dict, List, Optional, Union
 
-from . import utils
 from ..config import Config
+from . import utils
 from .barcoded_filename import BarcodedFilename
 from .exceptions import PipelineError
 

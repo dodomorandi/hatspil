@@ -516,11 +516,21 @@ class Mapping:
         if barcoded.analyte == Analyte.RNASEQ:
             rnaseq_parameter = "-U ALLOW_N_CIGAR_READS "
         executor = Executor(self.analysis)
+
+        def indels_getter(*args, **kwargs):
+            if "indels" in kwargs:
+                indels_getter.repr = " ".join(
+                    ["-known {}".format(indel) for indel in kwargs["indels"]]
+                )
+
+        indels_getter.repr = ""
+        executor(indels_getter, override_last_files=False)
+
         executor(
             f"{config.java} {config.gatk_jvm_args} -jar {config.gatk} "
             f"-T RealignerTargetCreator -R {{genome_ref}} "
             f"-I {{input_filename}} -nt {self.gatk_threads} "
-            f"-known {{indel_1}} -known {{indel_2}} "
+            f"{indels_getter.repr} "
             f"{rnaseq_parameter}"
             f"-L {{kit.target_list}} "
             f"-ip 50 -o {{output_filename}}",
@@ -536,7 +546,7 @@ class Mapping:
             f"{config.java} {config.gatk_jvm_args} -jar {config.gatk} "
             f"-T IndelRealigner -R {{genome_ref}} "
             f"-I {{input_filename}} "
-            f"-known {{indel_1}} -known {{indel_2}} "
+            f"{indels_getter.repr} "
             f"{rnaseq_parameter}"
             f"-targetIntervals {self.output_basename}.realignment"
             f"{{organism_str}}.intervals "
