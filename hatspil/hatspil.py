@@ -208,6 +208,15 @@ def get_parser() -> argparse.ArgumentParser:
         action="store",
         help="The directory where the fastq files of the samples are located.",
     )
+    parser.add_argument(
+        "--process-pool",
+        "-p",
+        action="store",
+        type=int,
+        metavar="n",
+        default=5,
+        help="The size of the process pool.",
+    )
 
     return parser
 
@@ -671,7 +680,7 @@ def main() -> None:
 
     error_raised = False
     try:
-        with Pool(5) as pool:
+        with Pool(args.process_pool) as pool:
             pool.map(runner, input_samples)
 
         if args.mail:
@@ -809,7 +818,7 @@ def main() -> None:
 
         error_raised = False
         try:
-            with Pool(5) as pool:
+            with Pool(args.process_pool) as pool:
                 pool.starmap(runner.with_normals, triplets)
 
             if args.mail:
