@@ -6,7 +6,198 @@ As for any Python package, use the *setup.py* script to build and install the pa
 
 One of the most important file is the config.ini. It can be obtained passing only '--configout config.ini' to the program, and it is recommended to modify the resulting file. The program will scan for a file with this name in the current directory, otherwise it must be specified explicitly with the "-c" parameter. 
 
-## Customization of HaTSPiL
+## Required software
+* JVM >= 6
+* JVM 7 (yes, some software needs this version to work correctly)
+* Perl 5
+* Samtools
+* FastQC
+* SeqTK 
+* Picard
+* Varscan
+* Genome Analysis ToolKit (GATK)
+* Mutext
+* Bam2TDF
+* NovoAlign or BWA
+* STAR for RNA-Seq analaysis (partial support)
+* Xenome or Disambiguate for xenograft classification
+
+## Installation
+
+Download from Git repo:
+```bash
+git clone https://github.com/dodomorandi/hatspil.git
+cd hatspil
+```
+
+Install for the current user (recommended)...
+
+```bash
+python3 install --user ./setup.py
+```
+
+... or for anyone.
+
+```bash
+sudo python3 install ./setup.py
+```
+
+## Additional dependencies
+
+In order to use a MongoDB to store the results of the analyses, it is necessary to install the software and then install the python module:
+
+```bash
+pip3 install --user pymongo
+```
+
+## Create your configuration
+
+HaTSPiL requires a configuration file to know how to work.
+To start with a clean template you can use the following:
+
+```bash
+hatspil --configout hatspil.ini
+```
+
+This creates a configuration that can (and should) be edited to set the correct parameters.
+
+The first section requires the path to the executables. If these are available from the current PATH environment variable, you can leave them with the default values.
+
+The second section needs the path of the _.jar_ files. Generally they are in specific folders, therefore it is necessary to set the correct path for all of them.
+
+The third section includes the path of the files used in the analysis. Some of them are mandatory, but others can be omitted. For instance, if you only need _hg38_ and _mm10_ annotations, you can remove the fields related to _hg19_ and _mm9_. Here a brief explanation of what is expected for each parameter:
+
+* strelka\_basedir: where the file of Strelka can be found
+* strelka\_config: the _config.ini_ file for Strelka
+* {genome}\_ref: the genome fasta file
+* {genome}\_index: the NovoAlign index file
+* cosmic\_{genome}: the Cosmic VCF file 
+* dbsnp\_{genome}: The DbSnp VCF file
+* annovar\_basedir: The path of ANNOVAR
+
+The fourth section contains the configuration for some additional parameters:
+
+* xenome\_index: the common part of the index files for Xenome
+* xenome\_threads: the number of threads for Xenome
+* strelka\_threads: the number of threads for Xenome
+* use\_{genome}: whether a particular annotation can be used
+* mails: a comma-separated list of emails to send a notification at the end of the analysis
+* use\_mongodb: whether the MongoDB can be used
+* picard\_jvm\_args: the arguments to pass to the JVM when running Picard
+* varscan\_jvm\_args: the arguments to pass to the JVM when running VarScan
+* gatk\_jvm\_args: the arguments to pass to the JVM when running GATK
+* mutect\_jvm\_args: the arguments to pass to the JVM when running MuTect
+* mutect\_args: the arguments that must be passed to MuTect by default (others are appended)
+
+The fifth section represent a kit section. Multiple kit sections can be specified in the configuration. The header of the section must be formatted using the keyword 'KIT' followed by the index of the kit and the type of the analyte. The latter can be `WHOLE_EXOME`, `GENE_PANEL`, `FUSION_PANEL` or `RNASEQ`.
+The fields for each kit section are the following:
+
+* target\_list: the list of the target genes, in case it is meaninful for the analysis. It is used by Picard.
+* bait\_list: the list of baits, in case it is meaninful for the analysis. It is used by Picard.
+* indels\_{genome}: a comma delimited list of VCF files used during indel realignment. Used by GATK.
+* amplicons: a BED file containing the amplicons. Used during the variant calling.
+* name: the name representing the current kit.
+* cancer\_site: the cancer site to filter for during variant calling. Possible values are: 'esophageal', 'head\_and\_neck', 'leukemia', 'adrenocortical\_carcinoma', 'bladder', 'breast', 'prostate', 'soft\_tissue\_sarcoma', 'colorectal', 'chondroblastoma', 'angiosarcoma', 'melanoma', 'oligodendroglioma', 'pancreas', 'craniopharyngioma', 'Ewing\_sarcoma', 'glioma', 'kidney', 'glioblastoma', 'thyroid', 'ovarian', 'lung', 'endometrial', 'gastric', 'adrenocortical\_adenoma', 'cholangiocarcinoma', 'myeloma', 'meningioma', 'neuroblastoma', 'astrocytoma', 'small\_intestine', 'liver', 'multiple', 'myelodysplasia', 'lymphoma', 'medulloblastoma', 'myeloproliferative\_neoplasm', 'rhabdomyosarcoma', 'rhabdoid', 'nasopharyngeal', 'gallbladder', 'leiomyoma', 'chondromyxoid\_fibroma', 'cervix', 'thymus', 'adrenocortical\_carcinoma ', 'renal\_cell\_carcinoma', 'ameloblastoma', 'chondrosarcoma', 'intracranial\_germ\_cell', 'polymorphous\_low-grade\_adenocarcinoma'.
+* adapter\_r[1|2]: the forward and reverse adapters of the analysis. Used by Cutadapt.
+* [mean|sd]\_len\_library: the mean and the standard deviation of the len of the library. Used by NovoAlign.
+
+The sixth section is related to the MongoDB configuration. The fields are self-explanatory and they are needed to specify the name of the database, the host, the post, the username and the password for the connection to the database.
+
+Modify the configuration file according to your needs. When this step is done, you are almost ready to use HaTSPiL!
+
+## Prepare your fastq files
+
+HaTSPiL uses a barcode system to understand what a file represents and how to handle it. In order to run the software, it is necessary to give an appropriate name to the fastq files that are going to be analysed.
+
+### How barcoding works
+
+First of all, let's see how a barcoded filename is composed using an example:
+```
+lung-lg003-06-021-201
+```
+In order to understand the meaning of the barcode, it is necessary to split it into pieces:
+```
++-------++------+-------+----+---+---+---+---+---+---+
+| part  || lung | lg003 | 06 | 0 | 2 | 1 | 2 | 0 | 1 |
++-------++------+-------+----+---+---+---+---+---+---+
+| index ||   1  |   2   | 3  | 4 | 5 | 6 | 7 | 8 | 9 |
++-------++------+-------+----+---+---+---+---+---+---+
+```
+* Part 1 (lung): the name of the project
+* Part 2 (lg003): the pseudo-identifier for the patient/sample
+* Part 3 (06): the tissue
+* Part 4 (0): The molecule
+* Part 5 (1): The experiment type (analyte)
+* Part 6 (2): The kit
+* Part 7 (2): The biopsy
+* Part 8 (0): The sample
+* Part 9 (1): The sequencing
+
+The project and the patient/sample pseudo-identifier are alphanumeric identifier chosen by the user. They are mainly useful to organize the experiments.
+The tissue value is a identifier, taken from [TCGA](https://gdc.cancer.gov/resources-tcga-users/tcga-code-tables/sample-type-codes). In this example, a "recurrent solid tumor" is used. Common values are _01_ for primary solid tumor, _10_ for blood derived normal and _11_ for solid tissue normal. More information can be found inside the `core.barcoded_filename` module.
+The molecule identifies whether the library preparation was performed from DNA (0) or RNA (1). 
+The kit, the biopsy, the sample and the sequencing are 0-based indices to identify a tree of characteristics for the sample. For instance, in this case it is the third biopsy from the same patient, it is the first sample taken from that biopsy, and it is the second sequencing (maybe the first one had a problem during the library preparation?).
+The experiment type (analyte) identifies which type of analysis was performed on the sample. Possible values for now are whole exome sequencing (0), gene panel sequencing (1), fusion panel sequencing (2, unsupported for now) and RNA-seq sequencing (3, partially supported). Keep in mind that the analyte is very related to the index of the kit, because for each combination of analyte and kit it is possible to specify different behaviours using the configuration file.
+
+### Barcode your fastq files
+
+Let's suppose you are working on a project in which you study different types of carcinoma. This time you collected a biopsy of a lung carcinoma from a new patient. Internally your group uses a random sequence of letters to identify a patient. Moreover, this is the first biopsy from the patient. The biopsy looked quite dishomogeneous, and you decided to divide it in three samples. After some preliminary analysis, you decide to sequence only the third sample. You go for a whole exome sequencing, but unfortunately the first time you sequenced something strange happened with the indices, so you needed to sequence the sample a second time.
+
+Here a brief overview:
+
+* Your project is called 'carc', it stands for _carcinoma_.
+* The patient is lgHRTPAF, 'lg' stands for _lung carcinoma_ and the rest is the random sequence of letters that identify the patient.
+* The tissue is a primary solid tumor, coded as _01_.
+* The molecule is DNA, coded as _0_.
+* You have a kit to perform whole exome sequencing, it is always the same. _0_ is perfect.
+* It is the first biopsy from the patient, coded as _0_ because indices are 0-based.
+* The sample is the third, coded as _2_.
+* It is the second sequencing, coded as _1_.
+
+It is now possible to compose the barcode for the current analysis:
+```
+carc-lgHRTPAF-01-000-021
+```
+The sequencing was performed using paired-end technology, therefore you have got two files, one for the forward reads, on for the reverse reads. The name of the two files will be:
+```
+carc-lgHRTPAF-01-000-021.R1.fastq
+carc-lgHRTPAF-01-000-021.R2.fastq
+```
+
+These two files can be analysed by HaTSPiL. If you have many fastq files to analyse, you can name all of them in order to perform one single run.
+
+## Running HaTSPiL
+
+First of all, it is necessary to create a workspace directory for HaTSPiL. For this example, the workspace will be in `/data/hatspil_workspace`. The directory containing the fastq files can be anywhere, but it is good to place it inside the hatspil workspace (other fastq files can be generated during the process). In this case, a `fastq` directory can be created inside `/data/hatspil_workspace`.
+
+Now it is possible to run HaTSPiL in a very simple way:
+```bash
+hatspil --root-dir /data/hatspil_workspace --fastq-dir /data/hatspil_workspace/fastq --config hatspil.ini --scan-samples
+```
+
+If everything is fine, HaTSPiL with start analysing all the fastq files that have a valid barcode inside the fastq directory.
+
+It is also possible to create a file with a list of partial barcodes that are intended to be analysed. For instance, it is possible to create the file 'hatspil\_carc.txt' with the following content:
+```
+carc
+```
+Then hatspil can be run using `--list-file hatspil_carc.txt` instead of `--scan-samples`.
+
+It is possible to specify a set of whitelisted barcodes, one per line, and it is possible to use the placeholder `*` to consider valid any possible value for a specific field of the barcode. For instance:
+```
+carc-*-01-*21
+lymp-*-10-***-**3
+```
+With this list, HaTSPiL only analyse the solid tumor from the project _carc_ obtained from a gene panel analysis with the third kit, and all the blood normal samples from the project _lymp_ coming from the fourth sequencing.
+
+For more command line options, it is suggested to run `hatspil --help`.
+
+## The results
+
+Inside the root directory the directory 'reports' is created, containing HTML reports for the current analysis and a global report for all the analysis stored in the database.
+If specific information are needed, there are many 'REPORTS' directories placed inside the fastq, the `BAM` and the `Variants` folders, which contain many different type of fine-grained information of the whole analysis.
+
+# Customization of HaTSPiL
 The modular structure of HaTSPiL provides a high level of customizability, but different parts of the software have different complexities. The introduction of new workflow steps is the most appealing and easy customization point, and we briefly describe some small examples. A minimum knowledge of the Python programming language is necessary to extend the features of HaTSPiL.
 
 Suppose that a tool called *parse_bam* has to be integrated in the workflow. This tool expects a BAM file and outputs a SAM file, and it performs a filtering of the data in order to improve the information of the alignment in some way. First of all, it is necessary to understand in which phase *parse_bam* must be run, because of the input filename format. Looking at the *runner.py* module it is possible to see the following at some point:
