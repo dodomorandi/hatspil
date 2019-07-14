@@ -1237,7 +1237,7 @@ class ReportsGenerator:
             ]
             cosmic_ids = []
             for annotation in variants_annotations:
-                cosmic_id = annotation.get("cosmic70")
+                cosmic_id = annotation.get("cosmic")
                 if cosmic_id:
                     splitted_pairs = cosmic_id.split(";")
                     cosmic_id = None
@@ -1263,7 +1263,7 @@ class ReportsGenerator:
                 "Alt",
                 "Gene",
                 "Func",
-                "snp138/cosmic70",
+                "snp/cosmic",
                 "CADD13 PHRED",
                 "identifiers",
                 "druggable",
@@ -1301,7 +1301,7 @@ class ReportsGenerator:
                         annotation["Func refGene"],
                         " ".join(
                             value
-                            for value in [annotation.get("snp138"), cosmic_id]
+                            for value in [annotation.get("snp"), cosmic_id]
                             if value
                         ),
                         annotation["CADD13_PHRED"]

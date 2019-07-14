@@ -220,12 +220,12 @@ def get_genome_ref_index_by_organism(config: Config, organism: str) -> Tuple[str
 def get_dbsnp_by_organism(config: Config, organism: str) -> str:
     """Return the dbSNP filename.
 
-    Select the `config.dbsnp138_*` depending on `organism`.
+    Select the `config.dbsnp_*` depending on `organism`.
     """
     if organism == "hg19":
-        return config.dbsnp138_hg19
+        return config.dbsnp_hg19
     elif organism == "hg38":
-        return config.dbsnp138_hg38
+        return config.dbsnp_hg38
     else:
         raise DataError("Invalid organism")
 

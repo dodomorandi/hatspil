@@ -475,6 +475,9 @@ class VariantCalling:
         assert kit
 
         annotation = pd.read_table(self.multianno_filename)
+        annotation.rename(
+            index=str, columns={"snp138": "snp", "cosmic70": "cosmic"}, inplace=True
+        )
         annotation = annotation[annotation.Chr.str.match(r"chr(?:\d{1,2}|[xXyY])")]
         annotation.insert(
             0,
@@ -503,9 +506,7 @@ class VariantCalling:
         annotation.loc[annotation.gene_type == "rst", "gene_type"] = float("nan")
         annotation["cancer_gene_site"] = float("nan")
         selected_symbols = annotation["Gene.refGene"].isin(selected_cancer_genes.symbol)
-        annotation.loc[
-            selected_symbols, "cancer_gene_site"
-        ] = kit.cancer_site
+        annotation.loc[selected_symbols, "cancer_gene_site"] = kit.cancer_site
 
         annotation.loc[
             annotation["Func.refGene"] == "splicing", "ExonicFunc.refGene"
@@ -627,6 +628,7 @@ class VariantCalling:
             ),
             index=False,
         )
+
         annotation_all[
             [
                 "id",
@@ -640,8 +642,8 @@ class VariantCalling:
                 "GeneDetail.refGene",
                 "ExonicFunc.refGene",
                 "AAChange.refGene",
-                "snp138",
-                "cosmic70",
+                "snp",
+                "cosmic",
                 "CLINSIG",
                 "CLNDBN",
                 "CLNACC",

@@ -64,8 +64,8 @@ class Config:
         "mm10_index",
         "cosmic_hg19",
         "cosmic_hg38",
-        "dbsnp138_hg19",
-        "dbsnp138_hg38",
+        "dbsnp_hg19",
+        "dbsnp_hg38",
         "annovar_basedir",
         "temporary_dir",
     )
@@ -167,8 +167,8 @@ class Config:
         self.mm10_index = "ucsc.mm10"
         self.cosmic_hg19 = "Cosmic.hg19.vcf"
         self.cosmic_hg38 = "Cosmic.hg38.vcf"
-        self.dbsnp138_hg19 = "dbsnp_138.hg19.vcf"
-        self.dbsnp138_hg38 = "dbsnp_138.hg38.vcf"
+        self.dbsnp_hg19 = "dbsnp.hg19.vcf"
+        self.dbsnp_hg38 = "dbsnp.hg38.vcf"
         self.use_hg19 = True
         self.use_hg38 = True
         self.use_mm9 = True

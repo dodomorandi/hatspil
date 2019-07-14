@@ -14,8 +14,8 @@ from enum import Enum
 from typing import (Any, Callable, Dict, Iterable, List, Mapping, Optional,
                     Sequence, Tuple, Union, cast)
 
-from . import utils
 from ..config import KitData
+from . import utils
 from .analysis import Analysis
 from .barcoded_filename import BarcodedFilename
 from .exceptions import DataError, PipelineError
@@ -793,7 +793,7 @@ class Executor:
                             the current organism. For instance, if the
                             current organism is 'hg19', `genome_index`
                             has the same value as `config.hg19_index`.
-                        dbsnp: the `dbsnp138` for the current organism,
+                        dbsnp: the `dbsnp` for the current organism,
                             obtained from `config`.
                         cosmic: the `cosmic` for the current organism,
                             obtined from `config`.
