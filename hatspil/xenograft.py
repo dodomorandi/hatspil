@@ -115,7 +115,11 @@ class Xenome:
     new ones with data split for host and graft.
     """
 
-    RE_XENOME_OUTPUT_FORMAT = re.compile(
+    RE_XENOME_OUTPUT_FORMAT_SINGLE_END = re.compile(
+        r"^([^-]+-[^-]+-\d[0-9A-Za-z]-\d{3}-\d{3}(?:\.[^.]+)*?)_(\w{2}\d{1,2})"
+        r"\.fastq"
+    )
+    RE_XENOME_OUTPUT_FORMAT_PAIRED_END = re.compile(
         r"^([^-]+-[^-]+-\d[0-9A-Za-z]-\d{3}-\d{3}(?:\.[^.]+)*?)_(\w{2}\d{1,2})_(\d)"
         r"\.fastq"
     )
@@ -345,8 +349,48 @@ class Xenome:
         assert len(self.availability_for_sample_read) <= 2
         if len(self.availability_for_sample_read.keys()) == 2:
             pairing_parameter = "--pairs "
+            output_format = f"{self.analysis.sample}_{{}}_{{}}.fastq"
+            output_function = lambda filename: [
+                filename.format(organism, index)
+                for organism, index in itertools.product(
+                    [
+                        self.human_annotation,
+                        self.mouse_annotation,
+                        "ambiguous",
+                        "both",
+                        "neither",
+                    ],
+                    [1, 2],
+                )
+            ]
+            def get_fixed_filename(filename: str) -> str:
+                basename = os.path.basename(filename)
+                dirname = os.path.dirname(filename)
+                new_basename = Xenome.RE_XENOME_OUTPUT_FORMAT_PAIRED_END.sub(
+                    r"\1.\2.R\3.fastq", basename
+                )
+                return os.path.join(dirname, new_basename)
         else:
             pairing_parameter = ""
+            output_format = f"{self.analysis.sample}_{{}}.fastq"
+            output_function = lambda filename: [
+                filename.format(organism)
+                for organism in [
+                    self.human_annotation,
+                    self.mouse_annotation,
+                    "ambiguous",
+                    "both",
+                    "neither",
+                ]
+            ]
+            def get_fixed_filename(filename: str) -> str:
+                basename = os.path.basename(filename)
+                dirname = os.path.dirname(filename)
+                new_basename = Xenome.RE_XENOME_OUTPUT_FORMAT_SINGLE_END.sub(
+                    r"\1.\2.R1.fastq", basename
+                )
+                return os.path.join(dirname, new_basename)
+
 
         temp_dir = os.path.join(
             self.analysis.config.temporary_dir, "%s.xenome" % self.analysis.sample
@@ -383,20 +427,8 @@ class Xenome:
             f"--tmp-dir {temp_dir} "
             f'> "{self.sample_base_out}.xenome_summary.txt"',
             input_function=xenome_input_function,
-            output_format=f"{self.analysis.sample}_{{}}_{{}}.fastq",
-            output_function=lambda filename: [
-                filename.format(organism, index)
-                for organism, index in itertools.product(
-                    [
-                        self.human_annotation,
-                        self.mouse_annotation,
-                        "ambiguous",
-                        "both",
-                        "neither",
-                    ],
-                    [1, 2],
-                )
-            ],
+            output_format=output_format,
+            output_function=output_function,
             input_split_reads=False,
         )
 
@@ -407,14 +439,6 @@ class Xenome:
             override_last_files=False,
             allow_raw_filenames=True,
         )
-
-        def get_fixed_filename(filename: str) -> str:
-            basename = os.path.basename(filename)
-            dirname = os.path.dirname(filename)
-            new_basename = Xenome.RE_XENOME_OUTPUT_FORMAT.sub(
-                r"\1.\2.R\3.fastq", basename
-            )
-            return os.path.join(dirname, new_basename)
 
         def rename_or_delete(**kwargs: SingleAnalysis) -> None:
             input_analyses = kwargs["input_filenames"]
