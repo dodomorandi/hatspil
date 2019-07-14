@@ -277,7 +277,10 @@ class Config:
 
         for param_name in ("mean_len_library", "sd_len_library"):
             if param_name in section_params:
-                setattr(current_kit, param_name, section_params.getint(param_name))
+                try:
+                    setattr(current_kit, param_name, section_params.getint(param_name))
+                except Exception:
+                    setattr(current_kit, param_name, None)
 
     def save(self, filename: str) -> None:
         """Save the object into a config file."""
