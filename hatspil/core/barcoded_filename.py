@@ -17,6 +17,7 @@ lc001 - The name of the sample.
     information.
 1 - The type of NGS experiment, in this case a gene panel assay. See
     'Analyte' for more information.
+1 - The index of the kit, in this case the second (indices are 0-based)
 2 - The index of the biopsy, in this case the third (indices are
     0-based).
 0 - The index of the sample, in this case the first (indices are
