@@ -4,7 +4,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="HatsPil",
-    version="0.5rc0",
+    version="0.6",
     packages=find_packages(),
     python_requires=">=3.6",
     install_requires=[
