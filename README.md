@@ -33,13 +33,13 @@ cd hatspil
 Install for the current user (recommended)...
 
 ```bash
-python3 install --user ./setup.py
+python3 ./setup.py install --user
 ```
 
 ... or for anyone.
 
 ```bash
-sudo python3 install ./setup.py
+sudo python3 ./setup.py install
 ```
 
 ## Additional dependencies
